@@ -1,0 +1,48 @@
+# ==============================================================
+# gitleaks - configuración para POS Enterprise
+# ==============================================================
+
+title = "POS Enterprise gitleaks config"
+
+[extend]
+useDefault = true
+
+# --- Reglas adicionales ---
+
+[[rules]]
+id = "pos-app-key"
+description = "Laravel APP_KEY"
+regex = '''base64:[A-Za-z0-9+/=]{40,}'''
+tags = ["laravel", "key"]
+
+[[rules]]
+id = "pos-stripe-key"
+description = "Stripe secret key"
+regex = '''(?i)sk_live_[a-zA-Z0-9]{20,}'''
+tags = ["stripe", "live"]
+
+[[rules]]
+id = "pos-mercadopago-token"
+description = "MercadoPago access token"
+regex = '''APP_USR-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'''
+tags = ["mercadopago"]
+
+# --- Rutas a ignorar ---
+[allowlist]
+paths = [
+    '''(.*?)(jpg|jpeg|gif|png|webp|svg|ico)''',
+    '''.lock''',
+    '''node_modules''',
+    '''vendor''',
+    '''.env.example''',
+    '''docs/POS_MAESTRO_v3\.md''',  # contiene ejemplos de keys
+    '''CHANGELOG\.md''',
+]
+
+regexes = [
+    # Allowlistar valores de ejemplo claramente marcados
+    '''pos_dev_secret_change_me''',
+    '''redis_dev_secret_change_me''',
+    '''local_key_change_me''',
+    '''local_secret_change_me''',
+]

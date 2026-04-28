@@ -1,0 +1,104 @@
+# ==============================================================
+# .gitignore — POS Enterprise monorepo
+# ==============================================================
+
+# --- Variables de entorno (NUNCA en git) ---
+.env
+.env.*
+!.env.example
+!.env.testing.example
+
+# --- Dependencias ---
+node_modules/
+vendor/
+.composer/
+
+# --- Builds y artefactos ---
+dist/
+build/
+public/build/
+public/hot
+public/storage
+storage/app/public/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/testing/
+storage/framework/views/
+storage/logs/*.log
+bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
+
+# --- Coverage y reports ---
+coverage/
+.phpunit.result.cache
+.phpunit.cache/
+.psalm/
+.phpstan/
+.php-cs-fixer.cache
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace
+.fleet/
+.zed/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# --- Frontend específico ---
+.vite/
+.cache/
+.parcel-cache/
+.nuxt/
+.next/
+.turbo/
+*.local
+stats.html
+stats.json
+
+# --- Docker / runtime ---
+.docker-data/
+docker-compose.override.yml
+
+# --- Secretos y certificados ---
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+auth.json
+secrets/
+.secrets/
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Sistema operativo ---
+.directory
+.Trash-*
+
+# --- Backups y dumps ---
+*.bak
+*.dump
+*.sql.gz
+backups/
+
+# --- Test artifacts ---
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+playwright-report/
+test-results/

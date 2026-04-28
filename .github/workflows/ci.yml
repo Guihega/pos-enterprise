@@ -1,0 +1,245 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PHP_VERSION: '8.3'
+  NODE_VERSION: '22'
+
+jobs:
+  # ============================================================
+  # Detectar qué cambió para no correr todo siempre
+  # ============================================================
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docker/php/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            docker:
+              - 'docker/**'
+              - 'docker-compose.yml'
+
+  # ============================================================
+  # Backend: lint + análisis estático
+  # ============================================================
+  backend-lint:
+    name: Backend · Lint & Static Analysis
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo, pdo_pgsql, redis, intl, mbstring, bcmath, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+
+      - name: Install
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Pint (code style)
+        working-directory: backend
+        run: ./vendor/bin/pint --test
+
+      - name: PHPStan
+        working-directory: backend
+        run: ./vendor/bin/phpstan analyze --memory-limit=1G --no-progress
+
+  # ============================================================
+  # Backend: tests con servicios reales
+  # ============================================================
+  backend-test:
+    name: Backend · Tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pos_test
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pos"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo, pdo_pgsql, redis, intl, mbstring, bcmath, zip
+          coverage: pcov
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+
+      - name: Install
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare test environment
+        working-directory: backend
+        run: |
+          cp .env.example .env.testing 2>/dev/null || cp ../.env.example .env.testing
+          php artisan key:generate --env=testing
+          php artisan config:clear
+
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: pos_test
+          DB_USERNAME: pos
+          DB_PASSWORD: secret
+          REDIS_HOST: 127.0.0.1
+          REDIS_PASSWORD: ''
+        run: php artisan migrate --env=testing --force
+
+      - name: Run tests with coverage
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: pos_test
+          DB_USERNAME: pos
+          DB_PASSWORD: secret
+          REDIS_HOST: 127.0.0.1
+          REDIS_PASSWORD: ''
+        run: php artisan test --parallel --coverage --min=70
+
+  # ============================================================
+  # Frontend: lint + typecheck + tests
+  # ============================================================
+  frontend:
+    name: Frontend · Lint, Type, Test
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit -- --coverage
+      - run: npm run build
+
+  # ============================================================
+  # Seguridad
+  # ============================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks (scan de secretos)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer:v2
+
+      - name: Composer audit
+        working-directory: backend
+        run: composer audit --no-dev || echo "::warning::Composer audit found issues"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: NPM audit
+        working-directory: frontend
+        run: npm audit --audit-level=high || echo "::warning::NPM audit found issues"
+
+  # ============================================================
+  # Resumen (siempre corre)
+  # ============================================================
+  ci-summary:
+    name: CI Summary
+    needs: [backend-lint, backend-test, frontend, security]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo "Backend lint:    ${{ needs.backend-lint.result }}"
+          echo "Backend test:    ${{ needs.backend-test.result }}"
+          echo "Frontend:        ${{ needs.frontend.result }}"
+          echo "Security:        ${{ needs.security.result }}"
+          if [[ "${{ needs.backend-lint.result }}" == "failure" || \
+                "${{ needs.backend-test.result }}" == "failure" || \
+                "${{ needs.frontend.result }}" == "failure" || \
+                "${{ needs.security.result }}" == "failure" ]]; then
+            echo "::error::CI failed"
+            exit 1
+          fi
