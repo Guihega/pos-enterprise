@@ -1,0 +1,610 @@
+openapi: 3.1.0
+
+info:
+  title: POS Enterprise API
+  version: 0.1.0
+  description: |
+    Contrato HTTP del backend de POS Enterprise.
+
+    **Alcance v0.1.0:** esta primera versión cubre las piezas estables y
+    reutilizables (esquemas de error, seguridad, convenciones de headers) y
+    los endpoints menos volátiles: salud y autenticación. Los módulos de
+    catálogo, inventario, caja, ventas, clientes y admin se incorporarán en
+    versiones MINOR posteriores.
+
+    Ver `docs/openapi/README.md` para la convención completa del proyecto.
+  contact:
+    name: Equipo POS Enterprise
+    url: https://github.com/Guihega/pos-enterprise
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Entorno local de desarrollo
+  - url: https://staging.example.com/api/v1
+    description: Staging (placeholder — reemplazar con dominio real)
+  - url: https://api.example.com/api/v1
+    description: Producción (placeholder — reemplazar con dominio real)
+
+# Seguridad por defecto: todo endpoint requiere bearerAuth y el header X-Tenant.
+# Las excepciones (health, login) declaran `security: []` para sobrescribir.
+security:
+  - bearerAuth: []
+    tenantHeader: []
+
+tags:
+  - name: Health
+    description: Endpoint de comprobación del servicio.
+  - name: Auth
+    description: Autenticación, sesión y verificación de PIN supervisor.
+
+paths:
+
+  # ====================================================================
+  # Health
+  # ====================================================================
+  /health:
+    get:
+      operationId: healthCheck
+      tags: [Health]
+      summary: Estado del servicio
+      description: |
+        Devuelve el estado del proceso de la API. No requiere autenticación
+        ni tenant. Útil para orquestadores (Docker, Kubernetes) y monitoring.
+      security: []
+      parameters: []
+      responses:
+        '200':
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, timestamp, version]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    example: pos-api
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: 0.1.0
+
+  # ====================================================================
+  # Auth
+  # ====================================================================
+  /auth/login:
+    post:
+      operationId: login
+      tags: [Auth]
+      summary: Login por email y contraseña
+      description: |
+        Autentica al usuario en el tenant indicado por el header `X-Tenant`
+        y devuelve un token Bearer de Sanctum.
+
+        El email se normaliza al recibirse (`strtolower` + `trim`).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: header
+          name: X-Device-Id
+          required: false
+          description: |
+            Identificador del dispositivo del cliente. Alternativa al campo
+            `device_id` del body; si ambos llegan, gana el del body.
+          schema:
+            type: string
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequestBody'
+            examples:
+              basico:
+                summary: Login mínimo
+                value:
+                  email: admin@tenant-a.local
+                  password: secret123
+              completo:
+                summary: Login con metadatos de dispositivo
+                value:
+                  email: admin@tenant-a.local
+                  password: secret123
+                  device_id: pos-terminal-12
+                  token_name: pos-terminal-12-session
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Email o contraseña incorrectos.
+                  details: []
+                  request_id: null
+                  timestamp: '2026-05-27T12:00:00Z'
+        '402':
+          $ref: '#/components/responses/TenantSuspended'
+        '403':
+          description: Cuenta inactiva
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: ACCOUNT_INACTIVE
+                  message: La cuenta del usuario está desactivada.
+                  details: []
+                  request_id: null
+                  timestamp: '2026-05-27T12:00:00Z'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '423':
+          description: Cuenta bloqueada por intentos fallidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: ACCOUNT_LOCKED
+                  message: La cuenta está bloqueada temporalmente.
+                  details:
+                    seconds_remaining: 873
+                  request_id: null
+                  timestamp: '2026-05-27T12:00:00Z'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/me:
+    get:
+      operationId: me
+      tags: [Auth]
+      summary: Usuario autenticado actual
+      description: Devuelve los datos del usuario dueño del token.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Usuario autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '402':
+          $ref: '#/components/responses/TenantSuspended'
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [Auth]
+      summary: Cerrar sesión actual
+      description: Revoca el token actual. No afecta a otras sesiones del usuario.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Sesión cerrada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [message]
+                    properties:
+                      message:
+                        type: string
+                        example: Sesión cerrada.
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /auth/logout-all:
+    post:
+      operationId: logoutAll
+      tags: [Auth]
+      summary: Cerrar todas las sesiones
+      description: Revoca TODOS los tokens del usuario (todos los dispositivos).
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Todas las sesiones cerradas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [message, tokens_revoked]
+                    properties:
+                      message:
+                        type: string
+                        example: Todas las sesiones cerradas.
+                      tokens_revoked:
+                        type: integer
+                        minimum: 0
+                        example: 3
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /auth/pin-verify:
+    post:
+      operationId: pinVerify
+      tags: [Auth]
+      summary: Verificar PIN supervisor
+      description: |
+        Verifica el PIN del usuario autenticado. Útil para autorizar acciones
+        sensibles (ej: cancelar una venta) sin re-autenticar la sesión.
+
+        Tras 10 intentos fallidos el PIN queda bloqueado 15 minutos.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pin]
+              properties:
+                pin:
+                  type: string
+                  pattern: '^\d{4,8}$'
+                  description: PIN numérico de 4 a 8 dígitos.
+                  example: '457231'
+      responses:
+        '200':
+          description: PIN válido
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [valid]
+                    properties:
+                      valid:
+                        type: boolean
+                        enum: [true]
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: PIN inválido o bloqueado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: PIN_INVALID
+                  message: PIN inválido o cuenta bloqueada.
+                  details: []
+                  request_id: null
+                  timestamp: '2026-05-27T12:00:00Z'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+      description: |
+        Token Bearer de Laravel Sanctum. Se obtiene en `POST /auth/login`.
+        Formato: `<id>|<plain>` (ej. `1|pos_mzifR6jaz...`).
+    tenantHeader:
+      type: apiKey
+      in: header
+      name: X-Tenant
+      description: |
+        Slug o UUID del Company al que pertenece el request. Obligatorio en
+        todo endpoint salvo `/health`. Si no resuelve a un tenant existente,
+        la API responde `400 TENANT_NOT_RESOLVED`.
+
+  parameters:
+    XTenant:
+      in: header
+      name: X-Tenant
+      required: true
+      description: Slug o UUID del Company.
+      schema:
+        type: string
+        example: tenant-a
+    XRequestId:
+      in: header
+      name: X-Request-Id
+      required: false
+      description: |
+        Identificador del cliente para correlacionar logs. Si se envía, se
+        devuelve en `error.request_id` en respuestas de error.
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    # ----- Auth: input/output -----
+
+    LoginRequestBody:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+          description: Email del usuario. Se normaliza a minúsculas y se hace trim.
+        password:
+          type: string
+          minLength: 1
+          maxLength: 255
+        device_id:
+          type: [string, 'null']
+          maxLength: 100
+          description: |
+            Identificador del dispositivo. Alternativamente puede enviarse
+            como header `X-Device-Id`.
+        token_name:
+          type: [string, 'null']
+          maxLength: 100
+          description: Nombre del token en `personal_access_tokens`. Default `pos-session`.
+
+    LoginResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [user, token, token_type]
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            token:
+              type: string
+              description: Token plano. Formato `<id>|<plain>`.
+              example: '1|pos_mzifR6jazPwcCaUHwgAAOPSFeM2m3hXJdDDaCSgWe2224d65'
+            token_type:
+              type: string
+              enum: [Bearer]
+
+    # ----- Recursos -----
+
+    User:
+      type: object
+      required: [uuid, name, email, is_active, must_change_password, two_factor_enabled, has_pin, roles]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        username:
+          type: [string, 'null']
+        is_active:
+          type: boolean
+        must_change_password:
+          type: boolean
+        two_factor_enabled:
+          type: boolean
+        has_pin:
+          type: boolean
+        locale:
+          type: [string, 'null']
+          example: es-MX
+        timezone:
+          type: [string, 'null']
+          example: America/Mexico_City
+        last_login_at:
+          type: [string, 'null']
+          format: date-time
+        default_branch:
+          $ref: '#/components/schemas/Branch'
+        branches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Branch'
+        roles:
+          type: array
+          items:
+            type: string
+          example: [admin]
+        created_at:
+          type: string
+          format: date-time
+
+    Branch:
+      type: object
+      required: [uuid, code, name]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: BNV3
+        name:
+          type: string
+          example: Sucursal Centro
+
+    # ----- Errores: envoltura genérica y variantes -----
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, timestamp]
+          properties:
+            code:
+              type: string
+              description: |
+                Código de error estable. Valores conocidos:
+                `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `ACCOUNT_INACTIVE`,
+                `ACCOUNT_LOCKED`, `PIN_INVALID`, `TENANT_NOT_RESOLVED`,
+                `TENANT_SUSPENDED`, `NOT_FOUND`, `INSUFFICIENT_STOCK`,
+                `INSUFFICIENT_CREDIT`, `PAYMENT_MISMATCH`,
+                `SALE_NOT_CANCELLABLE`, `SESSION_NOT_OPEN`,
+                `SESSION_ALREADY_OPEN`, `INVALID_ARGUMENT`.
+            message:
+              type: string
+              description: Mensaje legible para humanos.
+            details:
+              description: |
+                Detalles específicos del error. Estructura depende del código.
+                Por ejemplo, `ACCOUNT_LOCKED` incluye `seconds_remaining`.
+              oneOf:
+                - type: object
+                - type: array
+            request_id:
+              type: [string, 'null']
+            timestamp:
+              type: string
+              format: date-time
+
+    ValidationErrorBody:
+      type: object
+      required: [message, errors]
+      description: |
+        Formato NATIVO de Laravel para errores de validación (HTTP 422).
+        NO usa la envoltura `error` del proyecto: se mantiene el formato
+        nativo por compatibilidad con la suite de tests existente.
+      properties:
+        message:
+          type: string
+          example: The given data was invalid.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email: [El correo es obligatorio.]
+            password: [La contraseña es obligatoria.]
+
+  responses:
+
+    Unauthenticated:
+      description: |
+        No autenticado. Puede deberse a: falta de token, token inválido,
+        token revocado, o token cuyo dueño no pertenece al tenant del
+        header `X-Tenant`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Unauthenticated.
+              details: []
+              request_id: null
+              timestamp: '2026-05-27T12:00:00Z'
+
+    TenantNotResolved:
+      description: |
+        El header `X-Tenant` no se envió, está vacío, o apunta a un slug/UUID
+        que no corresponde a ningún Company. Se devuelve ANTES de evaluar
+        autenticación.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              code: TENANT_NOT_RESOLVED
+              message: No se pudo determinar el tenant del request.
+              details: []
+              request_id: null
+              timestamp: '2026-05-27T12:00:00Z'
+
+    TenantSuspended:
+      description: La cuenta del tenant está suspendida o cancelada.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              code: TENANT_SUSPENDED
+              message: La cuenta está suspendida o cancelada.
+              details:
+                status: suspended
+                suspension_reason: payment_overdue
+              request_id: null
+              timestamp: '2026-05-27T12:00:00Z'
+
+    ValidationError:
+      description: |
+        Error de validación del request. Formato NATIVO de Laravel
+        (`{ message, errors }`), no la envoltura `error` del proyecto.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorBody'
+
+    TooManyRequests:
+      description: |
+        Se excedió el rate limit del endpoint. `/auth/login` permite 5/min
+        por IP; `/auth/pin-verify` permite 10/min.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Too Many Attempts.
