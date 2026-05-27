@@ -110,8 +110,14 @@ final class EnsureTenantContext
             return $tenant;
         }
 
-        // 3. Token / usuario autenticado
-        if ($tenant = $this->resolveByAuthenticatedUser($request)) {
+        // 3. Token / usuario autenticado. SOLO si NO se proveyó pista por
+        // subdominio/header. Si el cliente dio una pista (p. ej. X-Tenant con
+        // un slug que no existe), NO debemos "rescatar" el tenant desde el
+        // usuario autenticado: eso permitiría que un token de A aterrice en
+        // su propio tenant aunque el header apuntara a otra cosa (basura o
+        // ataque). En presencia de pista inválida → null → 400 (lo enforza
+        // el bloque siguiente y la rama final de este método).
+        if (! $hintProvided && $tenant = $this->resolveByAuthenticatedUser($request)) {
             return $tenant;
         }
 
