@@ -27,12 +27,18 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: development
+      args:
+        WWW_USER_ID: ${UID:-1000}
+        WWW_GROUP_ID: ${GID:-1000}
     container_name: pos-app
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      - ./.env:/var/www/html/.env:ro
       - ./docker/php/php.ini:/usr/local/etc/php/conf.d/zz-pos.ini:ro
+    env_file:
+      - .env
     environment:
       PHP_IDE_CONFIG: "serverName=pos-local"
     depends_on:
@@ -69,7 +75,7 @@ services:
     container_name: pos-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"   # 5433 en host evita choque con Postgres del sistema
     environment:
       POSTGRES_DB: pos
       POSTGRES_USER: pos
@@ -106,7 +112,7 @@ services:
     container_name: pos-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6380}:6379"   # 6380 en host evita choque con Redis del sistema
     command:
       - "redis-server"
       - "/usr/local/etc/redis/redis.conf"
@@ -131,6 +137,9 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: development
+      args:
+        WWW_USER_ID: ${UID:-1000}
+        WWW_GROUP_ID: ${GID:-1000}
     container_name: pos-reverb
     restart: unless-stopped
     working_dir: /var/www/html
@@ -139,6 +148,9 @@ services:
       - "8081:8080"
     volumes:
       - ./backend:/var/www/html
+      - ./.env:/var/www/html/.env:ro
+    env_file:
+      - .env
     depends_on:
       app:
         condition: service_started
@@ -155,12 +167,18 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: development
+      args:
+        WWW_USER_ID: ${UID:-1000}
+        WWW_GROUP_ID: ${GID:-1000}
     container_name: pos-queue
     restart: unless-stopped
     working_dir: /var/www/html
     command: ["php", "artisan", "queue:work", "--queue=high,default,low", "--tries=3", "--backoff=3,10,30", "--max-time=3600"]
     volumes:
       - ./backend:/var/www/html
+      - ./.env:/var/www/html/.env:ro
+    env_file:
+      - .env
     depends_on:
       app:
         condition: service_started
@@ -177,6 +195,9 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: development
+      args:
+        WWW_USER_ID: ${UID:-1000}
+        WWW_GROUP_ID: ${GID:-1000}
     container_name: pos-scheduler
     restart: unless-stopped
     working_dir: /var/www/html
@@ -190,6 +211,9 @@ services:
         done
     volumes:
       - ./backend:/var/www/html
+      - ./.env:/var/www/html/.env:ro
+    env_file:
+      - .env
     depends_on:
       app:
         condition: service_started

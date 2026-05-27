@@ -1,11 +1,54 @@
-# Frontend (Vue 3 + TypeScript PWA)
+# pos-pwa
 
-> Este directorio se llena al ejecutar `./scripts/bootstrap-frontend.sh` en Fase 1.
+This template should help get you started developing with Vue 3 in Vite.
 
-Hasta entonces este directorio existe pero está vacío intencionalmente. El script crea aquí:
+## Recommended IDE Setup
 
-- Proyecto Vue 3.4+ con TypeScript estricto, Pinia, Vue Router, Vitest, ESLint, Prettier.
-- Dependencias del producto: Dexie (IndexedDB), Tailwind, vite-plugin-pwa con Workbox, axios, Laravel Echo.
-- Estructura de carpetas alineada con la arquitectura cliente del documento maestro (`src/api/`, `src/db/`, `src/repositories/`, `src/stores/`, `src/services/`, `src/sync/`, etc.).
+[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
 
-Ver [`docs/POS_MAESTRO_v3.md`](../docs/POS_MAESTRO_v3.md), Parte VI (Offline-first), sección 35.
+## Recommended Browser Setup
+
+- Chromium-based browsers (Chrome, Edge, Brave, etc.):
+  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
+  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
+- Firefox:
+  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
+  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+
+## Type Support for `.vue` Imports in TS
+
+TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+
+## Customize configuration
+
+See [Vite Configuration Reference](https://vite.dev/config/).
+
+## Project Setup
+
+```sh
+npm install
+```
+
+### Compile and Hot-Reload for Development
+
+```sh
+npm run dev
+```
+
+### Type-Check, Compile and Minify for Production
+
+```sh
+npm run build
+```
+
+### Run Unit Tests with [Vitest](https://vitest.dev/)
+
+```sh
+npm run test:unit
+```
+
+### Lint with [ESLint](https://eslint.org/)
+
+```sh
+npm run lint
+```

@@ -2,8 +2,15 @@
 # ==============================================================
 # scripts/bootstrap-backend.sh
 # --------------------------------------------------------------
-# Crea el proyecto Laravel 11 en backend/ y deja todo listo
-# para Fase 1. Idempotente: si ya existe, no hace daño.
+# Instala las dependencias de Composer del backend usando la
+# IMAGEN PROPIA DEL PROYECTO (docker/php/Dockerfile target dev),
+# que sí incluye todas las extensiones PHP requeridas (pcntl,
+# bcmath, pdo_pgsql, redis, intl, etc.).
+#
+# NO usamos `composer:2` de Docker Hub porque su PHP base no
+# tiene las extensiones que Horizon, Reverb y demás requieren.
+#
+# Idempotente: si ya hay vendor/, sale sin hacer nada.
 #
 # Uso:
 #   ./scripts/bootstrap-backend.sh
@@ -21,74 +28,53 @@ yellow() { printf '\033[0;33m%s\033[0m\n' "$*"; }
 
 # --- Verificaciones previas ---
 command -v docker >/dev/null 2>&1 || { red "✗ Docker no está instalado"; exit 1; }
-docker compose version >/dev/null 2>&1 || { red "✗ Docker Compose plugin no disponible"; exit 1; }
+
+if ! docker compose version >/dev/null 2>&1; then
+    red "✗ Docker Compose plugin (v2) no disponible"
+    yellow "  Instálalo: sudo apt install docker-compose-plugin"
+    exit 1
+fi
 
 cd "${ROOT}"
 
-if [ -f "${BACKEND_DIR}/composer.json" ]; then
-    yellow "→ backend/ ya existe con composer.json. Asumiendo proyecto inicializado."
-    yellow "  Si quieres re-bootstrappear, borra backend/ primero (DESTRUCTIVO)."
+# --- Verificar que el repo está completo ---
+if [ ! -f "${BACKEND_DIR}/composer.json" ]; then
+    red "✗ No encontré backend/composer.json"
+    red "  El backend debe estar pre-poblado por nosotros antes de bootstrap."
+    red "  Aplica el último tarball del proyecto antes de re-ejecutar este script."
+    exit 1
+fi
+
+if [ -d "${BACKEND_DIR}/vendor" ] && [ -f "${BACKEND_DIR}/vendor/autoload.php" ]; then
+    yellow "→ backend/vendor/ ya existe. Salgo sin hacer nada."
+    yellow "  Si quieres reinstalar: rm -rf backend/vendor backend/composer.lock"
     exit 0
 fi
 
-cyan "→ Creando proyecto Laravel 11 en backend/ usando contenedor temporal..."
+# --- Construir la imagen del proyecto si no existe ---
+cyan "→ Construyendo imagen Docker del proyecto (target development)..."
+cyan "  (incluye PHP 8.3 + pcntl, bcmath, pdo_pgsql, redis, intl, gd, zip, opcache)"
 
-# Limpia backend/ pero preserva el directorio
-mkdir -p "${BACKEND_DIR}"
-find "${BACKEND_DIR}" -mindepth 1 -delete
+docker build \
+    -f docker/php/Dockerfile \
+    --target development \
+    --build-arg WWW_USER_ID=$(id -u) \
+    --build-arg WWW_GROUP_ID=$(id -g) \
+    -t pos-enterprise-backend-dev:latest \
+    .
 
-# Usa composer en contenedor para no requerir PHP local
-docker run --rm \
-    -v "${BACKEND_DIR}:/app" \
-    -u "$(id -u):$(id -g)" \
-    composer:2 \
-    create-project --prefer-dist laravel/laravel:^11.0 /app --no-scripts --no-interaction
-
-cyan "→ Instalando dependencias adicionales del proyecto..."
-
-docker run --rm \
-    -v "${BACKEND_DIR}:/app" \
-    -u "$(id -u):$(id -g)" \
-    -w /app \
-    composer:2 \
-    require --no-interaction \
-        laravel/sanctum \
-        laravel/reverb \
-        laravel/horizon \
-        spatie/laravel-permission \
-        spatie/laravel-activitylog \
-        ramsey/uuid \
-        league/csv
-
-cyan "→ Instalando dependencias de desarrollo..."
+cyan "→ Instalando dependencias del backend con Composer (en imagen propia)..."
 
 docker run --rm \
-    -v "${BACKEND_DIR}:/app" \
-    -u "$(id -u):$(id -g)" \
-    -w /app \
-    composer:2 \
-    require --dev --no-interaction \
-        laravel/pint \
-        phpstan/phpstan \
-        larastan/larastan \
-        nunomaduro/collision \
-        pestphp/pest \
-        pestphp/pest-plugin-laravel \
-        pestphp/pest-plugin-faker
-
-cyan "→ Vinculando .env del monorepo al backend..."
-
-if [ -f "${ROOT}/.env" ]; then
-    ln -sf "${ROOT}/.env" "${BACKEND_DIR}/.env"
-    green "✓ .env enlazado"
-else
-    yellow "⚠ No se encontró .env en raíz; copia .env.example primero"
-fi
+    -v "${BACKEND_DIR}:/var/www/html" \
+    -w /var/www/html \
+    pos-enterprise-backend-dev:latest \
+    composer install --no-interaction --prefer-dist --no-progress --no-scripts
 
 green ""
-green "✓ Backend Laravel 11 inicializado en backend/"
+green "✓ Backend Laravel inicializado en backend/ con todas sus dependencias"
 green ""
 cyan "Próximos pasos:"
-echo "  1. make up"
-echo "  2. make artisan cmd=\"key:generate\""
-echo "  3. Continuar con Fase 1 (modelos, migraciones, etc.)"
+echo "  1. test -f .env || cp .env.example .env"
+echo "  2. make up                         (levanta toda la stack)"
+echo "  3. sleep 20 && make status         (verifica que todo está Up)"
