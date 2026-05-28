@@ -109,6 +109,24 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Limpia el state de sesion sin llamar al backend.
+   *
+   * Para casos donde sabemos que el token ya no sirve y llamar a
+   * /auth/logout seria inutil: detectado por el interceptor de 401,
+   * sesion expirada, etc. Si quieres revocar el token explicitamente
+   * en el backend, usa `logout()`.
+   */
+  function forceLogout(): void {
+    token.value = null
+    tenant.value = null
+    user.value = null
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(TENANT_STORAGE_KEY)
+    clearApiToken()
+    clearApiTenant()
+  }
+
+  /**
    * Rehidrata la sesion al arrancar la app si hay token y tenant en
    * localStorage. Si falta uno de los dos o /auth/me devuelve error,
    * limpia todo en silencio y la app sigue como anonima.
@@ -156,6 +174,7 @@ export const useAuthStore = defineStore('auth', () => {
     // actions
     login,
     logout,
+    forceLogout,
     hydrate,
   }
 })
