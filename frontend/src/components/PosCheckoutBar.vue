@@ -1,21 +1,38 @@
 <script setup lang="ts">
-// Placeholder de 3a. El boton "Cobrar" abrira el modal de cobro
-// multi-metodo en 3e. El total se conectara al store del carrito
-// en 3c.
-const total = 0
-const itemCount = 0
+import { useCartStore } from '@/stores/cart'
+
+const cartStore = useCartStore()
+
+function formatPrice(value: number): string {
+  return value.toLocaleString('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+  })
+}
+
+function onCheckout(): void {
+  // El modal de cobro multi-metodo llega en 3e.
+   
+  console.log('[POS] Cobrar:', cartStore.grandTotal, cartStore.items)
+}
 </script>
 
 <template>
   <footer class="pos-checkout">
     <div class="pos-checkout__summary">
-      <span class="pos-checkout__count">{{ itemCount }} item(s)</span>
-      <span class="pos-checkout__total">$ {{ total.toFixed(2) }}</span>
+      <span class="pos-checkout__count">
+        {{ cartStore.lineCount }} item(s)
+      </span>
+      <span class="pos-checkout__total">
+        {{ formatPrice(cartStore.grandTotal) }}
+      </span>
     </div>
     <button
       type="button"
       class="pos-checkout__btn"
-      :disabled="itemCount === 0"
+      :disabled="cartStore.isEmpty"
+      @click="onCheckout"
     >
       Cobrar
     </button>
