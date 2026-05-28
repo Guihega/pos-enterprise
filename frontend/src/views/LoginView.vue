@@ -1,15 +1,36 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+/**
+ * Clave para recordar el ultimo tenant usado y autofill en futuros logins.
+ * Independiente de la del token: aqui solo guardamos preferencia de UX,
+ * no estado de sesion.
+ */
+const LAST_TENANT_KEY = 'pos:auth:last_tenant'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
+const tenantSlug = ref('')
 const email = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
+
+onMounted(() => {
+  // Prioridad para autofill del tenant:
+  //   1) ultimo tenant usado guardado en localStorage
+  //   2) VITE_DEV_TENANT (solo en dev, vacio en prod)
+  //   3) vacio (usuario lo escribe)
+  const remembered = localStorage.getItem(LAST_TENANT_KEY)
+  if (remembered) {
+    tenantSlug.value = remembered
+  } else if (import.meta.env.VITE_DEV_TENANT) {
+    tenantSlug.value = import.meta.env.VITE_DEV_TENANT
+  }
+})
 
 async function onSubmit(): Promise<void> {
   if (isSubmitting.value) {
@@ -19,7 +40,8 @@ async function onSubmit(): Promise<void> {
   isSubmitting.value = true
 
   try {
-    await authStore.login(email.value, password.value)
+    await authStore.login(email.value, password.value, tenantSlug.value)
+    localStorage.setItem(LAST_TENANT_KEY, tenantSlug.value)
     await router.push({ name: 'pos' })
   } catch (err) {
     errorMessage.value = humanizeLoginError(err)
@@ -51,6 +73,18 @@ function humanizeLoginError(err: unknown): string {
       <p class="subtitle">Inicia sesion para continuar.</p>
 
       <form @submit.prevent="onSubmit" novalidate>
+        <label>
+          <span>Empresa</span>
+          <input
+            v-model="tenantSlug"
+            type="text"
+            autocomplete="organization"
+            placeholder="slug de la empresa"
+            required
+            :disabled="isSubmitting"
+          />
+        </label>
+
         <label>
           <span>Email</span>
           <input

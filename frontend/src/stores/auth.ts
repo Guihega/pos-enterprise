@@ -2,9 +2,9 @@
  * Store de autenticacion del POS Enterprise.
  *
  * Estado y operaciones de sesion:
- *  - Login con email+password contra /auth/login (Sanctum).
- *  - Persistencia del token Bearer en localStorage.
- *  - Sincronizacion del token con el cliente HTTP (setApiToken/clearApiToken).
+ *  - Login con tenant + email + password contra /auth/login (Sanctum).
+ *  - Persistencia de token y tenant en localStorage.
+ *  - Sincronizacion de token y tenant con el cliente HTTP (set/clearApi*).
  *  - Logout local + remoto (revoca el token actual en el backend).
  *
  * Deuda conocida (mover a cookies httpOnly en Etapa 5 de hardening):
@@ -12,52 +12,60 @@
  *   primera version es el patron mas simple alineado con Sanctum tokens.
  *   Migrar a cookies httpOnly requerira coordinar con el backend (CSRF,
  *   SameSite) y reescribir este store.
+ *
+ * Deuda conocida (resolver con subdominios en produccion):
+ *   El tenant se pasa explicitamente como string en el form de login y
+ *   en el header X-Tenant. En produccion deberia resolverse por
+ *   subdominio (tenant1.miapp.com) y este store dejaria de manipular
+ *   el tenant directamente.
  */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { login as apiLogin, logout as apiLogout, me as apiMe } from '@/lib/api/generated'
 import type { User } from '@/lib/api/generated'
-import { clearApiToken, setApiToken } from '@/lib/api/client'
+import {
+  clearApiTenant,
+  clearApiToken,
+  setApiTenant,
+  setApiToken,
+} from '@/lib/api/client'
 
-/** Clave bajo la que se persiste el token en localStorage. */
+/** Claves bajo las que se persiste el estado en localStorage. */
 const TOKEN_STORAGE_KEY = 'pos:auth:token'
-
-/**
- * Devuelve los headers comunes a toda llamada del SDK.
- *
- * El cliente HTTP global ya inyecta X-Tenant via client.setConfig() en
- * initApiClient(), pero los tipos generados por Hey API exigen pasar
- * X-Tenant en cada llamada porque la spec OpenAPI lo marca como header
- * requerido. Los headers globales y los de la llamada se mergean.
- */
-function commonHeaders(): { 'X-Tenant': string } {
-  return {
-    'X-Tenant': import.meta.env.VITE_DEV_TENANT ?? '',
-  }
-}
+const TENANT_STORAGE_KEY = 'pos:auth:tenant'
 
 export const useAuthStore = defineStore('auth', () => {
   // ---- state ----
   const token = ref<string | null>(null)
+  const tenant = ref<string | null>(null)
   const user = ref<User | null>(null)
 
   // ---- getters ----
-  const isAuthenticated = computed(() => token.value !== null && user.value !== null)
+  const isAuthenticated = computed(
+    () => token.value !== null && user.value !== null,
+  )
 
   // ---- actions ----
 
   /**
-   * Inicia sesion contra el backend. Si tiene exito, guarda token + user,
-   * persiste el token en localStorage y configura el cliente HTTP para
-   * incluir el Authorization header en futuras peticiones.
+   * Inicia sesion contra el backend. Si tiene exito, guarda token,
+   * tenant y user; los persiste en localStorage y configura el cliente
+   * HTTP para incluir Authorization y X-Tenant en futuras peticiones.
+   *
+   * El tenant se pasa explicitamente como header en la propia llamada
+   * de login porque aun no esta inyectado en el cliente global.
    *
    * Lanza el error del SDK si las credenciales son invalidas o si hay
    * fallo de red; el caller decide como mostrarlo en UI.
    */
-  async function login(email: string, password: string): Promise<void> {
+  async function login(
+    email: string,
+    password: string,
+    tenantSlug: string,
+  ): Promise<void> {
     const { data, error } = await apiLogin({
       body: { email, password },
-      headers: commonHeaders(),
+      headers: { 'X-Tenant': tenantSlug },
     })
 
     if (error || !data) {
@@ -65,8 +73,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     token.value = data.data.token
+    tenant.value = tenantSlug
     user.value = data.data.user
+
     localStorage.setItem(TOKEN_STORAGE_KEY, data.data.token)
+    localStorage.setItem(TENANT_STORAGE_KEY, tenantSlug)
+
+    setApiTenant(tenantSlug)
     setApiToken(data.data.token)
   }
 
@@ -79,43 +92,54 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function logout(): Promise<void> {
     try {
-      if (token.value) {
-        await apiLogout({ headers: commonHeaders() })
+      if (token.value && tenant.value) {
+        await apiLogout({ headers: { 'X-Tenant': tenant.value } })
       }
     } catch {
       // Ignoramos errores del backend: limpiar localmente es prioritario.
     } finally {
       token.value = null
+      tenant.value = null
       user.value = null
       localStorage.removeItem(TOKEN_STORAGE_KEY)
+      localStorage.removeItem(TENANT_STORAGE_KEY)
       clearApiToken()
+      clearApiTenant()
     }
   }
 
   /**
-   * Rehidrata la sesion al arrancar la app si hay un token en localStorage.
-   *
-   * Lee el token, lo inyecta al cliente HTTP y llama /auth/me para
-   * recuperar el usuario. Si el token ya no es valido, el backend
-   * respondera 401 y limpiamos todo en silencio.
+   * Rehidrata la sesion al arrancar la app si hay token y tenant en
+   * localStorage. Si falta uno de los dos o /auth/me devuelve error,
+   * limpia todo en silencio y la app sigue como anonima.
    *
    * Se llama desde main.ts antes de montar la app.
    */
   async function hydrate(): Promise<void> {
-    const stored = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!stored) {
+    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
+    const storedTenant = localStorage.getItem(TENANT_STORAGE_KEY)
+
+    if (!storedToken || !storedTenant) {
       return
     }
 
-    token.value = stored
-    setApiToken(stored)
+    token.value = storedToken
+    tenant.value = storedTenant
+    setApiToken(storedToken)
+    setApiTenant(storedTenant)
 
-    const { data, error } = await apiMe({ headers: commonHeaders() })
+    const { data, error } = await apiMe({
+      headers: { 'X-Tenant': storedTenant },
+    })
+
     if (error || !data) {
       // Token caducado o invalido: limpiar y seguir como anonimos.
       token.value = null
+      tenant.value = null
       localStorage.removeItem(TOKEN_STORAGE_KEY)
+      localStorage.removeItem(TENANT_STORAGE_KEY)
       clearApiToken()
+      clearApiTenant()
       return
     }
 
@@ -125,6 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     // state
     token,
+    tenant,
     user,
     // getters
     isAuthenticated,
