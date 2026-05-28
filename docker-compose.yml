@@ -237,7 +237,7 @@ services:
       - ./backend/docs/openapi:/app/openapi-spec:ro
     environment:
       VITE_API_URL: http://localhost:8080/api/v1
-      VITE_DEV_TENANT: dev
+      VITE_DEV_TENANT: demo
       VITE_REVERB_APP_KEY: local_key_change_me
       VITE_REVERB_HOST: localhost
       VITE_REVERB_PORT: 8081

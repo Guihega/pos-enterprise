@@ -153,5 +153,13 @@ class DatabaseSeeder extends Seeder
         } finally {
             TenantContext::forget();
         }
+
+        // ==============================================
+        //  Datos de desarrollo: catalogo de productos
+        //  para el tenant `demo`. Solo en entornos no-prod.
+        // ==============================================
+        if (! app()->environment('production')) {
+            $this->call(DevDataSeeder::class);
+        }
     }
 }
