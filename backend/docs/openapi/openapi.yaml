@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -43,6 +43,8 @@ tags:
     description: Productos y demás recursos del catálogo (lectura).
   - name: Cash
     description: Cajas registradoras y sesiones de caja.
+  - name: Sales
+    description: Ventas (checkout, listado, detalle, cancelacion).
 
 paths:
 
@@ -652,6 +654,181 @@ paths:
                   timestamp: '2026-05-28T12:00:00Z'
         '422':
           $ref: '#/components/responses/ValidationError'
+
+  # ====================================================================
+  # Sales
+  # ====================================================================
+  /sales:
+    post:
+      operationId: createSale
+      tags: [Sales]
+      summary: Registra una venta (checkout)
+      description: |
+        Registra una venta completa de forma atomica: items, pagos,
+        impuestos, descuentos y descuento de stock. Si el pago no cubre
+        el total (o si hay sobrepago con un metodo distinto de efectivo),
+        responde 422 con `PAYMENT_MISMATCH`. Si no hay stock suficiente
+        para algun item, 409 `INSUFFICIENT_STOCK`. Si la sesion de caja
+        ya no esta abierta, 409 `SESSION_NOT_OPEN`. Si el pago incluye
+        metodo `credit` y el cliente no tiene credito disponible, 402
+        `INSUFFICIENT_CREDIT`.
+
+        Devuelve el recurso de venta completo con `items`, `payments`,
+        `taxes`, `customer`, `cashier` y los totales calculados
+        (incluyendo `change` cuando aplica).
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSaleRequest'
+            examples:
+              efectivo_simple:
+                summary: Venta en efectivo con cambio
+                value:
+                  cash_session_uuid: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  warehouse_uuid: 550e8400-e29b-41d4-a716-446655440001
+                  items:
+                    - product_uuid: aaaa1111-bbbb-2222-cccc-333344445555
+                      quantity: 2
+                  payments:
+                    - method: cash
+                      amount: 100
+                      tendered_amount: 200
+              tarjeta_credito:
+                summary: Pago con tarjeta de credito
+                value:
+                  cash_session_uuid: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  warehouse_uuid: 550e8400-e29b-41d4-a716-446655440001
+                  items:
+                    - product_uuid: aaaa1111-bbbb-2222-cccc-333344445555
+                      quantity: 1
+                  payments:
+                    - method: card_credit
+                      amount: 50
+                      authorization_code: AUTH-12345
+                      card_brand: visa
+                      card_last4: '4242'
+              pago_mixto:
+                summary: Pago mixto (efectivo + tarjeta)
+                value:
+                  cash_session_uuid: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  warehouse_uuid: 550e8400-e29b-41d4-a716-446655440001
+                  customer_name: Juan Perez
+                  items:
+                    - product_uuid: aaaa1111-bbbb-2222-cccc-333344445555
+                      quantity: 3
+                      discount_percent: 10
+                  payments:
+                    - method: cash
+                      amount: 80
+                    - method: card_debit
+                      amount: 100
+                      card_brand: mastercard
+                      card_last4: '1234'
+      responses:
+        '201':
+          description: Venta registrada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '402':
+          description: |
+            El cliente no tiene credito suficiente para cubrir el pago
+            con metodo `credit`. Codigo: `INSUFFICIENT_CREDIT`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_CREDIT
+                  message: 'Credito insuficiente para cliente 42: solicitado=500, disponible=300'
+                  details: []
+                  request_id: null
+                  timestamp: '2026-05-28T12:00:00Z'
+        '403':
+          description: Sin permiso `sale.create`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: |
+            Conflicto de estado del dominio. Codigos posibles:
+
+            - `INSUFFICIENT_STOCK`: algun item no tiene stock suficiente
+              en el almacen indicado.
+            - `SESSION_NOT_OPEN`: la sesion de caja referenciada ya no
+              esta abierta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                stock_insuficiente:
+                  summary: Stock insuficiente
+                  value:
+                    error:
+                      code: INSUFFICIENT_STOCK
+                      message: Stock insuficiente para el producto SKU-001
+                      details: []
+                      request_id: null
+                      timestamp: '2026-05-28T12:00:00Z'
+                sesion_cerrada:
+                  summary: Sesion de caja cerrada
+                  value:
+                    error:
+                      code: SESSION_NOT_OPEN
+                      message: La sesion de caja no esta abierta.
+                      details: []
+                      request_id: null
+                      timestamp: '2026-05-28T12:00:00Z'
+        '422':
+          description: |
+            Error de validacion del payload o pago invalido. Si la
+            estructura del request no pasa las reglas de validacion,
+            responde con el formato NATIVO de Laravel (`{ message, errors }`).
+            Si el total pagado no cuadra (insuficiente o sobrepago con
+            metodo distinto de efectivo), responde con `ErrorEnvelope`
+            y codigo `PAYMENT_MISMATCH`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorBody'
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                payment_mismatch:
+                  summary: Pago insuficiente
+                  value:
+                    error:
+                      code: PAYMENT_MISMATCH
+                      message: 'Pago insuficiente: total=100.00, recibido=80.00, falta=20.00'
+                      details: []
+                      request_id: null
+                      timestamp: '2026-05-28T12:00:00Z'
+                validacion:
+                  summary: Validacion de payload
+                  value:
+                    message: The given data was invalid.
+                    errors:
+                      items:
+                        - La venta debe tener al menos un producto.
+                      payments:
+                        - La venta debe registrar al menos un pago.
 
 components:
 
@@ -1280,6 +1457,379 @@ components:
         opening_notes:
           type: [string, 'null']
           maxLength: 500
+
+    # ----- Sales -----
+
+    CreateSaleItem:
+      type: object
+      required: [product_uuid, quantity]
+      properties:
+        product_uuid:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9999999.9999
+          description: Cantidad. Mayor que cero.
+        unit_price:
+          type: number
+          minimum: 0
+          nullable: true
+          description: |
+            Precio unitario override (opcional). Si se omite, se toma
+            del producto.
+        discount_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Descuento porcentual (0-100).
+        discount_amount:
+          type: number
+          minimum: 0
+          nullable: true
+          description: |
+            Descuento absoluto. Si se especifica junto a `discount_percent`,
+            el servicio decide la combinacion (ver SaleTotalsCalculator).
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    CreateSalePayment:
+      type: object
+      required: [method, amount]
+      properties:
+        method:
+          type: string
+          enum:
+            - cash
+            - card_credit
+            - card_debit
+            - transfer
+            - check
+            - voucher
+            - credit
+            - other
+          description: |
+            Metodo de pago. `cash` es el unico que admite `tendered_amount`
+            mayor que `amount` (genera cambio). `credit` consume credito
+            del cliente y requiere `customer_uuid`.
+        amount:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          description: Monto aplicado a la venta con este metodo.
+        tendered_amount:
+          type: number
+          minimum: 0
+          nullable: true
+          description: |
+            Monto fisicamente entregado por el cliente (solo aplica a
+            `cash`). Si es mayor que `amount`, la diferencia se devuelve
+            como cambio en `totals.change`.
+        reference:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Referencia externa (numero de cheque, ID de transferencia, etc.).
+        authorization_code:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Codigo de autorizacion (terminales de tarjeta).
+        card_brand:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: visa
+        card_last4:
+          type: string
+          minLength: 4
+          maxLength: 4
+          nullable: true
+          example: '4242'
+
+    CreateSaleRequest:
+      type: object
+      required: [cash_session_uuid, warehouse_uuid, items, payments]
+      properties:
+        cash_session_uuid:
+          type: string
+          format: uuid
+          description: UUID de la sesion de caja abierta (POST /cash/sessions/open).
+        warehouse_uuid:
+          type: string
+          format: uuid
+          description: UUID del almacen del que se descuenta el stock.
+        customer_uuid:
+          type: string
+          format: uuid
+          nullable: true
+          description: Cliente registrado (opcional, requerido si hay metodo `credit`).
+        customer_name:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Nombre del cliente para tickets sin cliente registrado.
+        customer_tax_id:
+          type: string
+          maxLength: 50
+          nullable: true
+        tip_amount:
+          type: number
+          minimum: 0
+          nullable: true
+        notes:
+          type: string
+          maxLength: 1000
+          nullable: true
+        series:
+          type: string
+          maxLength: 10
+          nullable: true
+          description: Serie de folio (opcional, si se omite se usa la default).
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateSaleItem'
+        payments:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateSalePayment'
+
+    SaleTotals:
+      type: object
+      required: [subtotal, discount, tax, tip, total, paid, change]
+      properties:
+        subtotal:
+          type: number
+          description: Suma de `line_subtotal` de todos los items (antes de descuentos y de IVA exclusivo).
+        discount:
+          type: number
+          description: Total de descuentos aplicados.
+        tax:
+          type: number
+          description: Total de impuestos.
+        tip:
+          type: number
+        total:
+          type: number
+          description: Total final a pagar.
+        paid:
+          type: number
+          description: Suma de `amount` de todos los `payments`.
+        change:
+          type: number
+          description: Cambio devuelto al cliente (solo > 0 si hubo `tendered_amount` > `amount` en pago `cash`).
+
+    SaleCustomerEmbedded:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        tax_id:
+          type: string
+          nullable: true
+
+    SaleItemEmbedded:
+      type: object
+      required:
+        - uuid
+        - product_sku
+        - product_name
+        - quantity
+        - unit_price
+        - line_subtotal
+        - line_total
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        product_uuid:
+          type: string
+          format: uuid
+          nullable: true
+        product_sku:
+          type: string
+        product_name:
+          type: string
+        unit_name:
+          type: string
+          nullable: true
+        quantity:
+          type: number
+        unit_price:
+          type: number
+        unit_cost:
+          type: number
+        line_subtotal:
+          type: number
+        discount_percent:
+          type: number
+        discount_amount:
+          type: number
+        is_taxable:
+          type: boolean
+        tax_inclusive:
+          type: boolean
+        tax_rate:
+          type: number
+        tax_amount:
+          type: number
+        tax_code:
+          type: string
+          nullable: true
+        line_total:
+          type: number
+
+    SalePaymentEmbedded:
+      type: object
+      required: [uuid, method, amount, captured_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum:
+            - cash
+            - card_credit
+            - card_debit
+            - transfer
+            - check
+            - voucher
+            - credit
+            - other
+        amount:
+          type: number
+        tendered_amount:
+          type: number
+          nullable: true
+        reference:
+          type: string
+          nullable: true
+        card_brand:
+          type: string
+          nullable: true
+        card_last4:
+          type: string
+          nullable: true
+        captured_at:
+          type: string
+          format: date-time
+
+    SaleTaxEmbedded:
+      type: object
+      required: [code, name, rate, taxable_base, amount]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        rate:
+          type: number
+        taxable_base:
+          type: number
+        amount:
+          type: number
+
+    SaleCashier:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    SaleVoidInfo:
+      type: object
+      nullable: true
+      description: |
+        Presente solo si `status` es `voided`. En ventas completadas
+        este campo es `null`.
+      properties:
+        reason:
+          type: string
+        voided_at:
+          type: string
+          format: date-time
+        by:
+          $ref: '#/components/schemas/SaleCashier'
+
+    Sale:
+      type: object
+      description: Recurso de venta completa.
+      required:
+        - uuid
+        - number
+        - status
+        - currency_code
+        - totals
+        - created_at
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        number:
+          type: string
+          description: Folio consecutivo dentro de la serie.
+        series:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, completed, voided, refunded]
+        currency_code:
+          type: string
+          example: MXN
+        totals:
+          $ref: '#/components/schemas/SaleTotals'
+        customer:
+          $ref: '#/components/schemas/SaleCustomerEmbedded'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItemEmbedded'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalePaymentEmbedded'
+        taxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleTaxEmbedded'
+        notes:
+          type: string
+          nullable: true
+        void:
+          $ref: '#/components/schemas/SaleVoidInfo'
+        cashier:
+          $ref: '#/components/schemas/SaleCashier'
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    SaleResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Sale'
 
   responses:
 
