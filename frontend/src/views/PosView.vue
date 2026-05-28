@@ -1,32 +1,31 @@
 <script setup lang="ts">
+import PosHeader from '@/components/PosHeader.vue'
+import PosCatalog from '@/components/PosCatalog.vue'
+import PosCart from '@/components/PosCart.vue'
+import PosCheckoutBar from '@/components/PosCheckoutBar.vue'
 </script>
 
 <template>
-  <main class="pos">
-    <h1>POS Enterprise</h1>
-    <p>Etapa 3 — Frontend PWA. Cimientos en construcción.</p>
-  </main>
+  <div class="pos-shell">
+    <PosHeader />
+    <main class="pos-main">
+      <PosCatalog />
+      <PosCart />
+    </main>
+    <PosCheckoutBar />
+  </div>
 </template>
 
 <style scoped>
-.pos {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.pos-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   min-height: 100vh;
-  text-align: center;
-  gap: 1rem;
 }
 
-h1 {
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-p {
-  color: var(--color-text);
-  opacity: 0.7;
+.pos-main {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  min-height: 0;
 }
 </style>

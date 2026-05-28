@@ -1,5 +1,33 @@
 @import './base.css';
 
+/*
+ * Design tokens del POS Enterprise.
+ *
+ * Vars semanticas que envuelven los colores neutros de base.css y
+ * agregan los del producto. Cualquier componente del POS debe usar
+ * estas variables, no HSL hardcodeado.
+ */
+:root {
+  --pos-accent: hsl(160, 100%, 37%);
+  --pos-accent-hover: hsl(160, 100%, 32%);
+  --pos-accent-text: hsl(0, 0%, 100%);
+
+  --pos-danger: hsl(0, 70%, 55%);
+  --pos-danger-hover: hsl(0, 70%, 48%);
+
+  --pos-radius-sm: 4px;
+  --pos-radius-md: 6px;
+  --pos-radius-lg: 8px;
+
+  --pos-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  --pos-space-xs: 0.25rem;
+  --pos-space-sm: 0.5rem;
+  --pos-space-md: 1rem;
+  --pos-space-lg: 1.5rem;
+  --pos-space-xl: 2rem;
+}
+
 #app {
   min-height: 100vh;
 }
