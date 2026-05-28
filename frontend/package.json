@@ -13,7 +13,8 @@
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "generate:api": "openapi-ts"
   },
   "dependencies": {
     "@vueuse/components": "^14.2.1",
@@ -29,6 +30,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.97.3",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.1",
     "@types/node": "^24.12.2",
