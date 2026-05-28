@@ -1,12 +1,22 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import PosHeader from '@/components/PosHeader.vue'
 import PosCatalog from '@/components/PosCatalog.vue'
 import PosCart from '@/components/PosCart.vue'
 import PosCheckoutBar from '@/components/PosCheckoutBar.vue'
+import CashOpenModal from '@/components/CashOpenModal.vue'
 import { useCartStore } from '@/stores/cart'
+import { useCashSessionStore } from '@/stores/cashSession'
 import type { Product } from '@/lib/api/generated'
 
 const cartStore = useCartStore()
+const cashStore = useCashSessionStore()
+
+onMounted(async () => {
+  // Consultar si hay una sesion de caja abierta. Si no, el modal
+  // bloqueante se muestra para que el cajero la abra antes de vender.
+  await cashStore.loadCurrent()
+})
 
 function onProductSelected(product: Product): void {
   cartStore.add(product)
@@ -21,6 +31,9 @@ function onProductSelected(product: Product): void {
       <PosCart />
     </main>
     <PosCheckoutBar />
+
+    <!-- Modal bloqueante de apertura de caja. -->
+    <CashOpenModal v-if="!cashStore.hasActiveSession && !cashStore.loading" />
   </div>
 </template>
 

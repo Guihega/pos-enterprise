@@ -1,12 +1,23 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useCashSessionStore } from '@/stores/cashSession'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const cashStore = useCashSessionStore()
+
+function formatPrice(value: number): string {
+  return value.toLocaleString('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+  })
+}
 
 async function onLogout(): Promise<void> {
   await authStore.logout()
+  cashStore.clear()
   // El guard del router redirige automaticamente al cambiar
   // isAuthenticated, pero forzamos el push para mas claridad.
   await router.push({ name: 'login' })
@@ -21,6 +32,14 @@ async function onLogout(): Promise<void> {
     </div>
 
     <div class="pos-header__user">
+      <span
+        v-if="cashStore.currentSession"
+        class="pos-header__cash"
+        :title="`Caja abierta a las ${cashStore.currentSession.opened_at}`"
+      >
+        {{ cashStore.currentSession.register?.code ?? 'Caja' }} ·
+        {{ formatPrice(cashStore.currentSession.opening.amount) }}
+      </span>
       <span v-if="authStore.user" class="pos-header__user-name">
         {{ authStore.user.name }}
       </span>
@@ -87,5 +106,15 @@ async function onLogout(): Promise<void> {
 
 .pos-header__logout:hover {
   border-color: var(--color-border-hover);
+}
+
+.pos-header__cash {
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--pos-radius-sm);
+  background: rgba(0, 200, 130, 0.12);
+  color: var(--pos-accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 </style>
