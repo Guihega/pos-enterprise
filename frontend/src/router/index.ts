@@ -1,15 +1,40 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import LoginView from '@/views/LoginView.vue'
 import PosView from '@/views/PosView.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/',
       name: 'pos',
       component: PosView,
+      meta: { requiresAuth: true },
     },
   ],
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+
+  // Ruta protegida sin sesion: a /login
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { name: 'login' }
+  }
+
+  // Ya autenticado tratando de entrar a /login: a /
+  if (to.name === 'login' && auth.isAuthenticated) {
+    return { name: 'pos' }
+  }
+
+  return true
 })
 
 export default router
