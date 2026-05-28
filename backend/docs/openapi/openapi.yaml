@@ -976,6 +976,15 @@ components:
         name:
           type: string
           example: Sucursal Centro
+        default_warehouse_uuid:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            UUID del almacen marcado como default para esta sucursal.
+            Solo se incluye cuando el endpoint eager-carga la relacion
+            (GET /auth/me lo hace para `default_branch`). En el array
+            `branches[]` del usuario y en otros contextos donde la
+            relacion no se carga, el campo es null o esta ausente.
 
     # ----- Errores: envoltura genérica y variantes -----
 

@@ -34,6 +34,10 @@ class UserResource extends JsonResource
                 'uuid' => $this->defaultBranch->uuid,
                 'code' => $this->defaultBranch->code,
                 'name' => $this->defaultBranch->name,
+                'default_warehouse_uuid' => $this->defaultBranch
+                    ->relationLoaded('defaultWarehouse')
+                    ? $this->defaultBranch->defaultWarehouse?->uuid
+                    : null,
             ]),
             'branches' => $this->whenLoaded('branches', fn () => $this->branches->map(fn ($b) => [
                 'uuid' => $b->uuid,

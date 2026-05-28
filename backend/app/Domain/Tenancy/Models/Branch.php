@@ -9,7 +9,10 @@ use Database\Factories\BranchFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Domain\Inventory\Models\Warehouse;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -75,6 +78,24 @@ class Branch extends TenantScopedModel
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Todos los almacenes asociados a la sucursal.
+     */
+    public function warehouses(): HasMany
+    {
+        return $this->hasMany(Warehouse::class);
+    }
+
+    /**
+     * Almacen marcado como default para esta sucursal. La integridad
+     * "max 1 default por branch" la garantiza un partial unique index
+     * a nivel de BD (ver migracion create_warehouses_table).
+     */
+    public function defaultWarehouse(): HasOne
+    {
+        return $this->hasOne(Warehouse::class)->where('is_default', true);
     }
 
     /**
