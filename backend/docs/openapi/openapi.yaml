@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -41,6 +41,8 @@ tags:
     description: Autenticación, sesión y verificación de PIN supervisor.
   - name: Catalog
     description: Productos y demás recursos del catálogo (lectura).
+  - name: Cash
+    description: Cajas registradoras y sesiones de caja.
 
 paths:
 
@@ -470,6 +472,186 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+
+  /cash/registers:
+    get:
+      operationId: listCashRegisters
+      tags: [Cash]
+      summary: Lista cajas registradoras del tenant
+      description: |
+        Devuelve las cajas registradoras del tenant, paginadas.
+        Filtros: `branch` (UUID), `active` (bool).
+        Cada caja incluye su `branch` precargado.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: branch
+          required: false
+          description: UUID de la sucursal para filtrar cajas.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: active
+          required: false
+          description: Filtrar solo activas (`true`) o inactivas (`false`).
+          schema:
+            type: boolean
+        - in: query
+          name: per_page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Listado paginado de cajas registradoras.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegisterListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Sin permiso `cash.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /cash/sessions:
+    get:
+      operationId: listCashSessions
+      tags: [Cash]
+      summary: Lista sesiones de caja
+      description: |
+        Devuelve sesiones de caja paginadas (más recientes primero por
+        `opened_at`). Para saber si hay una sesión activa para el
+        usuario/caja, filtrar con `status=open`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [open, closed, reconciled]
+        - in: query
+          name: register
+          required: false
+          description: UUID de la caja registradora.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: per_page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Listado paginado de sesiones de caja.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Sin permiso `cash.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /cash/sessions/open:
+    post:
+      operationId: openCashSession
+      tags: [Cash]
+      summary: Abre una sesión de caja
+      description: |
+        Crea una sesión de caja para la caja registradora indicada con
+        el monto inicial en efectivo. Devuelve la sesión recién creada
+        con su `uuid` (necesario para el checkout del POS).
+
+        Si la caja ya tiene una sesión abierta, responde 409 con código
+        `SESSION_ALREADY_OPEN`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenCashSessionRequest'
+            examples:
+              basico:
+                summary: Apertura con $500 en fondo
+                value:
+                  cash_register_uuid: c1f8e2a4-0000-0000-0000-000000000001
+                  opening_amount: 500
+              con_notas:
+                summary: Apertura con notas
+                value:
+                  cash_register_uuid: c1f8e2a4-0000-0000-0000-000000000001
+                  opening_amount: 1000
+                  opening_notes: Apertura turno matutino
+      responses:
+        '201':
+          description: Sesión de caja abierta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Sin permiso `cash.open`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: |
+            La caja registradora ya tiene una sesión abierta. Código
+            de error: `SESSION_ALREADY_OPEN`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: SESSION_ALREADY_OPEN
+                  message: La caja ya tiene una sesión abierta.
+                  details: []
+                  request_id: null
+                  timestamp: '2026-05-28T12:00:00Z'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
 components:
 
@@ -939,6 +1121,165 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/ProductDetail'
+
+    CashRegisterBranch:
+      type: object
+      required: [uuid, code, name]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    CashRegister:
+      type: object
+      required: [uuid, code, name, is_active, created_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        is_active:
+          type: boolean
+        has_open_session:
+          type: boolean
+          description: Solo aparece en `GET /cash/registers/{uuid}`, no en el listado.
+        branch:
+          $ref: '#/components/schemas/CashRegisterBranch'
+        created_at:
+          type: string
+          format: date-time
+    CashRegisterListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashRegister'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CashSessionOpeningBy:
+      type: object
+      required: [uuid, name]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+    CashSessionOpening:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+          format: float
+          minimum: 0
+        notes:
+          type: [string, 'null']
+        by:
+          $ref: '#/components/schemas/CashSessionOpeningBy'
+    CashSessionClosing:
+      type: object
+      description: |
+        Datos de cierre. Solo presente cuando `status !== 'open'`.
+      properties:
+        expected_amount:
+          type: [number, 'null']
+          format: float
+        counted_amount:
+          type: [number, 'null']
+          format: float
+        difference:
+          type: [number, 'null']
+          format: float
+        notes:
+          type: [string, 'null']
+        by:
+          oneOf:
+            - $ref: '#/components/schemas/CashSessionOpeningBy'
+            - type: 'null'
+    CashSession:
+      type: object
+      required: [uuid, status, opened_at, opening]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [open, closed, reconciled]
+        opened_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: [string, 'null']
+          format: date-time
+        opening:
+          $ref: '#/components/schemas/CashSessionOpening'
+        closing:
+          oneOf:
+            - $ref: '#/components/schemas/CashSessionClosing'
+            - type: 'null'
+        register:
+          type: object
+          required: [uuid, code, name]
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            code:
+              type: string
+            name:
+              type: string
+        movements_count:
+          type: integer
+          minimum: 0
+          description: Solo aparece en el detalle, no en listados.
+    CashSessionListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashSession'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CashSessionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CashSession'
+    OpenCashSessionRequest:
+      type: object
+      required: [cash_register_uuid]
+      properties:
+        cash_register_uuid:
+          type: string
+          format: uuid
+        opening_amount:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 9999999.99
+          default: 0
+        opening_notes:
+          type: [string, 'null']
+          maxLength: 500
 
   responses:
 
