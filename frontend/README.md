@@ -1,54 +1,81 @@
-# pos-pwa
+# POS Enterprise - Frontend (PWA)
 
-This template should help get you started developing with Vue 3 in Vite.
+Cliente web del POS Enterprise. SPA tipada con Vue 3, offline-first
+preparada con Dexie (aun no usada), enrutado con Vue Router, estado con
+Pinia.
 
-## Recommended IDE Setup
+Forma parte de Etapa 3 del plan de trabajo (Frontend PWA - POS online) y
+cierra la Fase 1 del roadmap (MVP Core).
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Stack
 
-## Recommended Browser Setup
+- **Vue 3.5** + **TypeScript 6** en modo estricto (`strict`, `noUncheckedIndexedAccess`).
+- **Vite 8** como bundler / dev server.
+- **Vue Router 5** para enrutado.
+- **Pinia 3** para estado.
+- **Axios** + **Zod** (cliente HTTP tipado, pendiente - pieza 1c).
+- **Dexie 4** para almacenamiento local IndexedDB (offline-first, pendiente - Fase 2).
+- **Laravel Echo** + **Pusher.js** para realtime sobre Reverb.
+- **Vitest** + **@vue/test-utils** + **jsdom** para tests unitarios.
+- **oxlint** + **ESLint** + **Prettier** para calidad de codigo.
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## Ejecucion
 
-## Type Support for `.vue` Imports in TS
+El frontend corre dentro de Docker en el servicio `frontend` del
+`docker-compose.yml` del repo. Todos los comandos `npm` se ejecutan dentro
+del contenedor.
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+### Levantar el servicio
 
-## Customize configuration
+Desde la raiz del repo:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+    cd ~/Proyectos/pos-enterprise
+    docker compose up -d frontend
 
-## Project Setup
+Dev server en http://localhost:5173.
 
-```sh
-npm install
-```
+### Comandos npm dentro del contenedor
 
-### Compile and Hot-Reload for Development
+    # Dev server (ya corre solo cuando el contenedor esta arriba)
+    docker compose exec frontend npm run dev
 
-```sh
-npm run dev
-```
+    # Type-check (vue-tsc en modo build con project references)
+    docker compose exec frontend npm run type-check
 
-### Type-Check, Compile and Minify for Production
+    # Lint (oxlint primero, luego eslint --fix)
+    docker compose exec frontend npm run lint
 
-```sh
-npm run build
-```
+    # Tests unitarios (vitest --run --passWithNoTests)
+    docker compose exec frontend npm run test:unit
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+    # Build de produccion
+    docker compose exec frontend npm run build
 
-```sh
-npm run test:unit
-```
+    # Format con Prettier
+    docker compose exec frontend npm run format
 
-### Lint with [ESLint](https://eslint.org/)
+## Estructura
 
-```sh
-npm run lint
-```
+    frontend/src/
+    |-- App.vue              # Esqueleto raiz (solo <RouterView />)
+    |-- main.ts              # Bootstrap: createApp, Pinia, router
+    |-- assets/              # CSS base y recursos estaticos
+    |-- router/              # Configuracion de rutas
+    |-- views/               # Vistas montadas por el router
+    |-- stores/              # Stores de Pinia (auth, sesion, carrito...)
+    |-- composables/         # Funciones reutilizables (use*)
+    \-- lib/                 # Codigo no-Vue (cliente HTTP, helpers, adapters)
+
+## TypeScript estricto
+
+`tsconfig.app.json` aplica `noUncheckedIndexedAccess` ademas del `strict`
+heredado de `@vue/tsconfig/tsconfig.dom.json`. Esto significa:
+
+- `obj[key]` devuelve `T | undefined`, hay que verificar.
+- Reglas de `strictNullChecks`, `noImplicitAny`, etc., todas activas.
+
+## Cliente HTTP tipado
+
+Pendiente (pieza 1c). El contrato OpenAPI vive en
+`backend/docs/openapi/openapi.yaml` (v0.1.0, validado con Redocly). El
+plan es generar tipos TS desde ese contrato y consumirlos con axios.
