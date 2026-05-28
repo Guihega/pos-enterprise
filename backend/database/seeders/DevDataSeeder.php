@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Cash\Models\CashRegister;
 use App\Domain\Catalog\Models\Brand;
 use App\Domain\Catalog\Models\Category;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Catalog\Models\Unit;
+use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
 use Illuminate\Database\Seeder;
@@ -49,25 +51,28 @@ class DevDataSeeder extends Seeder
         TenantContext::set($demo);
 
         try {
-            // Idempotencia: si ya hay productos para este tenant, no duplicar.
+            $this->command?->info('[DevDataSeeder] Provisionando datos de desarrollo para tenant `demo`...');
+
+            // Idempotencia por seccion: cada bloque chequea si ya tiene
+            // sus propios datos. Asi anadir nuevos recursos al seeder no
+            // requiere reset completo de la BD.
+
             $existingProducts = Product::query()->where('company_id', $demo->id)->count();
-            if ($existingProducts > 0) {
-                $this->command?->info("[DevDataSeeder] {$existingProducts} productos ya existen para `demo`, skip.");
+            $needsCatalog = $existingProducts === 0;
 
-                return;
+            // 1) Brands (solo si no hay productos)
+            $brands = $needsCatalog
+                ? Brand::factory()->count(self::NUM_BRANDS)->create(['company_id' => $demo->id])
+                : Brand::query()->where('company_id', $demo->id)->get();
+
+            // 2) Categories (solo si no hay productos)
+            $categories = $needsCatalog
+                ? Category::factory()->count(self::NUM_CATEGORIES)->create(['company_id' => $demo->id])
+                : Category::query()->where('company_id', $demo->id)->get();
+
+            if (! $needsCatalog) {
+                $this->command?->info("[DevDataSeeder] {$existingProducts} productos ya existen para `demo`, skip catalogo.");
             }
-
-            $this->command?->info('[DevDataSeeder] Poblando catalogo para tenant `demo`...');
-
-            // 1) Brands
-            $brands = Brand::factory()
-                ->count(self::NUM_BRANDS)
-                ->create(['company_id' => $demo->id]);
-
-            // 2) Categories
-            $categories = Category::factory()
-                ->count(self::NUM_CATEGORIES)
-                ->create(['company_id' => $demo->id]);
 
             // 3) Resolver unit_id e tax_id de las ya provisionadas por CatalogProvisioner.
             $unitPza = Unit::query()->where('company_id', $demo->id)->where('code', 'PZA')->firstOrFail();
@@ -81,6 +86,7 @@ class DevDataSeeder extends Seeder
             // 4) Productos: 25 productos, mezcla de categorias/marcas/unidades.
             //    Asignamos IVA-16 por default; algunos IVA-0 (productos basicos).
             //    5 productos tienen descuento (compare_at_price).
+            if ($needsCatalog) {
             for ($i = 0; $i < self::NUM_PRODUCTS; $i++) {
                 $brand    = $brands->random();
                 $category = $categories->random();
@@ -106,6 +112,29 @@ class DevDataSeeder extends Seeder
 
             $total = Product::query()->where('company_id', $demo->id)->count();
             $this->command?->info("[DevDataSeeder] OK: {$total} productos creados para `demo`.");
+            }
+
+            // 5) Cajas registradoras: una por branch del tenant demo.
+            //    Idempotente: solo crea si la branch no tiene caja todavia.
+            $branches = Branch::query()->where('company_id', $demo->id)->get();
+            $registersCreated = 0;
+            foreach ($branches as $branch) {
+                $exists = CashRegister::query()
+                    ->where('company_id', $demo->id)
+                    ->where('branch_id', $branch->id)
+                    ->exists();
+                if ($exists) {
+                    continue;
+                }
+                CashRegister::factory()->ofBranch($branch)->create([
+                    'code' => $branch->code . '-CAJA-01',
+                    'name' => 'Caja 1 - ' . $branch->name,
+                ]);
+                $registersCreated++;
+            }
+            if ($registersCreated > 0) {
+                $this->command?->info("[DevDataSeeder] OK: {$registersCreated} caja(s) registradora(s) creada(s).");
+            }
         } finally {
             TenantContext::forget();
         }
