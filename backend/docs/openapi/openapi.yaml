@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -39,6 +39,8 @@ tags:
     description: Endpoint de comprobación del servicio.
   - name: Auth
     description: Autenticación, sesión y verificación de PIN supervisor.
+  - name: Catalog
+    description: Productos y demás recursos del catálogo (lectura).
 
 paths:
 
@@ -331,6 +333,144 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
+  /products:
+    get:
+      operationId: listProducts
+      tags: [Catalog]
+      summary: Lista productos del catálogo
+      description: |
+        Devuelve productos paginados. Soporta búsqueda por nombre/SKU/código
+        de barras (`q`), filtros por estado, categoría y marca, y orden.
+
+        Cada producto incluye sus relaciones precargadas (`category`, `brand`,
+        `unit`, `tax`). Para el detalle completo (con `barcodes` e `images`),
+        usa `GET /products/{uuid}`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: q
+          required: false
+          description: Búsqueda libre en nombre, SKU y códigos de barras.
+          schema:
+            type: string
+            maxLength: 100
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [draft, active, archived]
+        - in: query
+          name: category
+          required: false
+          description: UUID de la categoría.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: brand
+          required: false
+          description: UUID de la marca.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: sellable
+          required: false
+          description: Filtrar por vendibles (`true`) o no vendibles (`false`).
+          schema:
+            type: boolean
+        - in: query
+          name: per_page
+          required: false
+          description: Tamaño de página. Máximo 100, default 20.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [name, price, created_at]
+            default: name
+        - in: query
+          name: direction
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Listado paginado de productos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `product.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /products/{uuid}:
+    get:
+      operationId: getProduct
+      tags: [Catalog]
+      summary: Detalle de un producto
+      description: |
+        Devuelve un producto con todas sus relaciones (`category`, `brand`,
+        `unit`, `tax`, `barcodes`, `images`).
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: uuid
+          required: true
+          description: UUID del producto.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Producto encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `product.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Producto no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
 components:
 
   securitySchemes:
@@ -534,6 +674,271 @@ components:
           example:
             email: [El correo es obligatorio.]
             password: [La contraseña es obligatoria.]
+
+    Product:
+      type: object
+      description: |
+        Producto del catálogo en su forma "list" (sin barcodes ni images).
+        Para detalle completo, ver el endpoint `GET /products/{uuid}`.
+      required:
+        - uuid
+        - sku
+        - name
+        - pricing
+        - flags
+        - status
+        - created_at
+        - updated_at
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          maxLength: 100
+        name:
+          type: string
+          maxLength: 250
+        description:
+          type: [string, 'null']
+        short_description:
+          type: [string, 'null']
+        pricing:
+          type: object
+          required: [cost, price, has_discount]
+          properties:
+            cost:
+              type: number
+              format: float
+              minimum: 0
+            price:
+              type: number
+              format: float
+              minimum: 0
+            compare_at_price:
+              type: [number, 'null']
+              format: float
+            min_price:
+              type: [number, 'null']
+              format: float
+            has_discount:
+              type: boolean
+            margin_percent:
+              type: [number, 'null']
+              format: float
+              description: Calculado en el backend, no almacenado.
+        flags:
+          type: object
+          required: [track_inventory, is_sellable, is_purchasable, allow_decimals]
+          properties:
+            track_inventory:
+              type: boolean
+            is_sellable:
+              type: boolean
+            is_purchasable:
+              type: boolean
+            allow_decimals:
+              type: boolean
+        status:
+          type: string
+          enum: [draft, active, archived]
+        published_at:
+          type: [string, 'null']
+          format: date-time
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/ProductCategory'
+            - type: 'null'
+        brand:
+          oneOf:
+            - $ref: '#/components/schemas/ProductBrand'
+            - type: 'null'
+        unit:
+          $ref: '#/components/schemas/ProductUnit'
+        tax:
+          oneOf:
+            - $ref: '#/components/schemas/ProductTax'
+            - type: 'null'
+        weight:
+          type: [number, 'null']
+          format: float
+        weight_unit:
+          type: [string, 'null']
+        dimensions:
+          type: [object, 'null']
+          additionalProperties: true
+          description: Caja libre. Estructura sugerida `{length, width, height, unit}`.
+        tax_code:
+          type: [string, 'null']
+        custom_attributes:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          description: |
+            Producto con sus relaciones extendidas. Devuelto solo por
+            `GET /products/{uuid}`, no por el listado.
+          properties:
+            barcodes:
+              type: array
+              items:
+                type: object
+                required: [barcode, type, is_primary, pack_quantity]
+                properties:
+                  barcode:
+                    type: string
+                  type:
+                    type: string
+                    enum: [EAN13, EAN8, UPC, CODE128, CODE39, ITF14, QR, other]
+                  is_primary:
+                    type: boolean
+                  pack_quantity:
+                    type: number
+                    format: float
+            images:
+              type: array
+              items:
+                type: object
+                required: [uuid, url, is_primary, sort_order]
+                properties:
+                  uuid:
+                    type: string
+                    format: uuid
+                  url:
+                    type: string
+                    format: uri
+                  thumbnail_url:
+                    type: [string, 'null']
+                    format: uri
+                  alt_text:
+                    type: [string, 'null']
+                  is_primary:
+                    type: boolean
+                  sort_order:
+                    type: integer
+                    minimum: 0
+    ProductCategory:
+      type: object
+      required: [uuid, name, slug]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+    ProductBrand:
+      type: object
+      required: [uuid, name, slug]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+    ProductUnit:
+      type: object
+      required: [uuid, code, name, symbol]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        symbol:
+          type: string
+    ProductTax:
+      type: object
+      required: [uuid, code, name, rate, is_inclusive]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        rate:
+          type: number
+          format: float
+          minimum: 0
+        is_inclusive:
+          type: boolean
+    PaginationLinks:
+      type: object
+      description: Links de paginación devueltos por Laravel.
+      required: [first, last, prev, next]
+      properties:
+        first:
+          type: [string, 'null']
+          format: uri
+        last:
+          type: [string, 'null']
+          format: uri
+        prev:
+          type: [string, 'null']
+          format: uri
+        next:
+          type: [string, 'null']
+          format: uri
+    PaginationMeta:
+      type: object
+      description: Metadatos de paginación devueltos por Laravel.
+      required: [current_page, from, last_page, per_page, to, total]
+      properties:
+        current_page:
+          type: integer
+          minimum: 1
+        from:
+          type: [integer, 'null']
+        last_page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+        to:
+          type: [integer, 'null']
+        total:
+          type: integer
+          minimum: 0
+        path:
+          type: string
+          format: uri
+    ProductListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    ProductDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/ProductDetail'
 
   responses:
 
