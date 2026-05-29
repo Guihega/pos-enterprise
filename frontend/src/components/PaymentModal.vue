@@ -93,7 +93,13 @@ const remaining = computed(() => round2(props.total - paidSoFar.value))
 const isFullyPaid = computed(() => remaining.value <= 0.001)
 
 /** Parse defensivo: string vacio -> 0, comas -> puntos. */
-function parseAmount(raw: string): number {
+function parseAmount(raw: string | number | null | undefined): number {
+  if (raw === null || raw === undefined) return 0
+  // Si v-model devuelve number (type="number"), conviertelo. Si es string,
+  // normaliza coma decimal a punto.
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : NaN
+  }
   if (!raw.trim()) return 0
   const normalized = raw.replace(',', '.')
   const n = Number(normalized)
@@ -360,10 +366,9 @@ function methodLabel(value: PaymentMethod): string {
               <span>A pagar</span>
               <input
                 v-model="inputAmount"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
                 inputmode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
                 :disabled="submitting"
               />
             </label>
@@ -373,10 +378,9 @@ function methodLabel(value: PaymentMethod): string {
                 <span>Recibido</span>
                 <input
                   v-model="inputTendered"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
                   inputmode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
                   :disabled="submitting"
                 />
               </label>
