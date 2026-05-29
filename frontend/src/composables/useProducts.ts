@@ -16,6 +16,7 @@ import { ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import { listProducts } from '@/lib/api/generated'
 import type { Product } from '@/lib/api/generated'
+import { humanizeError } from '@/lib/api/errors'
 import { useAuthStore } from '@/stores/auth'
 
 /** Tamano de pagina. El backend permite hasta 100. */
@@ -72,7 +73,7 @@ export function useProducts() {
     })
 
     if (error || !data) {
-      errorMessage.value = humanizeError(error)
+      errorMessage.value = humanizeError(error, 'No se pudo cargar el catalogo. Intenta de nuevo.')
       loading.value = false
       loadingMore.value = false
       return
@@ -133,16 +134,3 @@ export function useProducts() {
   }
 }
 
-/**
- * Convierte el error del SDK en un mensaje legible. Sigue el shape de
- * ErrorEnvelope del backend.
- */
-function humanizeError(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const errObj = (err as { error?: { message?: string } }).error
-    if (errObj?.message) {
-      return errObj.message
-    }
-  }
-  return 'No se pudo cargar el catalogo. Intenta de nuevo.'
-}

@@ -3,6 +3,10 @@ import { useCartStore } from '@/stores/cart'
 
 const cartStore = useCartStore()
 
+const emit = defineEmits<{
+  (e: 'checkout'): void
+}>()
+
 function formatPrice(value: number): string {
   return value.toLocaleString('es-MX', {
     style: 'currency',
@@ -12,9 +16,7 @@ function formatPrice(value: number): string {
 }
 
 function onCheckout(): void {
-  // El modal de cobro multi-metodo llega en 3e.
-   
-  console.log('[POS] Cobrar:', cartStore.grandTotal, cartStore.items)
+  emit('checkout')
 }
 </script>
 

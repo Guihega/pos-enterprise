@@ -24,6 +24,7 @@ import {
   openCashSession,
 } from '@/lib/api/generated'
 import type { CashRegister, CashSession } from '@/lib/api/generated'
+import { errorCode, getTenantOrThrow, humanizeError } from '@/lib/api/errors'
 import { useAuthStore } from '@/stores/auth'
 
 export const useCashSessionStore = defineStore('cashSession', () => {
@@ -39,33 +40,6 @@ export const useCashSessionStore = defineStore('cashSession', () => {
   const hasActiveSession = computed(() => currentSession.value !== null)
 
   // ---- helpers ----
-  function getTenantOrThrow(): string {
-    const t = authStore.tenant
-    if (!t) {
-      throw new Error('No hay tenant activo')
-    }
-    return t
-  }
-
-  function humanizeError(err: unknown, fallback: string): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const errObj = (err as { error?: { message?: string } }).error
-      if (errObj?.message) {
-        return errObj.message
-      }
-    }
-    return fallback
-  }
-
-  function errorCode(err: unknown): string | null {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const errObj = (err as { error?: { code?: string } }).error
-      if (errObj?.code) {
-        return errObj.code
-      }
-    }
-    return null
-  }
 
   // ---- actions ----
 
@@ -79,7 +53,7 @@ export const useCashSessionStore = defineStore('cashSession', () => {
     errorMessage.value = null
 
     try {
-      const tenant = getTenantOrThrow()
+      const tenant = getTenantOrThrow(authStore.tenant)
       const { data, error } = await listCashSessions({
         headers: { 'X-Tenant': tenant },
         query: { status: 'open', per_page: 1 },
@@ -102,7 +76,7 @@ export const useCashSessionStore = defineStore('cashSession', () => {
    */
   async function loadRegisters(): Promise<void> {
     try {
-      const tenant = getTenantOrThrow()
+      const tenant = getTenantOrThrow(authStore.tenant)
       const { data, error } = await listCashRegisters({
         headers: { 'X-Tenant': tenant },
         query: { active: true, per_page: 200 },
@@ -139,7 +113,7 @@ export const useCashSessionStore = defineStore('cashSession', () => {
     errorMessage.value = null
 
     try {
-      const tenant = getTenantOrThrow()
+      const tenant = getTenantOrThrow(authStore.tenant)
       const { data, error } = await openCashSession({
         headers: { 'X-Tenant': tenant },
         body: {
