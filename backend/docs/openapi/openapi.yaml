@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -649,6 +649,90 @@ paths:
                 error:
                   code: SESSION_ALREADY_OPEN
                   message: La caja ya tiene una sesión abierta.
+                  details: []
+                  request_id: null
+                  timestamp: '2026-05-28T12:00:00Z'
+  /cash/sessions/{session}/close:
+    post:
+      operationId: closeCashSession
+      tags: [Cash]
+      summary: Cierra una sesion de caja
+      description: |
+        Cierra la sesion de caja indicada calculando el arqueo. El
+        backend calcula `expected_amount` como el monto de apertura mas
+        la suma de los movimientos que afectan al efectivo (ventas en
+        efectivo, entradas y salidas). El cajero provee `counted_amount`
+        (lo contado fisicamente) y el backend calcula
+        `difference = counted_amount - expected_amount`.
+
+        Devuelve la sesion cerrada con el bloque `closing` poblado. Si
+        la sesion ya no esta abierta, responde 409 con codigo
+        `SESSION_NOT_OPEN`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: session
+          required: true
+          description: UUID de la sesion de caja a cerrar.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseCashSessionRequest'
+            examples:
+              cuadre_exacto:
+                summary: Cierre con monto contado igual al esperado
+                value:
+                  counted_amount: 1500
+              con_diferencia:
+                summary: Cierre con faltante y notas
+                value:
+                  counted_amount: 1480.50
+                  closing_notes: Faltante de turno, se reporta a supervisor
+      responses:
+        '200':
+          description: Sesion de caja cerrada con el arqueo calculado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Sin permiso `cash.close`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: La sesion de caja no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: |
+            La sesion de caja ya no esta abierta. Codigo de error:
+            `SESSION_NOT_OPEN`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                error:
+                  code: SESSION_NOT_OPEN
+                  message: La sesion de caja no esta abierta.
                   details: []
                   request_id: null
                   timestamp: '2026-05-28T12:00:00Z'
@@ -1464,6 +1548,19 @@ components:
           maximum: 9999999.99
           default: 0
         opening_notes:
+          type: [string, 'null']
+          maxLength: 500
+    CloseCashSessionRequest:
+      type: object
+      required: [counted_amount]
+      properties:
+        counted_amount:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 9999999.99
+          description: Monto contado fisicamente al cierre.
+        closing_notes:
           type: [string, 'null']
           maxLength: 500
 
