@@ -97,6 +97,12 @@ final class AuthService
         $tokenName = $context['token_name'] ?? 'pos-session';
         $token = $user->createToken($tokenName, ['*']);
 
+        // Eager-load las relaciones que UserResource consume. Evita
+        // queries extra en el response del login (sin esto, lazy-load
+        // de defaultBranch y defaultWarehouse generaria 2 queries
+        // adicionales por request).
+        $user->load('defaultBranch.defaultWarehouse', 'branches', 'roles');
+
         return new LoginResult(
             user: $user,
             token: $token,
