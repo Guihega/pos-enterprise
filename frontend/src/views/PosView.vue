@@ -5,17 +5,21 @@ import PosCatalog from '@/components/PosCatalog.vue'
 import PosCart from '@/components/PosCart.vue'
 import PosCheckoutBar from '@/components/PosCheckoutBar.vue'
 import CashOpenModal from '@/components/CashOpenModal.vue'
+import CashCloseModal from '@/components/CashCloseModal.vue'
 import PaymentModal from '@/components/PaymentModal.vue'
 import { useCartStore } from '@/stores/cart'
 import { useCashSessionStore } from '@/stores/cashSession'
 import { useSalesStore } from '@/stores/sales'
-import type { CreateSalePayment, Product } from '@/lib/api/generated'
+import type { CashSession, CreateSalePayment, Product } from '@/lib/api/generated'
 
 const cartStore = useCartStore()
 const cashStore = useCashSessionStore()
 const salesStore = useSalesStore()
 
 const showPaymentModal = ref(false)
+const showCloseModal = ref(false)
+// Sesion recien cerrada: alimenta el banner de arqueo. null = sin banner.
+const closedSession = ref<CashSession | null>(null)
 
 onMounted(async () => {
   // Consultar si hay una sesion de caja abierta. Si no, el modal
@@ -61,6 +65,47 @@ function onClosePaymentModal(): void {
   salesStore.clearError()
 }
 
+function onCloseCashRequested(): void {
+  if (!cashStore.currentSession) return
+  cashStore.errorMessage = null
+  showCloseModal.value = true
+}
+
+async function onConfirmClose(
+  countedAmount: number,
+  closingNotes: string | null,
+): Promise<void> {
+  const sessionUuid = cashStore.currentSession?.uuid
+  if (!sessionUuid) {
+    showCloseModal.value = false
+    return
+  }
+
+  const result = await cashStore.close(sessionUuid, countedAmount, closingNotes)
+  if (result.ok && result.session) {
+    // Caja cerrada: mostrar arqueo y cerrar el modal. currentSession
+    // ya quedo en null dentro del store, asi que el modal de apertura
+    // reaparece por hasActiveSession=false.
+    closedSession.value = result.session
+    showCloseModal.value = false
+  } else if (result.sessionLost) {
+    // La sesion ya no estaba abierta: cerrar modal, el de apertura
+    // aparece solo tras loadCurrent.
+    showCloseModal.value = false
+  }
+  // Si !ok && !sessionLost: modal sigue abierto con errorMessage.
+}
+
+function onCancelClose(): void {
+  if (cashStore.loading) return
+  showCloseModal.value = false
+  cashStore.errorMessage = null
+}
+
+function dismissCloseBanner(): void {
+  closedSession.value = null
+}
+
 function dismissSuccessBanner(): void {
   salesStore.clearLastSale()
 }
@@ -68,7 +113,7 @@ function dismissSuccessBanner(): void {
 
 <template>
   <div class="pos-shell">
-    <PosHeader />
+    <PosHeader @close-cash="onCloseCashRequested" />
     <main class="pos-main">
       <PosCatalog @product-selected="onProductSelected" />
       <PosCart />
@@ -77,6 +122,15 @@ function dismissSuccessBanner(): void {
 
     <!-- Modal bloqueante de apertura de caja. -->
     <CashOpenModal v-if="!cashStore.hasActiveSession && !cashStore.loading" />
+
+    <!-- Modal de cierre de caja (arqueo). -->
+    <CashCloseModal
+      :open="showCloseModal"
+      :loading="cashStore.loading"
+      :error-message="cashStore.errorMessage"
+      @confirm="onConfirmClose"
+      @close="onCancelClose"
+    />
 
     <!-- Modal de cobro multi-metodo. -->
     <PaymentModal
@@ -104,6 +158,42 @@ function dismissSuccessBanner(): void {
         class="pos-success-banner__close"
         aria-label="Cerrar notificacion"
         @click="dismissSuccessBanner"
+      >
+        ×
+      </button>
+    </div>
+
+    <!-- Banner de arqueo tras cerrar caja. -->
+    <div
+      v-if="closedSession && closedSession.closing"
+      class="pos-arqueo-banner"
+      role="status"
+    >
+      <div class="pos-arqueo-banner__content">
+        <strong>Caja cerrada</strong>
+        <span class="pos-arqueo-banner__row">
+          Esperado
+          {{ (closedSession.closing.expected_amount ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) }}
+          · Contado
+          {{ (closedSession.closing.counted_amount ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) }}
+        </span>
+        <span
+          class="pos-arqueo-banner__diff"
+          :class="{
+            'pos-arqueo-banner__diff--ok': (closedSession.closing.difference ?? 0) === 0,
+            'pos-arqueo-banner__diff--short': (closedSession.closing.difference ?? 0) < 0,
+            'pos-arqueo-banner__diff--over': (closedSession.closing.difference ?? 0) > 0,
+          }"
+        >
+          Diferencia
+          {{ (closedSession.closing.difference ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) }}
+        </span>
+      </div>
+      <button
+        type="button"
+        class="pos-arqueo-banner__close"
+        aria-label="Cerrar notificacion"
+        @click="dismissCloseBanner"
       >
         ×
       </button>
@@ -191,5 +281,75 @@ function dismissSuccessBanner(): void {
 
 .pos-success-banner__close:hover {
   color: #1a5c2a;
+}
+
+.pos-arqueo-banner {
+  position: fixed;
+  top: 5rem;
+  right: 1.5rem;
+  z-index: 150;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-left-color: var(--pos-accent);
+  border-radius: var(--pos-radius-md, 8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: var(--color-text);
+  max-width: 420px;
+  animation: pos-success-slide-in 0.3s ease-out;
+}
+
+.pos-arqueo-banner__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pos-arqueo-banner__content strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.pos-arqueo-banner__row {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.pos-arqueo-banner__diff {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pos-arqueo-banner__diff--ok {
+  color: #2a8a3e;
+}
+
+.pos-arqueo-banner__diff--short {
+  color: var(--pos-danger);
+}
+
+.pos-arqueo-banner__diff--over {
+  color: #b8860b;
+}
+
+.pos-arqueo-banner__close {
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text);
+  opacity: 0.6;
+  padding: 0 0.25rem;
+}
+
+.pos-arqueo-banner__close:hover {
+  opacity: 1;
 }
 </style>

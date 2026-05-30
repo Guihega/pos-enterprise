@@ -7,6 +7,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 const cashStore = useCashSessionStore()
 
+const emit = defineEmits<{
+  (e: 'close-cash'): void
+}>()
+
 function formatPrice(value: number): string {
   return value.toLocaleString('es-MX', {
     style: 'currency',
@@ -40,6 +44,14 @@ async function onLogout(): Promise<void> {
         {{ cashStore.currentSession.register?.code ?? 'Caja' }} ·
         {{ formatPrice(cashStore.currentSession.opening.amount) }}
       </span>
+      <button
+        v-if="cashStore.currentSession"
+        type="button"
+        class="pos-header__close-cash"
+        @click="emit('close-cash')"
+      >
+        Cerrar caja
+      </button>
       <span v-if="authStore.user" class="pos-header__user-name">
         {{ authStore.user.name }}
       </span>
@@ -106,6 +118,21 @@ async function onLogout(): Promise<void> {
 
 .pos-header__logout:hover {
   border-color: var(--color-border-hover);
+}
+
+.pos-header__close-cash {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--pos-danger);
+  border-radius: var(--pos-radius-md);
+  background: transparent;
+  color: var(--pos-danger);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pos-header__close-cash:hover {
+  background: rgba(255, 0, 0, 0.06);
 }
 
 .pos-header__cash {

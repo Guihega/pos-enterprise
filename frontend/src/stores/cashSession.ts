@@ -19,6 +19,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import {
+  closeCashSession,
   listCashRegisters,
   listCashSessions,
   openCashSession,
@@ -26,6 +27,14 @@ import {
 import type { CashRegister, CashSession } from '@/lib/api/generated'
 import { errorCode, getTenantOrThrow, humanizeError } from '@/lib/api/errors'
 import { useAuthStore } from '@/stores/auth'
+
+export interface CloseResult {
+  ok: boolean
+  /** La sesion cerrada con su arqueo (closing) cuando ok = true. */
+  session?: CashSession
+  /** True si el cierre fallo porque la sesion ya no estaba abierta. */
+  sessionLost?: boolean
+}
 
 export const useCashSessionStore = defineStore('cashSession', () => {
   const authStore = useAuthStore()
@@ -146,6 +155,59 @@ export const useCashSessionStore = defineStore('cashSession', () => {
     }
   }
 
+  /**
+   * Cierra la sesion de caja activa.
+   *
+   * Cierre a ciegas: el cajero provee el monto contado; el backend
+   * calcula el esperado y la diferencia. Devuelve la sesion cerrada
+   * con su bloque `closing` para mostrar el arqueo.
+   *
+   * - 200: limpia currentSession (la caja quedo cerrada, debe
+   *   reaparecer el modal de apertura) y devuelve la sesion cerrada.
+   * - 409 SESSION_NOT_OPEN: la sesion ya no estaba abierta. Refresca
+   *   currentSession y marca sessionLost.
+   * - Otros errores: errorMessage.
+   */
+  async function close(
+    sessionUuid: string,
+    countedAmount: number,
+    closingNotes: string | null,
+  ): Promise<CloseResult> {
+    loading.value = true
+    errorMessage.value = null
+
+    try {
+      const tenant = getTenantOrThrow(authStore.tenant)
+      const { data, error } = await closeCashSession({
+        headers: { 'X-Tenant': tenant },
+        path: { session: sessionUuid },
+        body: {
+          counted_amount: countedAmount,
+          closing_notes: closingNotes,
+        },
+      })
+
+      if (data && !error) {
+        const closed = data.data
+        currentSession.value = null
+        return { ok: true, session: closed }
+      }
+
+      const code = errorCode(error)
+      if (code === 'SESSION_NOT_OPEN') {
+        await loadCurrent()
+        errorMessage.value =
+          'La sesion de caja ya no esta abierta. Recarga el POS.'
+        return { ok: false, sessionLost: true }
+      }
+
+      errorMessage.value = humanizeError(error, 'No se pudo cerrar la caja.')
+      return { ok: false }
+    } finally {
+      loading.value = false
+    }
+  }
+
   /** Limpia el state. Llamar al logout. */
   function clear(): void {
     currentSession.value = null
@@ -165,6 +227,7 @@ export const useCashSessionStore = defineStore('cashSession', () => {
     loadCurrent,
     loadRegisters,
     open,
+    close,
     clear,
   }
 })
