@@ -11,6 +11,7 @@ vi.mock('@/lib/api/generated', () => ({
   listCashRegisters: vi.fn<typeof apiListCashRegisters>(),
   listCashSessions: vi.fn<typeof apiListCashSessions>(),
   openCashSession: vi.fn<typeof apiOpenCashSession>(),
+  closeCashSession: vi.fn<typeof apiCloseCashSession>(),
 }))
 
 /** Mock del store de auth con tenant fijo. */
@@ -22,6 +23,7 @@ import {
   listCashRegisters as apiListCashRegisters,
   listCashSessions as apiListCashSessions,
   openCashSession as apiOpenCashSession,
+  closeCashSession as apiCloseCashSession,
 } from '@/lib/api/generated'
 
 /** Fake CashRegister minimo. */
@@ -195,4 +197,80 @@ describe('cashSession store', () => {
     expect(store.registers).toEqual([])
     expect(store.errorMessage).toBeNull()
   })
+
+  // ====================================================================
+  //  close: cierre de caja
+  // ====================================================================
+  it('close exitoso: devuelve ok+session y limpia currentSession', async () => {
+    vi.mocked(apiListCashSessions).mockResolvedValue({
+      data: makeListResponse([makeSession('s-1', 500)]),
+      error: undefined,
+    } as unknown)
+    vi.mocked(apiCloseCashSession).mockResolvedValue({
+      data: { data: { ...(makeSession('s-1', 500) as object), status: 'closed' } },
+      error: undefined,
+    } as unknown)
+    const store = useCashSessionStore()
+    await store.loadCurrent()
+    expect(store.currentSession).not.toBeNull()
+
+    const result = await store.close('s-1', 480, 'Cierre turno')
+    expect(result.ok).toBe(true)
+    expect(result.session).toMatchObject({ uuid: 's-1', status: 'closed' })
+    expect(store.currentSession).toBeNull()
+    expect(store.errorMessage).toBeNull()
+    expect(apiCloseCashSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('close con SESSION_NOT_OPEN: ok=false, sessionLost, refresca y mensaje claro', async () => {
+    vi.mocked(apiCloseCashSession).mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'SESSION_NOT_OPEN', message: 'La sesion no esta abierta.' } },
+    } as unknown)
+    // loadCurrent (que close invoca al detectar SESSION_NOT_OPEN) no halla sesion.
+    vi.mocked(apiListCashSessions).mockResolvedValue({
+      data: makeListResponse([]),
+      error: undefined,
+    } as unknown)
+    const store = useCashSessionStore()
+
+    const result = await store.close('s-1', 500, null)
+    expect(result.ok).toBe(false)
+    expect(result.sessionLost).toBe(true)
+    expect(apiListCashSessions).toHaveBeenCalledTimes(1)
+    expect(store.errorMessage).toContain('Recarga el POS')
+    expect(store.currentSession).toBeNull()
+  })
+
+  it('close con error generico: ok=false, mensaje humanizado del backend', async () => {
+    vi.mocked(apiCloseCashSession).mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'INTERNAL_ERROR', message: 'Boom al cerrar' } },
+    } as unknown)
+    const store = useCashSessionStore()
+
+    const result = await store.close('s-1', 500, null)
+    expect(result.ok).toBe(false)
+    expect(result.sessionLost).toBeUndefined()
+    expect(store.errorMessage).toBe('Boom al cerrar')
+  })
+
+  it('close limpia un errorMessage previo al iniciar', async () => {
+    vi.mocked(apiOpenCashSession).mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'INTERNAL_ERROR', message: 'Error viejo' } },
+    } as unknown)
+    const store = useCashSessionStore()
+    await store.open('r-1', 500, null)
+    expect(store.errorMessage).toBe('Error viejo')
+
+    vi.mocked(apiCloseCashSession).mockResolvedValue({
+      data: { data: { ...(makeSession('s-1', 500) as object), status: 'closed' } },
+      error: undefined,
+    } as unknown)
+    const result = await store.close('s-1', 500, null)
+    expect(result.ok).toBe(true)
+    expect(store.errorMessage).toBeNull()
+  })
+
 })
