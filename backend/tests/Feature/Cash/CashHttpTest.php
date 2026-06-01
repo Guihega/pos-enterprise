@@ -256,3 +256,51 @@ it('Aislamiento: sesiones de tenant A no visibles desde tenant B', function () {
     $response->assertOk();
     expect($response->json('meta.total'))->toBe(0);  // ninguna sesión en tenant B
 });
+
+// ====================================================================
+//  Regresion: route-model-binding tenant-scoped (orden middleware)
+//  El TenantScope aplica WHERE FALSE sin contexto. Si EnsureTenantContext
+//  corre DESPUES de SubstituteBindings, el binding {session:uuid} no
+//  encuentra la fila y devuelve 404. Estos tests anclan el orden correcto.
+// ====================================================================
+
+it('GET /cash/sessions/{uuid} resuelve el binding con tenant del header (regresion 404)', function () {
+    $session = app(CashService::class)->openSession($this->register, $this->cashier, 500);
+
+    // Vaciar el contexto: solo el middleware EnsureTenantContext (disparado
+    // por el header X-Tenant) puede restaurarlo. Si el binding corre antes
+    // que el middleware, el TenantScope da WHERE FALSE y el show da 404.
+    TenantContext::forget();
+
+    Sanctum::actingAs($this->admin);
+    $response = $this->getJson(
+        "/api/v1/cash/sessions/{$session->uuid}",
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertOk()
+        ->assertJsonPath('data.uuid', $session->uuid)
+        ->assertJsonPath('data.status', 'open');
+});
+
+it('GET /cash/sessions/{uuid} de tenant A no es visible desde tenant B (404)', function () {
+    $session = app(CashService::class)->openSession($this->register, $this->cashier, 500);
+
+    $tenantB = Company::factory()->create(['slug' => 'tenant-b']);
+    app(RoleProvisioner::class)->provisionDefaultRoles($tenantB);
+    TenantContext::set($tenantB);
+    Branch::factory()->default()->create(['company_id' => $tenantB->id]);
+    $adminB = User::factory()->create(['company_id' => $tenantB->id]);
+    $adminB->assignRole(Roles::ADMIN);
+
+    TenantContext::forget();
+
+    Sanctum::actingAs($adminB);
+    $response = $this->getJson(
+        "/api/v1/cash/sessions/{$session->uuid}",
+        ['X-Tenant' => 'tenant-b']
+    );
+
+    $response->assertStatus(404)
+        ->assertJsonPath('error.code', 'NOT_FOUND');
+});
