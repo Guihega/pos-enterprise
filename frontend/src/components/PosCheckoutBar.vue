@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useCartStore } from '@/stores/cart'
+import { formatPrice } from '@/lib/format'
 
 const cartStore = useCartStore()
 
@@ -7,13 +8,6 @@ const emit = defineEmits<{
   (e: 'checkout'): void
 }>()
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    minimumFractionDigits: 2,
-  })
-}
 
 function onCheckout(): void {
   emit('checkout')

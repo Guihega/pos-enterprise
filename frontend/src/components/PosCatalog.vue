@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { formatPrice } from '@/lib/format'
 import { useProducts } from '@/composables/useProducts'
 import type { Product } from '@/lib/api/generated'
 
@@ -28,13 +29,6 @@ function onProductClick(product: Product): void {
   emit('productSelected', product)
 }
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    minimumFractionDigits: 2,
-  })
-}
 </script>
 
 <template>

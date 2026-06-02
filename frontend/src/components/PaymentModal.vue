@@ -20,6 +20,7 @@
  * exponen aun (credit necesita selector de cliente).
  */
 import { computed, ref, watch } from 'vue'
+import { formatPrice } from '@/lib/format'
 import type { CreateSalePayment } from '@/lib/api/generated'
 
 type PaymentMethod = 'cash' | 'card_credit' | 'card_debit' | 'transfer'
@@ -57,12 +58,6 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100
 }
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-  })
-}
 
 // ---------------------------------------------------------------
 // State: pagos ya confirmados + formulario activo

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { formatPrice } from '@/lib/format'
 import { useAuthStore } from '@/stores/auth'
 import { useCashSessionStore } from '@/stores/cashSession'
 
@@ -11,13 +12,6 @@ const emit = defineEmits<{
   (e: 'close-cash'): void
 }>()
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    minimumFractionDigits: 2,
-  })
-}
 
 async function onLogout(): Promise<void> {
   await authStore.logout()

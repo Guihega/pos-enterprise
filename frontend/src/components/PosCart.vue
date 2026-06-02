@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { useCartStore } from '@/stores/cart'
+import { formatPrice } from '@/lib/format'
 
 const cartStore = useCartStore()
 
-function formatPrice(value: number): string {
-  return value.toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    minimumFractionDigits: 2,
-  })
-}
 
 function onQuantityInput(productUuid: string, event: Event): void {
   const value = parseFloat((event.target as HTMLInputElement).value)
