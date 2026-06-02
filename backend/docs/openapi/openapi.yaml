@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.5.0
+  version: 0.5.1
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -546,7 +546,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [open, closed, reconciled]
+            enum: [open, closed, voided]
         - in: query
           name: register
           required: false
@@ -1488,7 +1488,7 @@ components:
           format: uuid
         status:
           type: string
-          enum: [open, closed, reconciled]
+          enum: [open, closed, voided]
         opened_at:
           type: string
           format: date-time
