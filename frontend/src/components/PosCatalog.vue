@@ -2,6 +2,8 @@
 import { onMounted } from 'vue'
 import { formatPrice } from '@/lib/format'
 import { useProducts } from '@/composables/useProducts'
+import { useStock } from '@/composables/useStock'
+import { useAuthStore } from '@/stores/auth'
 import type { Product } from '@/lib/api/generated'
 
 const emit = defineEmits<{
@@ -21,11 +23,20 @@ const {
   retry,
 } = useProducts()
 
+const authStore = useAuthStore()
+const stock = useStock()
+
 onMounted(() => {
   void init()
+  const tenant = authStore.tenant
+  const warehouseUuid = authStore.user?.default_branch?.default_warehouse_uuid
+  if (tenant && warehouseUuid) {
+    void stock.init(tenant, warehouseUuid)
+  }
 })
 
 function onProductClick(product: Product): void {
+  if (stock.isOutOfStock(product.uuid, product.flags.track_inventory)) return
   emit('productSelected', product)
 }
 
@@ -76,15 +87,22 @@ function onProductClick(product: Product): void {
             v-for="product in items"
             :key="product.uuid"
             class="pos-catalog__item"
+            :class="{ 'pos-catalog__item--out-of-stock': stock.isOutOfStock(product.uuid, product.flags.track_inventory) }"
             @click="onProductClick(product)"
           >
             <div class="pos-catalog__item-main">
               <span class="pos-catalog__item-name">{{ product.name }}</span>
               <span class="pos-catalog__item-sku">{{ product.sku }}</span>
             </div>
-            <span class="pos-catalog__item-price">
-              {{ formatPrice(product.pricing.price) }}
-            </span>
+            <div class="pos-catalog__item-right">
+              <span
+                v-if="stock.isOutOfStock(product.uuid, product.flags.track_inventory)"
+                class="pos-catalog__item-badge"
+              >Sin stock</span>
+              <span class="pos-catalog__item-price">
+                {{ formatPrice(product.pricing.price) }}
+              </span>
+            </div>
           </li>
         </ul>
 
@@ -253,5 +271,33 @@ function onProductClick(product: Product): void {
 .pos-catalog__load-more:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pos-catalog__item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--pos-space-xs);
+}
+
+.pos-catalog__item--out-of-stock {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pos-catalog__item--out-of-stock:hover {
+  border-color: var(--color-border);
+}
+
+.pos-catalog__item-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pos-danger);
+  background: color-mix(in srgb, var(--pos-danger) 12%, transparent);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--pos-radius-sm);
+  white-space: nowrap;
 }
 </style>

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.5.1
+  version: 0.5.2
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -914,6 +914,69 @@ paths:
                       payments:
                         - La venta debe registrar al menos un pago.
 
+  /inventory/stocks:
+    get:
+      operationId: listInventoryStocks
+      tags: [Inventory]
+      summary: Lista existencias (stock) del tenant
+      description: |
+        Devuelve existencias paginadas por almacen y producto. Para el POS,
+        filtrar por `warehouse` (UUID del almacen default) para obtener el
+        stock disponible (`quantity.available`) de cada producto y bloquear
+        ventas sin existencias en la UI. El backend valida el stock real al
+        cobrar; este endpoint es para UX preventiva.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: warehouse
+          required: false
+          description: UUID del almacen para filtrar existencias.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: product
+          required: false
+          description: UUID del producto para filtrar existencias.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: low_stock
+          required: false
+          description: Si es true, solo existencias por debajo del minimo.
+          schema:
+            type: boolean
+        - in: query
+          name: per_page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Listado paginado de existencias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Sin permiso `inventory.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 components:
 
   securitySchemes:
@@ -1516,6 +1579,71 @@ components:
           type: integer
           minimum: 0
           description: Solo aparece en el detalle, no en listados.
+    Stock:
+      type: object
+      required: [quantity]
+      properties:
+        product:
+          type: object
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            sku:
+              type: string
+            name:
+              type: string
+        warehouse:
+          type: object
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            code:
+              type: string
+            name:
+              type: string
+        quantity:
+          type: object
+          required: [on_hand, reserved, available]
+          properties:
+            on_hand:
+              type: number
+            reserved:
+              type: number
+            available:
+              type: number
+        thresholds:
+          type: object
+          properties:
+            min:
+              type: number
+              nullable: true
+            max:
+              type: number
+              nullable: true
+            is_low:
+              type: boolean
+            is_overstock:
+              type: boolean
+        average_cost:
+          type: number
+        last_movement_at:
+          type: string
+          format: date-time
+          nullable: true
+    StockListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stock'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
     CashSessionListResponse:
       type: object
       required: [data, links, meta]
