@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { useCartStore } from '@/stores/cart'
+import { useStock } from '@/composables/useStock'
 import { formatPrice } from '@/lib/format'
 
 const cartStore = useCartStore()
+const stock = useStock()
 
 
 function onQuantityInput(productUuid: string, event: Event): void {
   const value = parseFloat((event.target as HTMLInputElement).value)
   if (Number.isFinite(value)) {
-    cartStore.setQuantity(productUuid, value)
+    cartStore.setQuantity(productUuid, value, stock.availableFor(productUuid))
   }
 }
 
 function increment(uuid: string, current: number, allowDecimals: boolean): void {
-  cartStore.setQuantity(uuid, current + (allowDecimals ? 0.5 : 1))
+  cartStore.setQuantity(uuid, current + (allowDecimals ? 0.5 : 1), stock.availableFor(uuid))
 }
 
 function decrement(uuid: string, current: number, allowDecimals: boolean): void {
@@ -67,6 +69,7 @@ function decrement(uuid: string, current: number, allowDecimals: boolean): void 
               :value="item.quantity"
               :step="item.allowDecimals ? 0.001 : 1"
               :min="0"
+              :max="stock.availableFor(item.productUuid) < Infinity ? stock.availableFor(item.productUuid) : undefined"
               class="pos-cart__qty-input"
               @input="onQuantityInput(item.productUuid, $event)"
             />

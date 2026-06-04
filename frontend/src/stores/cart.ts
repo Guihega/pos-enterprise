@@ -136,7 +136,7 @@ export const useCartStore = defineStore('cart', () => {
    * Cambia la cantidad de un item. Si llega a 0 o menos, lo elimina.
    * Si el item no permite decimales, redondea al entero.
    */
-  function setQuantity(productUuid: string, qty: number): void {
+  function setQuantity(productUuid: string, qty: number, maxQty = Infinity): void {
     const idx = items.value.findIndex((it) => it.productUuid === productUuid)
     if (idx === -1) {
       return
@@ -151,7 +151,8 @@ export const useCartStore = defineStore('cart', () => {
       return
     }
 
-    item.quantity = roundQty(qty, item.allowDecimals)
+    const clamped = maxQty < Infinity ? Math.min(qty, maxQty) : qty
+  item.quantity = roundQty(clamped, item.allowDecimals)
   }
 
   /** Elimina una linea explicitamente. */
