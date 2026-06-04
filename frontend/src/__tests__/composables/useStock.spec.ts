@@ -3,11 +3,11 @@ import { useStock } from '@/composables/useStock'
 import * as sdk from '@/lib/api/generated/sdk.gen'
 
 vi.mock('@/lib/api/generated/sdk.gen', () => ({
-  listInventoryStocks: vi.fn(),
+  listInventoryStocks: vi.fn<() => Promise<unknown>>(),
 }))
 
 vi.mock('@/lib/api/errors', () => ({
-  getTenantOrThrow: vi.fn(),
+  getTenantOrThrow: vi.fn<() => string>(),
 }))
 
 const mockListInventoryStocks = vi.fn<typeof sdk.listInventoryStocks>()

@@ -3,14 +3,13 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PinSupervisorModal from '@/components/PinSupervisorModal.vue'
 import * as sdk from '@/lib/api/generated/sdk.gen'
-import * as errors from '@/lib/api/errors'
 
 vi.mock('@/lib/api/generated/sdk.gen', () => ({
-  pinVerify: vi.fn(),
+  pinVerify: vi.fn<() => Promise<unknown>>(),
 }))
 
 vi.mock('@/lib/api/errors', () => ({
-  getTenantOrThrow: vi.fn((t) => t ?? 'demo'),
+  getTenantOrThrow: vi.fn<(t?: string) => string>((t) => t ?? 'demo'),
 }))
 
 vi.mock('@/stores/auth', () => ({
