@@ -8,9 +8,15 @@ const stock = useStock()
 
 
 function onQuantityInput(productUuid: string, event: Event): void {
-  const value = parseFloat((event.target as HTMLInputElement).value)
+  const input = event.target as HTMLInputElement
+  const value = parseFloat(input.value)
   if (Number.isFinite(value)) {
-    cartStore.setQuantity(productUuid, value, stock.availableFor(productUuid))
+    const maxQty = stock.availableFor(productUuid)
+    const clamped = maxQty < Infinity ? Math.min(value, maxQty) : value
+    cartStore.setQuantity(productUuid, clamped)
+    if (clamped !== value) {
+      input.value = String(clamped)
+    }
   }
 }
 
