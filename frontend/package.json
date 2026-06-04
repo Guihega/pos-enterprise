@@ -17,6 +17,7 @@
     "generate:api": "openapi-ts"
   },
   "dependencies": {
+    "@tabler/icons-webfont": "^3.44.0",
     "@vueuse/components": "^14.2.1",
     "@vueuse/core": "^14.2.1",
     "axios": "^1.15.2",
