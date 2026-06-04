@@ -7,10 +7,11 @@ import PosCheckoutBar from '@/components/PosCheckoutBar.vue'
 import CashOpenModal from '@/components/CashOpenModal.vue'
 import CashCloseModal from '@/components/CashCloseModal.vue'
 import PaymentModal from '@/components/PaymentModal.vue'
+import PinSupervisorModal from '@/components/PinSupervisorModal.vue'
 import { useCartStore } from '@/stores/cart'
 import { useCashSessionStore } from '@/stores/cashSession'
 import { useSalesStore } from '@/stores/sales'
-import type { CashSession, CreateSalePayment, Product } from '@/lib/api/generated'
+import type { CashSession, CreateSalePayment, Product, Sale } from '@/lib/api/generated'
 
 const cartStore = useCartStore()
 const cashStore = useCashSessionStore()
@@ -21,6 +22,15 @@ const showCloseModal = ref(false)
 const showCartDrawer = ref(false)
 // Sesion recien cerrada: alimenta el banner de arqueo. null = sin banner.
 const closedSession = ref<CashSession | null>(null)
+// Flujo de anulacion de venta.
+const showCancelPin = ref(false)
+const showCancelReason = ref(false)
+const cancelReason = ref('')
+const cancelError = ref<string | null>(null)
+// Venta objetivo de la anulacion (capturada del banner de exito).
+const cancelTarget = ref<Sale | null>(null)
+// Venta ya anulada: alimenta el banner. null = sin banner.
+const cancelledSale = ref<Sale | null>(null)
 
 onMounted(async () => {
   // Consultar si hay una sesion de caja abierta. Si no, el modal
@@ -110,6 +120,56 @@ function dismissCloseBanner(): void {
 function dismissSuccessBanner(): void {
   salesStore.clearLastSale()
 }
+
+function onCancelRequested(): void {
+  if (!salesStore.lastSale) return
+  cancelTarget.value = salesStore.lastSale
+  cancelReason.value = ''
+  cancelError.value = null
+  showCancelPin.value = true
+}
+
+function onCancelPinConfirmed(): void {
+  showCancelPin.value = false
+  showCancelReason.value = true
+}
+
+function onCancelPinCancelled(): void {
+  showCancelPin.value = false
+  cancelTarget.value = null
+}
+
+function onCancelReasonCancel(): void {
+  if (salesStore.cancelling) return
+  showCancelReason.value = false
+  cancelTarget.value = null
+  cancelError.value = null
+}
+
+async function onConfirmCancel(): Promise<void> {
+  if (!cancelTarget.value) return
+  if (cancelReason.value.trim().length < 3) return
+  cancelError.value = null
+  const result = await salesStore.cancel(cancelTarget.value.uuid, cancelReason.value.trim())
+  if (result.ok) {
+    showCancelReason.value = false
+    cancelTarget.value = null
+    cancelledSale.value = result.sale ?? null
+    salesStore.clearLastSale()
+    const anulada = cancelledSale.value
+    setTimeout(() => {
+      if (cancelledSale.value?.uuid === anulada?.uuid) {
+        cancelledSale.value = null
+      }
+    }, 6000)
+  } else {
+    cancelError.value = result.errorMessage ?? 'No se pudo anular la venta.'
+  }
+}
+
+function dismissCancelBanner(): void {
+  cancelledSale.value = null
+}
 </script>
 
 <template>
@@ -159,11 +219,80 @@ function dismissSuccessBanner(): void {
       </div>
       <button
         type="button"
+        class="pos-success-banner__cancel"
+        @click="onCancelRequested"
+      >
+        Anular
+      </button>
+      <button
+        type="button"
         class="pos-success-banner__close"
         aria-label="Cerrar notificacion"
         @click="dismissSuccessBanner"
       >
         ×
+      </button>
+    </div>
+
+    <!-- PIN supervisor para autorizar la anulacion. -->
+    <PinSupervisorModal
+      :open="showCancelPin"
+      @confirmed="onCancelPinConfirmed"
+      @cancelled="onCancelPinCancelled"
+    />
+
+    <!-- Modal de motivo de anulacion. -->
+    <Teleport to="body">
+      <div v-if="showCancelReason" class="pos-cancel-modal__backdrop" @click.self="onCancelReasonCancel">
+        <div class="pos-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="pos-cancel-title">
+          <h2 id="pos-cancel-title" class="pos-cancel-modal__title">Anular venta</h2>
+          <p v-if="cancelTarget" class="pos-cancel-modal__desc">
+            Venta {{ cancelTarget.number }}. Indica el motivo de la anulacion.
+          </p>
+          <textarea
+            v-model="cancelReason"
+            class="pos-cancel-modal__input"
+            rows="3"
+            maxlength="500"
+            placeholder="Motivo (minimo 3 caracteres)"
+            :disabled="salesStore.cancelling"
+          ></textarea>
+          <p v-if="cancelError" class="pos-cancel-modal__error">{{ cancelError }}</p>
+          <div class="pos-cancel-modal__actions">
+            <button
+              type="button"
+              class="pos-cancel-modal__btn pos-cancel-modal__btn--cancel"
+              :disabled="salesStore.cancelling"
+              @click="onCancelReasonCancel"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="pos-cancel-modal__btn pos-cancel-modal__btn--confirm"
+              :disabled="salesStore.cancelling || cancelReason.trim().length < 3"
+              @click="onConfirmCancel"
+            >
+              {{ salesStore.cancelling ? 'Anulando...' : 'Confirmar anulacion' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Banner de anulacion exitosa. -->
+    <div v-if="cancelledSale" class="pos-cancel-banner" role="status">
+      <div class="pos-cancel-banner__content">
+        <strong>Venta {{ cancelledSale.number }} anulada</strong>
+        <span class="pos-cancel-banner__row">Stock y pagos revertidos.</span>
+      </div>
+      <button
+        type="button"
+        class="pos-cancel-banner__close"
+        aria-label="Cerrar notificacion"
+        @click="dismissCancelBanner"
+      >
+        x
       </button>
     </div>
 
@@ -379,4 +508,100 @@ function dismissSuccessBanner(): void {
     grid-template-columns: 1fr;
   }
 }
+.pos-success-banner__cancel {
+  background: transparent;
+  border: 1px solid #2a8a3e;
+  color: #2a8a3e;
+  border-radius: var(--pos-radius-md, 8px);
+  font-size: 0.8rem;
+  font-family: inherit;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  align-self: center;
+}
+.pos-success-banner__cancel:hover {
+  background: #2a8a3e;
+  color: #fff;
+}
+.pos-cancel-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.pos-cancel-modal {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--pos-radius-lg, 12px);
+  padding: var(--pos-space-xl, 1.5rem);
+  width: min(420px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pos-space-md, 0.75rem);
+}
+.pos-cancel-modal__title { margin: 0; font-size: 1.1rem; color: var(--color-heading); }
+.pos-cancel-modal__desc { margin: 0; font-size: 0.875rem; color: var(--color-text); opacity: 0.7; }
+.pos-cancel-modal__input {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--pos-radius-md, 8px);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.pos-cancel-modal__input:focus { outline: 2px solid var(--pos-accent); outline-offset: -1px; }
+.pos-cancel-modal__error { margin: 0; font-size: 0.875rem; color: var(--pos-danger); }
+.pos-cancel-modal__actions { display: flex; gap: var(--pos-space-md, 0.75rem); justify-content: flex-end; }
+.pos-cancel-modal__btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--pos-radius-md, 8px);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+}
+.pos-cancel-modal__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pos-cancel-modal__btn--confirm { background: var(--pos-danger); color: #fff; border-color: var(--pos-danger); }
+.pos-cancel-modal__btn--confirm:hover:not(:disabled) { opacity: 0.9; }
+.pos-cancel-banner {
+  position: fixed;
+  top: 5rem;
+  right: 1.5rem;
+  z-index: 150;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-left-color: var(--pos-danger);
+  border-radius: var(--pos-radius-md, 8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: var(--color-text);
+  max-width: 420px;
+}
+.pos-cancel-banner__content { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.pos-cancel-banner__content strong { font-size: 0.95rem; font-weight: 700; color: var(--color-heading); }
+.pos-cancel-banner__row { font-size: 0.8rem; opacity: 0.8; }
+.pos-cancel-banner__close {
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text);
+  opacity: 0.6;
+  padding: 0 0.25rem;
+}
+.pos-cancel-banner__close:hover { opacity: 1; }
 </style>

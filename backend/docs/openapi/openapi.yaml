@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.5.2
+  version: 0.5.3
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -742,6 +742,55 @@ paths:
   # ====================================================================
   # Sales
   # ====================================================================
+  /sales/{uuid}/cancel:
+    post:
+      operationId: cancelSale
+      tags: [Sales]
+      summary: Cancelar una venta completada
+      description: |
+        Anula una venta con status `completed`. Revierte stock, pagos en efectivo
+        y credito de cliente. Requiere permiso `sale.void` y motivo obligatorio.
+        Solo el usuario autenticado puede ejecutar esta accion; el PIN supervisor
+        se verifica en el frontend antes de llamar este endpoint.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la venta a cancelar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelSaleRequest'
+      responses:
+        '200':
+          description: Venta cancelada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+        '403':
+          description: Sin permiso sale.void.
+        '404':
+          description: Venta no encontrada.
+        '422':
+          description: La venta no esta en estado completado o el motivo es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+
   /sales:
     post:
       operationId: createSale
@@ -2058,13 +2107,25 @@ components:
           type: string
           format: date-time
 
-    SaleResponse:
+    CancelSaleRequest:
       type: object
-      required: [data]
+      required: [reason]
       properties:
-        data:
-          $ref: '#/components/schemas/Sale'
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Motivo de la cancelacion de la venta.
+          example: "Producto danado, cliente solicita devolucion."
 
+
+    SaleResponse:
+        type: object
+        required: [data]
+        properties:
+          data:
+            $ref: '#/components/schemas/Sale'
+  
   responses:
 
     Unauthenticated:

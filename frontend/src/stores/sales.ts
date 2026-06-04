@@ -20,7 +20,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { createSale } from '@/lib/api/generated'
+import { createSale, cancelSale } from '@/lib/api/generated'
 import type {
   CreateSaleItem,
   CreateSalePayment,
@@ -30,6 +30,12 @@ import { errorCode, getTenantOrThrow, humanizeError } from '@/lib/api/errors'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import { useCashSessionStore } from '@/stores/cashSession'
+
+export interface CancelResult {
+  ok: boolean
+  sale?: Sale
+  errorMessage?: string
+}
 
 export interface CheckoutResult {
   ok: boolean
@@ -169,6 +175,30 @@ export const useSalesStore = defineStore('sales', () => {
     }
   }
 
+  const cancelling = ref(false)
+
+  async function cancel(saleUuid: string, reason: string): Promise<CancelResult> {
+    if (cancelling.value) return { ok: false, errorMessage: 'Operacion en curso.' }
+    cancelling.value = true
+    try {
+      const tenant = getTenantOrThrow(authStore.tenant)
+      const { data, error } = await cancelSale({
+        headers: { 'X-Tenant': tenant },
+        path: { uuid: saleUuid },
+        body: { reason },
+      })
+      if (error !== undefined || data === undefined) {
+        const msg = humanizeError(error, 'No se pudo cancelar la venta.')
+        return { ok: false, errorMessage: msg }
+      }
+      return { ok: true, sale: data.data }
+    } catch {
+      return { ok: false, errorMessage: 'Error inesperado al cancelar la venta.' }
+    } finally {
+      cancelling.value = false
+    }
+  }
+
   function clearError(): void {
     errorMessage.value = null
   }
@@ -189,6 +219,8 @@ export const useSalesStore = defineStore('sales', () => {
     errorMessage,
     lastSale,
     checkout,
+    cancel,
+    cancelling,
     clearError,
     clearLastSale,
     clear,
