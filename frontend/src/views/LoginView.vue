@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-/**
- * Clave para recordar el ultimo tenant usado y autofill en futuros logins.
- * Independiente de la del token: aqui solo guardamos preferencia de UX,
- * no estado de sesion.
- */
 const LAST_TENANT_KEY = 'pos:auth:last_tenant'
 
 const router = useRouter()
@@ -16,14 +11,41 @@ const authStore = useAuthStore()
 const tenantSlug = ref('')
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
 
+const tenantTouched = ref(false)
+const emailTouched = ref(false)
+const passwordTouched = ref(false)
+
+const tenantError = computed(() => {
+  if (!tenantTouched.value) return null
+  if (!tenantSlug.value.trim()) return 'El slug de empresa es obligatorio.'
+  return null
+})
+
+const emailError = computed(() => {
+  if (!emailTouched.value) return null
+  if (!email.value.trim()) return 'El correo es obligatorio.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) return 'Ingresa un correo valido.'
+  return null
+})
+
+const passwordError = computed(() => {
+  if (!passwordTouched.value) return null
+  if (!password.value) return 'La contrasena es obligatoria.'
+  return null
+})
+
+const formValid = computed(
+  () =>
+    tenantSlug.value.trim() !== '' &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value) &&
+    password.value !== '',
+)
+
 onMounted(() => {
-  // Prioridad para autofill del tenant:
-  //   1) ultimo tenant usado guardado en localStorage
-  //   2) VITE_DEV_TENANT (solo en dev, vacio en prod)
-  //   3) vacio (usuario lo escribe)
   const remembered = localStorage.getItem(LAST_TENANT_KEY)
   if (remembered) {
     tenantSlug.value = remembered
@@ -33,12 +55,12 @@ onMounted(() => {
 })
 
 async function onSubmit(): Promise<void> {
-  if (isSubmitting.value) {
-    return
-  }
+  tenantTouched.value = true
+  emailTouched.value = true
+  passwordTouched.value = true
+  if (!formValid.value || isSubmitting.value) return
   errorMessage.value = null
   isSubmitting.value = true
-
   try {
     await authStore.login(email.value, password.value, tenantSlug.value)
     localStorage.setItem(LAST_TENANT_KEY, tenantSlug.value)
@@ -50,164 +72,398 @@ async function onSubmit(): Promise<void> {
   }
 }
 
-/**
- * Convierte el error del SDK en un mensaje legible para el usuario.
- * El SDK arroja el objeto `error` directamente cuando el response no
- * es 2xx; segun la spec OpenAPI, sigue el shape de ErrorEnvelope.
- */
 function humanizeLoginError(err: unknown): string {
   if (err && typeof err === 'object' && 'error' in err) {
-    const errObj = (err as { error?: { message?: string } }).error
-    if (errObj?.message) {
-      return errObj.message
-    }
+    const e = (err as { error?: { message?: string } }).error
+    if (e?.message) return e.message
   }
   return 'No se pudo iniciar sesion. Revisa tus credenciales o intenta de nuevo.'
 }
 </script>
 
 <template>
-  <main class="login">
-    <div class="card">
-      <h1>POS Enterprise</h1>
-      <p class="subtitle">Inicia sesion para continuar.</p>
+  <main class="lv-root">
+    <div class="lv-brand" aria-hidden="true">
+      <div class="lv-brand__top">
+        <div class="lv-brand__logo">
+          <div class="lv-brand__logo-icon">
+            <i class="ti ti-building-store"></i>
+          </div>
+          <span class="lv-brand__logo-text">POS Enterprise</span>
+        </div>
+        <h1 class="lv-brand__headline">Tu punto de venta,<br>donde lo necesites.</h1>
+        <p class="lv-brand__sub">Gestiona ventas, inventario y caja desde un solo lugar. Disenado para retail en LATAM.</p>
+        <ul class="lv-brand__feats">
+          <li><i class="ti ti-shield-check"></i>Multi-tenant con aislamiento por empresa</li>
+          <li><i class="ti ti-bolt"></i>Ventas en tiempo real</li>
+          <li><i class="ti ti-chart-bar"></i>Reportes de caja y arqueo automatico</li>
+          <li><i class="ti ti-packages"></i>Control de inventario por almacen</li>
+        </ul>
+      </div>
+      <p class="lv-brand__copy">© 2025 POS Enterprise · LATAM</p>
+    </div>
 
-      <form @submit.prevent="onSubmit" novalidate>
-        <label>
-          <span>Empresa</span>
-          <input
-            v-model="tenantSlug"
-            type="text"
-            autocomplete="organization"
-            placeholder="slug de la empresa"
-            required
-            :disabled="isSubmitting"
-          />
-        </label>
+    <div class="lv-form-wrap">
+      <div class="lv-form-header">
+        <h2>Iniciar sesion</h2>
+        <p>Ingresa tus credenciales para acceder.</p>
+      </div>
 
-        <label>
-          <span>Email</span>
-          <input
-            v-model="email"
-            type="email"
-            autocomplete="username"
-            required
-            :disabled="isSubmitting"
-          />
-        </label>
+      <form class="lv-form" @submit.prevent="onSubmit" novalidate>
 
-        <label>
-          <span>Contrasena</span>
-          <input
-            v-model="password"
-            type="password"
-            autocomplete="current-password"
-            required
-            :disabled="isSubmitting"
-          />
-        </label>
+        <div class="lv-field" :class="{ 'lv-field--error': tenantError, 'lv-field--valid': !tenantError && tenantTouched && tenantSlug }">
+          <label for="lv-tenant">Empresa</label>
+          <div class="lv-input-wrap">
+            <i class="ti ti-building lv-input-icon"></i>
+            <input
+              id="lv-tenant"
+              v-model="tenantSlug"
+              type="text"
+              placeholder="slug de la empresa"
+              autocomplete="organization"
+              :disabled="isSubmitting"
+              @blur="tenantTouched = true"
+            />
+            <i v-if="!tenantError && tenantTouched && tenantSlug" class="ti ti-circle-check lv-input-status lv-input-status--valid"></i>
+            <i v-else-if="tenantError" class="ti ti-alert-circle lv-input-status lv-input-status--error"></i>
+          </div>
+          <span v-if="tenantError" class="lv-field-error"><i class="ti ti-alert-circle"></i>{{ tenantError }}</span>
+        </div>
 
-        <p v-if="errorMessage" class="error" role="alert">{{ errorMessage }}</p>
+        <div class="lv-field" :class="{ 'lv-field--error': emailError, 'lv-field--valid': !emailError && emailTouched && email }">
+          <label for="lv-email">Correo electronico</label>
+          <div class="lv-input-wrap">
+            <i class="ti ti-mail lv-input-icon"></i>
+            <input
+              id="lv-email"
+              v-model="email"
+              type="email"
+              placeholder="usuario@empresa.com"
+              autocomplete="username"
+              :disabled="isSubmitting"
+              @blur="emailTouched = true"
+            />
+            <i v-if="!emailError && emailTouched && email" class="ti ti-circle-check lv-input-status lv-input-status--valid"></i>
+            <i v-else-if="emailError" class="ti ti-alert-circle lv-input-status lv-input-status--error"></i>
+          </div>
+          <span v-if="emailError" class="lv-field-error"><i class="ti ti-alert-circle"></i>{{ emailError }}</span>
+        </div>
 
-        <button type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Entrando...' : 'Entrar' }}
+        <div class="lv-field" :class="{ 'lv-field--error': passwordError, 'lv-field--valid': !passwordError && passwordTouched && password }">
+          <label for="lv-password">Contrasena</label>
+          <div class="lv-input-wrap">
+            <i class="ti ti-lock lv-input-icon"></i>
+            <input
+              id="lv-password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              :disabled="isSubmitting"
+              @blur="passwordTouched = true"
+            />
+            <button
+              type="button"
+              class="lv-toggle-pass"
+              :aria-label="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
+              @click="showPassword = !showPassword"
+            >
+              <i :class="showPassword ? 'ti ti-eye-off' : 'ti ti-eye'"></i>
+            </button>
+          </div>
+          <span v-if="passwordError" class="lv-field-error"><i class="ti ti-alert-circle"></i>{{ passwordError }}</span>
+        </div>
+
+        <div v-if="errorMessage" class="lv-error-banner" role="alert">
+          <i class="ti ti-alert-triangle"></i>
+          <span>{{ errorMessage }}</span>
+        </div>
+
+        <button type="submit" class="lv-submit" :disabled="isSubmitting">
+          <span v-if="isSubmitting" class="lv-spinner" aria-hidden="true"></span>
+          <i v-else class="ti ti-login"></i>
+          {{ isSubmitting ? 'Verificando...' : 'Entrar' }}
         </button>
+
       </form>
+
+      <p class="lv-footer">Problemas para acceder? Contacta a tu administrador.</p>
     </div>
   </main>
 </template>
 
 <style scoped>
-.login {
+.lv-root {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  background: var(--color-background-primary);
+}
+
+.lv-brand {
+  background: var(--color-background-secondary);
+  border-right: 0.5px solid var(--color-border-tertiary);
+  padding: 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.lv-brand__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2.5rem;
+}
+
+.lv-brand__logo-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #1D9E75;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  padding: 1rem;
 }
 
-.card {
+.lv-brand__logo-icon i {
+  font-size: 19px;
+  color: #fff;
+}
+
+.lv-brand__logo-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.lv-brand__headline {
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  margin-bottom: 0.85rem;
+}
+
+.lv-brand__sub {
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  max-width: 280px;
+  margin-bottom: 2rem;
+}
+
+.lv-brand__feats {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lv-brand__feats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.lv-brand__feats i {
+  font-size: 16px;
+  color: #1D9E75;
+  flex-shrink: 0;
+}
+
+.lv-brand__copy {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.lv-form-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 3.5rem;
+  max-width: 480px;
   width: 100%;
-  max-width: 360px;
-  padding: 2rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  margin: 0 auto;
 }
 
-h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-heading);
-  margin: 0 0 0.25rem;
-  text-align: center;
+.lv-form-header {
+  margin-bottom: 2rem;
 }
 
-.subtitle {
-  color: var(--color-text);
-  opacity: 0.7;
-  text-align: center;
-  margin: 0 0 1.5rem;
-  font-size: 0.875rem;
+.lv-form-header h2 {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 0.35rem;
 }
 
-form {
+.lv-form-header p {
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.lv-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
-label {
+.lv-field {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--color-text);
+  gap: 5px;
 }
 
-input {
-  padding: 0.625rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.95rem;
+.lv-field label {
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.lv-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lv-input-icon {
+  position: absolute;
+  left: 11px;
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.lv-input-wrap input {
+  width: 100%;
+  padding: 10px 36px 10px 34px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  font-size: 14px;
   font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-input:focus {
-  outline: 2px solid var(--color-border-hover);
-  outline-offset: -1px;
+.lv-input-wrap input:focus {
+  border-color: #1D9E75;
+  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.13);
 }
 
-input:disabled {
-  opacity: 0.5;
+.lv-input-wrap input:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-button {
-  padding: 0.7rem 1rem;
+.lv-field--error .lv-input-wrap input {
+  border-color: #E24B4A;
+  box-shadow: 0 0 0 3px rgba(226, 75, 74, 0.1);
+}
+
+.lv-field--valid .lv-input-wrap input {
+  border-color: #639922;
+}
+
+.lv-input-status {
+  position: absolute;
+  right: 10px;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.lv-input-status--valid { color: #639922; }
+.lv-input-status--error { color: #E24B4A; }
+
+.lv-toggle-pass {
+  position: absolute;
+  right: 10px;
+  background: none;
   border: none;
-  border-radius: 6px;
-  background: hsl(160, 100%, 37%);
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 600;
   cursor: pointer;
+  color: var(--color-text-tertiary);
+  font-size: 16px;
+  padding: 0;
+  display: flex;
+  line-height: 1;
+}
+
+.lv-toggle-pass:hover { color: var(--color-text-secondary); }
+
+.lv-field-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #E24B4A;
+}
+
+.lv-field-error i { font-size: 13px; }
+
+.lv-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-danger);
+  border: 0.5px solid var(--color-border-danger);
+  font-size: 13px;
+  color: var(--color-text-danger);
+}
+
+.lv-error-banner i { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+.lv-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: var(--border-radius-md);
+  background: #1D9E75;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
   font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  margin-top: 0.25rem;
 }
 
-button:hover:not(:disabled) {
-  background: hsl(160, 100%, 32%);
+.lv-submit:hover:not(:disabled) { background: #0F6E56; }
+.lv-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lv-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: lv-spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@keyframes lv-spin { to { transform: rotate(360deg); } }
+
+.lv-footer {
+  margin-top: 1.5rem;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  text-align: center;
 }
 
-.error {
-  color: hsl(0, 70%, 55%);
-  font-size: 0.875rem;
-  margin: 0;
+@media (max-width: 680px) {
+  .lv-root { grid-template-columns: 1fr; }
+  .lv-brand { display: none; }
+  .lv-form-wrap { padding: 2rem 1.5rem; max-width: 100%; }
 }
 </style>
