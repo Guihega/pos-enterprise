@@ -104,6 +104,7 @@ function humanizeLoginError(err: unknown): string {
     </div>
 
     <div class="lv-form-wrap">
+      <div class="lv-form-inner">
       <div class="lv-form-header">
         <h2>Iniciar sesion</h2>
         <p>Ingresa tus credenciales para acceder.</p>
@@ -188,25 +189,28 @@ function humanizeLoginError(err: unknown): string {
       </form>
 
       <p class="lv-footer">Problemas para acceder? Contacta a tu administrador.</p>
+      </div>
     </div>
   </main>
 </template>
 
 <style scoped>
 .lv-root {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   min-height: 100vh;
   background: var(--color-background-primary);
+  align-items: stretch;
 }
 
 .lv-brand {
+  flex: 0 0 42%;
   background: var(--color-background-secondary);
   border-right: 0.5px solid var(--color-border-tertiary);
-  padding: 3rem 2.5rem;
+  padding: 3.5rem 3.5rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  min-height: 100vh;
 }
 
 .lv-brand__logo {
@@ -280,13 +284,18 @@ function humanizeLoginError(err: unknown): string {
 }
 
 .lv-form-wrap {
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 3rem 3.5rem;
-  max-width: 480px;
+  align-items: center;
+  padding: 4rem 3rem;
+  min-height: 100vh;
+}
+
+.lv-form-inner {
   width: 100%;
-  margin: 0 auto;
+  max-width: 380px;
 }
 
 .lv-form-header {
@@ -462,8 +471,7 @@ function humanizeLoginError(err: unknown): string {
 }
 
 @media (max-width: 680px) {
-  .lv-root { grid-template-columns: 1fr; }
   .lv-brand { display: none; }
-  .lv-form-wrap { padding: 2rem 1.5rem; max-width: 100%; }
+  .lv-form-wrap { padding: 2rem 1.5rem; }
 }
 </style>
