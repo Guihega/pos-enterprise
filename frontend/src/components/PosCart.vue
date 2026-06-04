@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useCartStore } from '@/stores/cart'
+
+const props = defineProps<{ drawer?: boolean }>()
 import PinSupervisorModal from '@/components/PinSupervisorModal.vue'
 import { useStock } from '@/composables/useStock'
 import { formatPrice } from '@/lib/format'
@@ -48,7 +50,7 @@ function decrement(uuid: string, current: number, allowDecimals: boolean): void 
 </script>
 
 <template>
-  <aside class="pos-cart">
+  <aside class="pos-cart" :class="{ 'pos-cart--drawer': props.drawer }">
     <div class="pos-cart__header">
       <h2>Venta actual</h2>
       <button
@@ -310,5 +312,32 @@ function decrement(uuid: string, current: number, allowDecimals: boolean): void 
   font-size: 0.875rem;
   color: var(--color-text);
   opacity: 0.85;
+}
+
+@media (max-width: 767px) {
+  .pos-cart {
+    display: none;
+  }
+
+  .pos-cart--drawer {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: 75vh;
+    border-radius: var(--pos-radius-lg, 12px) var(--pos-radius-lg, 12px) 0 0;
+    border: 1px solid var(--color-border);
+    border-bottom: none;
+    z-index: 100;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.18);
+    animation: pos-drawer-up 0.28s cubic-bezier(0.32,0.72,0,1);
+  }
+
+  @keyframes pos-drawer-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
 }
 </style>

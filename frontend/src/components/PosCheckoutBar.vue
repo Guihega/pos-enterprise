@@ -6,7 +6,12 @@ const cartStore = useCartStore()
 
 const emit = defineEmits<{
   (e: 'checkout'): void
+  (e: 'open-cart'): void
 }>()
+
+function onOpenCart(): void {
+  emit('open-cart')
+}
 
 
 function onCheckout(): void {
@@ -16,6 +21,15 @@ function onCheckout(): void {
 
 <template>
   <footer class="pos-checkout">
+    <button
+      type="button"
+      class="pos-checkout__cart-btn"
+      aria-label="Ver carrito"
+      @click="onOpenCart"
+    >
+      <span class="pos-checkout__cart-icon">🛒</span>
+      <span v-if="cartStore.lineCount > 0" class="pos-checkout__cart-badge">{{ cartStore.lineCount }}</span>
+    </button>
     <div class="pos-checkout__summary">
       <span class="pos-checkout__count">
         {{ cartStore.lineCount }} item(s)
@@ -86,5 +100,44 @@ function onCheckout(): void {
 .pos-checkout__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pos-checkout__cart-btn {
+  display: none;
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-background-soft, var(--color-background));
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.pos-checkout__cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--pos-accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+@media (max-width: 767px) {
+  .pos-checkout__cart-btn {
+    display: flex;
+  }
 }
 </style>

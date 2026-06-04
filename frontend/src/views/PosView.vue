@@ -18,6 +18,7 @@ const salesStore = useSalesStore()
 
 const showPaymentModal = ref(false)
 const showCloseModal = ref(false)
+const showCartDrawer = ref(false)
 // Sesion recien cerrada: alimenta el banner de arqueo. null = sin banner.
 const closedSession = ref<CashSession | null>(null)
 
@@ -116,9 +117,12 @@ function dismissSuccessBanner(): void {
     <PosHeader @close-cash="onCloseCashRequested" />
     <main class="pos-main">
       <PosCatalog @product-selected="onProductSelected" />
-      <PosCart />
+      <PosCart :drawer="showCartDrawer" />
+      <Transition name="pos-overlay">
+        <div v-if="showCartDrawer" class="pos-cart-overlay" @click="showCartDrawer = false" />
+      </Transition>
     </main>
-    <PosCheckoutBar @checkout="onCheckoutRequested" />
+    <PosCheckoutBar @checkout="onCheckoutRequested" @open-cart="showCartDrawer = true" />
 
     <!-- Modal bloqueante de apertura de caja. -->
     <CashOpenModal v-if="!cashStore.hasActiveSession && !cashStore.loading" />
@@ -351,5 +355,28 @@ function dismissSuccessBanner(): void {
 
 .pos-arqueo-banner__close:hover {
   opacity: 1;
+}
+
+.pos-cart-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 99;
+}
+
+.pos-overlay-enter-active,
+.pos-overlay-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.pos-overlay-enter-from,
+.pos-overlay-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 767px) {
+  .pos-main {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
