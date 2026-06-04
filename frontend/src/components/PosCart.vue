@@ -1,10 +1,28 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useCartStore } from '@/stores/cart'
+import PinSupervisorModal from '@/components/PinSupervisorModal.vue'
 import { useStock } from '@/composables/useStock'
 import { formatPrice } from '@/lib/format'
 
 const cartStore = useCartStore()
 const stock = useStock()
+
+const showPinModal = ref(false)
+
+function requestClear(): void {
+  if (cartStore.isEmpty) return
+  showPinModal.value = true
+}
+
+function onPinConfirmed(): void {
+  showPinModal.value = false
+  cartStore.clear()
+}
+
+function onPinCancelled(): void {
+  showPinModal.value = false
+}
 
 
 function onQuantityInput(productUuid: string, event: Event): void {
@@ -37,7 +55,7 @@ function decrement(uuid: string, current: number, allowDecimals: boolean): void 
         v-if="!cartStore.isEmpty"
         type="button"
         class="pos-cart__clear"
-        @click="cartStore.clear()"
+        @click="requestClear()"
       >
         Vaciar
       </button>
@@ -116,6 +134,12 @@ function decrement(uuid: string, current: number, allowDecimals: boolean): void 
       </div>
     </div>
   </aside>
+
+  <PinSupervisorModal
+    :open="showPinModal"
+    @confirmed="onPinConfirmed"
+    @cancelled="onPinCancelled"
+  />
 </template>
 
 <style scoped>
