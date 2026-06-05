@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.5.3
+  version: 0.5.4
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -429,6 +429,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createProduct
+      tags: [Catalog]
+      summary: Crea un producto en el catalogo
+      description: |
+        Crea un producto. Requiere permiso `product.create`. El `sku` debe ser
+        unico dentro del tenant. Las relaciones (`category_uuid`, `brand_uuid`,
+        `unit_uuid`, `tax_uuid`) se referencian por UUID y deben pertenecer al
+        tenant en contexto. Devuelve el producto creado con sus relaciones
+        `category`, `brand`, `unit` y `tax` precargadas.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreProductRequest'
+      responses:
+        '201':
+          description: Producto creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `product.create`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /products/{uuid}:
     get:
       operationId: getProduct
@@ -464,6 +506,102 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: El usuario no tiene permiso `product.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Producto no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+    patch:
+      operationId: updateProduct
+      tags: [Catalog]
+      summary: Actualiza un producto
+      description: |
+        Actualiza parcialmente un producto. Requiere permiso `product.update`.
+        Los campos son opcionales; los enviados se validan. El `sku` sigue
+        siendo unico por tenant (se excluye el propio producto). Devuelve el
+        producto actualizado con `category`, `brand`, `unit` y `tax`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: uuid
+          required: true
+          description: UUID del producto.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Producto actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `product.update`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Producto no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      operationId: deleteProduct
+      tags: [Catalog]
+      summary: Elimina un producto (soft delete)
+      description: |
+        Elimina logicamente un producto (soft delete; el registro se conserva
+        por regulacion contable). Requiere permiso `product.delete`. Responde
+        204 sin cuerpo.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: uuid
+          required: true
+          description: UUID del producto.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Producto eliminado (sin contenido).
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `product.delete`.
           content:
             application/json:
               schema:
@@ -1503,7 +1641,192 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/ProductDetail'
+    ProductResponse:
+      type: object
+      description: |
+        Respuesta de create/update: producto en forma list (con
+        category, brand, unit, tax; sin barcodes ni images).
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Product'
 
+    StoreProductRequest:
+      type: object
+      required: [sku, name, unit_uuid, price]
+      properties:
+        sku:
+          type: string
+          maxLength: 60
+          description: Codigo unico del producto dentro del tenant.
+        name:
+          type: string
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 2000
+        short_description:
+          type: [string, 'null']
+          maxLength: 500
+        category_uuid:
+          type: [string, 'null']
+          format: uuid
+          description: UUID de una categoria del tenant.
+        brand_uuid:
+          type: [string, 'null']
+          format: uuid
+          description: UUID de una marca del tenant.
+        unit_uuid:
+          type: string
+          format: uuid
+          description: UUID de la unidad de medida (requerido).
+        tax_uuid:
+          type: [string, 'null']
+          format: uuid
+          description: UUID del impuesto aplicable.
+        cost:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+          maximum: 99999999.9999
+        price:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 99999999.9999
+        compare_at_price:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+          description: Debe ser mayor o igual a price.
+        min_price:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+          description: Debe ser menor o igual a price.
+        track_inventory:
+          type: boolean
+        is_sellable:
+          type: boolean
+        is_purchasable:
+          type: boolean
+        allow_decimals:
+          type: boolean
+        status:
+          type: string
+          enum: [draft, active, archived]
+        weight:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+        weight_unit:
+          type: [string, 'null']
+          enum: [g, kg, oz, lb, null]
+        dimensions:
+          type: [object, 'null']
+          properties:
+            length:
+              type: [number, 'null']
+              format: float
+              minimum: 0
+            width:
+              type: [number, 'null']
+              format: float
+              minimum: 0
+            height:
+              type: [number, 'null']
+              format: float
+              minimum: 0
+            unit:
+              type: [string, 'null']
+              enum: [cm, in, mm, null]
+        tax_code:
+          type: [string, 'null']
+          maxLength: 30
+        custom_attributes:
+          type: [object, 'null']
+          additionalProperties: true
+        metadata:
+          type: [object, 'null']
+          additionalProperties: true
+    UpdateProductRequest:
+      type: object
+      description: |
+        Actualizacion parcial. Todos los campos son opcionales; sku, name,
+        unit_uuid y price (cuando se envian) no pueden ser vacios.
+      properties:
+        sku:
+          type: string
+          maxLength: 60
+        name:
+          type: string
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 2000
+        short_description:
+          type: [string, 'null']
+          maxLength: 500
+        category_uuid:
+          type: [string, 'null']
+          format: uuid
+        brand_uuid:
+          type: [string, 'null']
+          format: uuid
+        unit_uuid:
+          type: string
+          format: uuid
+        tax_uuid:
+          type: [string, 'null']
+          format: uuid
+        cost:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+          maximum: 99999999.9999
+        price:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 99999999.9999
+        compare_at_price:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+        min_price:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+        track_inventory:
+          type: boolean
+        is_sellable:
+          type: boolean
+        is_purchasable:
+          type: boolean
+        allow_decimals:
+          type: boolean
+        status:
+          type: string
+          enum: [draft, active, archived]
+        weight:
+          type: [number, 'null']
+          format: float
+          minimum: 0
+        weight_unit:
+          type: [string, 'null']
+          enum: [g, kg, oz, lb, null]
+        dimensions:
+          type: [object, 'null']
+          additionalProperties: true
+        tax_code:
+          type: [string, 'null']
+          maxLength: 30
+        custom_attributes:
+          type: [object, 'null']
+          additionalProperties: true
+        metadata:
+          type: [object, 'null']
+          additionalProperties: true
     CashRegisterBranch:
       type: object
       required: [uuid, code, name]
