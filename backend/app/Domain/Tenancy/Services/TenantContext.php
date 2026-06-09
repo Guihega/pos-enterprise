@@ -27,6 +27,15 @@ use Illuminate\Support\Facades\DB;
  *     proyecto, por lo que crear el trait ahora seria infra especulativa
  *     sin consumidor. El criterio de activacion es: al implementar el
  *     primer ShouldQueue que dependa del TenantContext.
+ *
+ *     TODO(deuda-10): bajo Laravel Octane el proceso PHP se reutiliza
+ *     entre requests, por lo que el estado estatico ($current,
+ *     $superAdminMode) NO se limpia solo y podria filtrarse de un
+ *     tenant a otro (leakage cross-tenant). Al instalar Octane hay que
+ *     registrar un listener de RequestReceived (o RequestTerminated)
+ *     que llame TenantContext::forget(). Hoy corremos php-fpm (proceso
+ *     por request, estado limpio automaticamente), asi que no aplica.
+ *     Criterio de activacion: al instalar laravel/octane.
  *  3. Tests llaman set() en setUp y forget() en tearDown, o usan
  *     `actingAsTenant($company)` del helper de tests.
  *
