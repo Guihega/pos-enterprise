@@ -99,6 +99,7 @@ class DevDataSeeder extends Seeder
 
                     $factory = Product::factory()
                         ->active()
+                        ->realisticName()
                         ->state([
                             'company_id' => $demo->id,
                             'category_id' => $category->id,
