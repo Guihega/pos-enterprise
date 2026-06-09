@@ -19,7 +19,14 @@ use Illuminate\Support\Facades\DB;
  *  1. Middleware HTTP (EnsureTenantContext) llama set() al inicio del request
  *     y forget() al final.
  *  2. Jobs en cola que necesiten contexto tenant llaman set() al iniciar y
- *     forget() al terminar (ver TenantAwareJob trait).
+ *     forget() al terminar.
+ *
+ *     TODO(deuda-9): extraer este patron set()/forget() a un trait
+ *     TenantAwareJob (o middleware de job) cuando exista el primer job
+ *     en cola que cruce el boundary de tenant. Hoy no hay jobs en el
+ *     proyecto, por lo que crear el trait ahora seria infra especulativa
+ *     sin consumidor. El criterio de activacion es: al implementar el
+ *     primer ShouldQueue que dependa del TenantContext.
  *  3. Tests llaman set() en setUp y forget() en tearDown, o usan
  *     `actingAsTenant($company)` del helper de tests.
  *
@@ -118,7 +125,7 @@ final class TenantContext
      * restaurando el contexto previo al terminar.
      *
      * @template T
-     * @param  Company  $company
+     *
      * @param  callable(): T  $callback
      * @return T
      */
