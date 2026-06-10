@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.5.4
+  version: 0.5.5
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -21,8 +21,8 @@ info:
     identifier: LicenseRef-Proprietary
 
 servers:
-  - url: http://localhost:8000/api/v1
-    description: Entorno local de desarrollo
+  - url: http://localhost:8080/api/v1
+    description: Entorno local de desarrollo (Docker, nginx en 8080)
   - url: https://staging.example.com/api/v1
     description: Staging (placeholder — reemplazar con dominio real)
   - url: https://api.example.com/api/v1
