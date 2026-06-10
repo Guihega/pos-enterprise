@@ -20,4 +20,5 @@ Plantilla en [`docs/adr/_template.md`](_template.md). Numeración secuencial: `N
 | [0004](0004-offline-first-pwa.md) | Cliente offline-first como PWA con IndexedDB | Accepted |
 | [0005](0005-ids-uuid.md) | UUIDs como identificadores externos | Accepted |
 | [0006](0006-postgres-rls.md) | Row Level Security en Postgres como defense-in-depth | Accepted |
+| [0007](0007-tenant-context-octane.md) | TenantContext con estado estatico y compatibilidad con Laravel Octane | Accepted |
 

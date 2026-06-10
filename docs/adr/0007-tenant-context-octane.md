@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Fecha:** 2026-05-27
 - **Supersedes:** —
-- **Referencias:** `App\Domain\Tenancy\Services\TenantContext`, `App\Domain\Tenancy\Middleware\EnsureTenantContext`, ADR-0006 (RLS — pendiente de redactar)
+- **Referencias:** `App\Domain\Tenancy\Services\TenantContext`, `App\Domain\Tenancy\Middleware\EnsureTenantContext`, ADR-0006 (Row Level Security en Postgres)
 
 ## Contexto
 
@@ -116,7 +116,7 @@ los tres bordes** del estado estático:
 
 - Implementar el trait `TenantAwareJob` cuando se aborde la Etapa 4.
 - Implementar el listener `RequestReceived` cuando se instale Octane.
-- Escribir el ADR-0006 retroactivo sobre RLS, al que este documento hace
+- ADR-0006 (RLS) ya redactado; este documento lo complementa para el caso
   referencia.
 
 ## Cómo verificar la decisión
