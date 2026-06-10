@@ -77,15 +77,15 @@ services:
     ports:
       - "${POSTGRES_HOST_PORT:-5433}:5432"   # 5433 en host evita choque con Postgres del sistema
     environment:
-      POSTGRES_DB: pos
-      POSTGRES_USER: pos
-      POSTGRES_PASSWORD: pos_dev_secret_change_me
+      POSTGRES_DB: ${DB_DATABASE:-pos}
+      POSTGRES_USER: ${DB_USERNAME:-pos}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerido en .env}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - pos-postgres-data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pos -d pos"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-pos} -d ${DB_DATABASE:-pos}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -117,12 +117,12 @@ services:
       - "redis-server"
       - "/usr/local/etc/redis/redis.conf"
       - "--requirepass"
-      - "redis_dev_secret_change_me"
+      - "${REDIS_PASSWORD:?REDIS_PASSWORD requerido en .env}"
     volumes:
       - pos-redis-data:/data
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_dev_secret_change_me", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -238,7 +238,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8080/api/v1
       VITE_DEV_TENANT: demo
-      VITE_REVERB_APP_KEY: local_key_change_me
+      VITE_REVERB_APP_KEY: ${REVERB_APP_KEY}
       VITE_REVERB_HOST: localhost
       VITE_REVERB_PORT: 8081
       VITE_REVERB_SCHEME: ws
