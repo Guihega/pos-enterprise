@@ -131,9 +131,13 @@ class DevDataSeeder extends Seeder
                 if ($exists) {
                     continue;
                 }
+                // Code correlativo por tenant (unique es company_id+code).
+                // No anteponer branch->code: el folio de venta ya antepone
+                // el branch, y duplicarlo genera CTR-CTR-CAJA-01 (ver bug folio).
+                $cajaNum = str_pad((string) ($registersCreated + 1), 2, '0', STR_PAD_LEFT);
                 CashRegister::factory()->ofBranch($branch)->create([
-                    'code' => $branch->code.'-CAJA-01',
-                    'name' => 'Caja 1 - '.$branch->name,
+                    'code' => 'CAJA-'.$cajaNum,
+                    'name' => 'Caja '.$cajaNum.' - '.$branch->name,
                 ]);
                 $registersCreated++;
             }
