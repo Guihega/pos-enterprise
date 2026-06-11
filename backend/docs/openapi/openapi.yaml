@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -45,6 +45,8 @@ tags:
     description: Cajas registradoras y sesiones de caja.
   - name: Sales
     description: Ventas (checkout, listado, detalle, cancelacion).
+  - name: Customers
+    description: Clientes (CRUD, credito, bloqueo).
 
 paths:
 
@@ -1318,8 +1320,265 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [Customers]
+      summary: Lista clientes
+      description: |
+        Devuelve clientes paginados. Soporta busqueda libre (`q`) por
+        nombre, code, tax_id, email; filtros por tipo, credito, activos y
+        bloqueados; y orden por nombre, fecha o saldo.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: q
+          required: false
+          description: Busqueda libre en nombre, code, tax_id y email.
+          schema:
+            type: string
+            maxLength: 100
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+            enum: [individual, business]
+        - in: query
+          name: with_credit
+          required: false
+          description: Solo clientes con limite de credito mayor a cero.
+          schema:
+            type: boolean
+        - in: query
+          name: active_only
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: blocked
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: per_page
+          required: false
+          description: Tamano de pagina. Maximo 200, default 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [name, created_at, credit_balance]
+            default: name
+        - in: query
+          name: direction
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Listado paginado de clientes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
-          description: Sin permiso `inventory.view`.
+          description: El usuario no tiene permiso `customer.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createCustomer
+      tags: [Customers]
+      summary: Crea un cliente
+      description: |
+        Crea un cliente. Requiere permiso `customer.create`. Los campos
+        `code`, `tax_id` y `email` deben ser unicos dentro del tenant.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        '201':
+          description: Cliente creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `customer.create`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /customers/{uuid}:
+    get:
+      operationId: getCustomer
+      tags: [Customers]
+      summary: Detalle de un cliente
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cliente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `customer.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Cliente no encontrado en el tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    put:
+      operationId: updateCustomer
+      tags: [Customers]
+      summary: Actualiza un cliente
+      description: |
+        Actualiza un cliente. Requiere permiso `customer.update`. Acepta
+        actualizacion parcial. `code`, `tax_id` y `email` siguen siendo
+        unicos dentro del tenant (ignorando al propio cliente).
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        '200':
+          description: Cliente actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `customer.update`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Cliente no encontrado en el tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      operationId: deleteCustomer
+      tags: [Customers]
+      summary: Elimina un cliente (soft delete)
+      description: |
+        Elimina un cliente. Requiere permiso `customer.delete`. Si el cliente
+        tiene saldo deudor (`credit.balance` mayor a cero) la API responde
+        `409 CUSTOMER_HAS_BALANCE` y no lo elimina.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Cliente eliminado, sin contenido.
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado o token invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `customer.delete`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Cliente no encontrado en el tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: El cliente tiene saldo deudor y no puede eliminarse.
           content:
             application/json:
               schema:
@@ -1537,6 +1796,195 @@ components:
             email: [El correo es obligatorio.]
             password: [La contraseña es obligatoria.]
 
+    CustomerInput:
+      type: object
+      description: Cuerpo para crear o actualizar un cliente (campos planos).
+      required: [type, name]
+      properties:
+        code:
+          type: string
+          maxLength: 50
+          nullable: true
+          description: Codigo interno. Unico por tenant.
+        type:
+          type: string
+          enum: [individual, business]
+        name:
+          type: string
+          maxLength: 200
+        legal_name:
+          type: string
+          maxLength: 200
+          nullable: true
+        tax_id:
+          type: string
+          maxLength: 50
+          nullable: true
+          description: RFC u homologo. Unico por tenant.
+        tax_data:
+          type: object
+          nullable: true
+          additionalProperties: true
+        email:
+          type: string
+          format: email
+          maxLength: 200
+          nullable: true
+          description: Unico por tenant.
+        phone:
+          type: string
+          maxLength: 30
+          nullable: true
+        mobile:
+          type: string
+          maxLength: 30
+          nullable: true
+        address_line:
+          type: string
+          maxLength: 300
+          nullable: true
+        city:
+          type: string
+          maxLength: 100
+          nullable: true
+        state:
+          type: string
+          maxLength: 100
+          nullable: true
+        postal_code:
+          type: string
+          maxLength: 20
+          nullable: true
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+          nullable: true
+          description: Codigo ISO de dos letras.
+        credit_limit:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 99999999.99
+          nullable: true
+        is_active:
+          type: boolean
+          nullable: true
+        is_blocked:
+          type: boolean
+          nullable: true
+        blocked_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    Customer:
+      type: object
+      description: Cliente (shape de lectura, anidado).
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [individual, business]
+        name:
+          type: string
+        legal_name:
+          type: string
+          nullable: true
+        tax:
+          type: object
+          properties:
+            tax_id:
+              type: string
+              nullable: true
+            data:
+              type: object
+              nullable: true
+              additionalProperties: true
+        contact:
+          type: object
+          properties:
+            email:
+              type: string
+              nullable: true
+            phone:
+              type: string
+              nullable: true
+            mobile:
+              type: string
+              nullable: true
+        address:
+          type: object
+          properties:
+            line:
+              type: string
+              nullable: true
+            city:
+              type: string
+              nullable: true
+            state:
+              type: string
+              nullable: true
+            postal_code:
+              type: string
+              nullable: true
+            country_code:
+              type: string
+              nullable: true
+        credit:
+          type: object
+          properties:
+            limit:
+              type: number
+              format: float
+            balance:
+              type: number
+              format: float
+            available:
+              type: number
+              format: float
+        flags:
+          type: object
+          properties:
+            is_active:
+              type: boolean
+            is_blocked:
+              type: boolean
+            blocked_reason:
+              type: string
+              nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CustomerResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Customer'
+    CustomerListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
     Product:
       type: object
       description: |
