@@ -180,6 +180,14 @@ class ProductsController extends Controller
             unset($output['tax_uuid']);
         }
 
+        // La columna cost es NOT NULL con default 0 en BD. La validacion la
+        // permite nullable, asi que normalizamos null/ausente a 0 para no
+        // violar el not-null al insertar (price y los demas no aplican:
+        // price es required y compare_at_price/min_price son nullable en BD).
+        if (! isset($output['cost']) || $output['cost'] === null) {
+            $output['cost'] = 0;
+        }
+
         return $output;
     }
 }
