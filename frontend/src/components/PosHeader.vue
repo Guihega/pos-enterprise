@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { formatPrice } from '@/lib/format'
 import { useAuthStore } from '@/stores/auth'
 import { useCashSessionStore } from '@/stores/cashSession'
@@ -28,6 +28,10 @@ async function onLogout(): Promise<void> {
       <span class="pos-header__logo" aria-hidden="true">POS</span>
       <strong>POS Enterprise</strong>
     </div>
+    <nav class="pos-header__nav">
+      <RouterLink :to="{ name: 'pos' }" class="pos-header__navlink">Punto de venta</RouterLink>
+      <RouterLink :to="{ name: 'catalogo' }" class="pos-header__navlink">Catalogo</RouterLink>
+    </nav>
 
     <div class="pos-header__user">
       <span
@@ -73,6 +77,28 @@ async function onLogout(): Promise<void> {
   color: var(--color-heading);
 }
 
+.pos-header__nav {
+  display: flex;
+  gap: var(--pos-space-sm);
+  margin-left: var(--pos-space-lg);
+}
+.pos-header__navlink {
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--pos-radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+.pos-header__navlink:hover {
+  opacity: 1;
+  background: var(--color-background-mute);
+}
+.pos-header__navlink.router-link-active {
+  opacity: 1;
+  color: var(--pos-accent);
+  background: rgba(0, 200, 130, 0.1);
+}
 .pos-header__logo {
   display: inline-flex;
   align-items: center;
