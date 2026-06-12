@@ -3,6 +3,7 @@ import LoginView from '@/views/LoginView.vue'
 import PosView from '@/views/PosView.vue'
 import ProductsView from '@/views/ProductsView.vue'
 import CustomersView from '@/views/CustomersView.vue'
+import InventoryView from '@/views/InventoryView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -30,6 +31,12 @@ const router = createRouter({
       path: '/clientes',
       name: 'clientes',
       component: CustomersView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/inventario',
+      name: 'inventario',
+      component: InventoryView,
       meta: { requiresAuth: true },
     },
   ],
