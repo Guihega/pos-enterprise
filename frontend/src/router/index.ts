@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '@/views/LoginView.vue'
 import PosView from '@/views/PosView.vue'
 import ProductsView from '@/views/ProductsView.vue'
+import CustomersView from '@/views/CustomersView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -23,6 +24,12 @@ const router = createRouter({
       path: '/catalogo',
       name: 'catalogo',
       component: ProductsView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/clientes',
+      name: 'clientes',
+      component: CustomersView,
       meta: { requiresAuth: true },
     },
   ],
