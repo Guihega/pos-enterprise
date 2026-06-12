@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.7.0
+  version: 0.8.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -47,6 +47,8 @@ tags:
     description: Ventas (checkout, listado, detalle, cancelacion).
   - name: Customers
     description: Clientes (CRUD, credito, bloqueo).
+  - name: Inventory
+    description: Existencias, ajustes y kardex de movimientos.
 
 paths:
 
@@ -1316,6 +1318,183 @@ paths:
           $ref: '#/components/responses/TenantNotResolved'
         '401':
           description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /inventory/adjust:
+    post:
+      operationId: adjustStock
+      tags: [Inventory]
+      summary: Ajusta existencias de un producto en un almacen
+      description: |
+        Aplica un ajuste manual de existencias por `delta` (positivo o
+        negativo, nunca cero) con un motivo obligatorio. Crea un movimiento
+        de inventario de tipo `adjustment` y devuelve ese movimiento.
+        Requiere permiso `inventory.adjust`. Si el ajuste dejaria el stock
+        en negativo, responde `409 INSUFFICIENT_STOCK`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustStockInput'
+      responses:
+        '201':
+          description: Ajuste aplicado; devuelve el movimiento creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryMovementResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `inventory.adjust`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: El ajuste dejaria el stock en negativo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /inventory/movements:
+    get:
+      operationId: listInventoryMovements
+      tags: [Inventory]
+      summary: Kardex de movimientos de inventario
+      description: |
+        Devuelve movimientos paginados ordenados del mas reciente al mas
+        antiguo. Filtros: `product`, `warehouse`, `type`, `from`, `to`
+        (rango por fecha de movimiento). Requiere permiso `inventory.view`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: product
+          required: false
+          description: UUID del producto.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: warehouse
+          required: false
+          description: UUID del almacen.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+            enum: [entry, exit, adjustment, transfer_out, transfer_in, return_customer, return_supplier, production_in, production_out, opening]
+        - in: query
+          name: from
+          required: false
+          description: Fecha/hora ISO 8601 minima (inclusive).
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          required: false
+          description: Fecha/hora ISO 8601 maxima (inclusive).
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: per_page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Listado paginado de movimientos (kardex).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryMovementListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `inventory.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /warehouses:
+    get:
+      operationId: listWarehouses
+      tags: [Inventory]
+      summary: Lista almacenes del tenant
+      description: |
+        Devuelve almacenes paginados ordenados por nombre. Filtros:
+        `branch` (UUID de sucursal) y `active`. Util para poblar selectores
+        de almacen en ajustes y kardex. Requiere permiso `inventory.view`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: query
+          name: branch
+          required: false
+          description: UUID de la sucursal.
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: active
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: per_page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Listado paginado de almacenes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseListResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: El usuario no tiene permiso `inventory.view`.
           content:
             application/json:
               schema:
@@ -2655,6 +2834,182 @@ components:
           type: integer
           minimum: 0
           description: Solo aparece en el detalle, no en listados.
+    AdjustStockInput:
+      type: object
+      description: Cuerpo para ajustar existencias por delta con motivo.
+      required: [product_uuid, warehouse_uuid, delta, reason]
+      properties:
+        product_uuid:
+          type: string
+          format: uuid
+        warehouse_uuid:
+          type: string
+          format: uuid
+        delta:
+          type: number
+          description: Cantidad a sumar (positivo) o restar (negativo). Nunca cero.
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    InventoryMovement:
+      type: object
+      description: Movimiento de inventario (linea del kardex).
+      required:
+        - uuid
+        - type
+        - movement_at
+        - product
+        - warehouse
+        - quantity
+        - cost
+        - reason
+        - created_at
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [entry, exit, adjustment, transfer_out, transfer_in, return_customer, return_supplier, production_in, production_out, opening]
+        movement_at:
+          type: string
+          format: date-time
+        product:
+          type: object
+          required: [uuid, sku, name]
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            sku:
+              type: string
+            name:
+              type: string
+        warehouse:
+          type: object
+          required: [uuid, code, name]
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            code:
+              type: string
+            name:
+              type: string
+        quantity:
+          type: object
+          required: [delta, after]
+          properties:
+            delta:
+              type: number
+            after:
+              type: number
+        cost:
+          type: object
+          required: [unit, total, average_after]
+          properties:
+            unit:
+              type: number
+            total:
+              type: number
+            average_after:
+              type: number
+        transfer_id:
+          type: [string, 'null']
+        reason:
+          type: [string, 'null']
+        reference:
+          type: [string, 'null']
+        user:
+          type: [object, 'null']
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            name:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+    InventoryMovementResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/InventoryMovement'
+    InventoryMovementListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryMovement'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    Warehouse:
+      type: object
+      description: Almacen del tenant.
+      required:
+        - uuid
+        - code
+        - name
+        - type
+        - is_sellable
+        - is_default
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        type:
+          type: string
+        is_sellable:
+          type: boolean
+        is_default:
+          type: boolean
+        is_active:
+          type: boolean
+        branch:
+          type: object
+          required: [uuid, code, name]
+          properties:
+            uuid:
+              type: string
+              format: uuid
+            code:
+              type: string
+            name:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    WarehouseListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Warehouse'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
     Stock:
       type: object
       required: [quantity]
