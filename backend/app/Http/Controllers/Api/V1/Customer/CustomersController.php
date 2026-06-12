@@ -71,7 +71,7 @@ class CustomersController extends Controller
         $data['uuid'] = (string) Str::uuid();
         $data['company_id'] = TenantContext::id();
 
-        $customer = Customer::create($data);
+        $customer = Customer::create($this->normalizeDefaults($data));
 
         return response()->json(
             ['data' => new CustomerResource($customer)],
@@ -83,7 +83,7 @@ class CustomersController extends Controller
     {
         abort_unless((bool) $request->user()?->can(Permissions::CUSTOMER_UPDATE), 403);
 
-        $customer->update($request->validated());
+        $customer->update($this->normalizeDefaults($request->validated()));
 
         return response()->json(['data' => new CustomerResource($customer)]);
     }
@@ -105,5 +105,30 @@ class CustomersController extends Controller
         $customer->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Rellena con sus defaults las columnas NOT NULL que el formulario
+     * puede enviar como null explicito cuando se dejan vacias. El default
+     * de la BD solo aplica si se OMITE la columna; un null explicito en el
+     * INSERT/UPDATE viola la constraint NOT NULL. Afecta a credit_limit
+     * (default 0), is_active (default true) y is_blocked (default false).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizeDefaults(array $data): array
+    {
+        if (array_key_exists('credit_limit', $data) && $data['credit_limit'] === null) {
+            $data['credit_limit'] = 0;
+        }
+        if (array_key_exists('is_active', $data) && $data['is_active'] === null) {
+            $data['is_active'] = true;
+        }
+        if (array_key_exists('is_blocked', $data) && $data['is_blocked'] === null) {
+            $data['is_blocked'] = false;
+        }
+
+        return $data;
     }
 }
