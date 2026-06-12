@@ -1802,9 +1802,8 @@ components:
       required: [type, name]
       properties:
         code:
-          type: string
+          type: [string, 'null']
           maxLength: 50
-          nullable: true
           description: Codigo interno. Unico por tenant.
         type:
           type: string
@@ -1813,133 +1812,123 @@ components:
           type: string
           maxLength: 200
         legal_name:
-          type: string
+          type: [string, 'null']
           maxLength: 200
-          nullable: true
         tax_id:
-          type: string
+          type: [string, 'null']
           maxLength: 50
-          nullable: true
           description: RFC u homologo. Unico por tenant.
         tax_data:
-          type: object
-          nullable: true
+          type: [object, 'null']
           additionalProperties: true
         email:
-          type: string
+          type: [string, 'null']
           format: email
           maxLength: 200
-          nullable: true
           description: Unico por tenant.
         phone:
-          type: string
+          type: [string, 'null']
           maxLength: 30
-          nullable: true
         mobile:
-          type: string
+          type: [string, 'null']
           maxLength: 30
-          nullable: true
         address_line:
-          type: string
+          type: [string, 'null']
           maxLength: 300
-          nullable: true
         city:
-          type: string
+          type: [string, 'null']
           maxLength: 100
-          nullable: true
         state:
-          type: string
+          type: [string, 'null']
           maxLength: 100
-          nullable: true
         postal_code:
-          type: string
+          type: [string, 'null']
           maxLength: 20
-          nullable: true
         country_code:
-          type: string
+          type: [string, 'null']
           minLength: 2
           maxLength: 2
-          nullable: true
           description: Codigo ISO de dos letras.
         credit_limit:
-          type: number
+          type: [number, 'null']
           format: float
           minimum: 0
           maximum: 99999999.99
-          nullable: true
         is_active:
           type: boolean
-          nullable: true
         is_blocked:
           type: boolean
-          nullable: true
         blocked_reason:
-          type: string
+          type: [string, 'null']
           maxLength: 500
-          nullable: true
         notes:
-          type: string
-          nullable: true
+          type: [string, 'null']
     Customer:
       type: object
       description: Cliente (shape de lectura, anidado).
+      required:
+        - uuid
+        - code
+        - type
+        - name
+        - legal_name
+        - tax
+        - contact
+        - address
+        - credit
+        - flags
+        - notes
+        - created_at
+        - updated_at
       properties:
         uuid:
           type: string
           format: uuid
         code:
-          type: string
-          nullable: true
+          type: [string, 'null']
         type:
           type: string
           enum: [individual, business]
         name:
           type: string
         legal_name:
-          type: string
-          nullable: true
+          type: [string, 'null']
         tax:
           type: object
+          required: [tax_id, data]
           properties:
             tax_id:
-              type: string
-              nullable: true
+              type: [string, 'null']
             data:
-              type: object
-              nullable: true
+              type: [object, 'null']
               additionalProperties: true
         contact:
           type: object
+          required: [email, phone, mobile]
           properties:
             email:
-              type: string
-              nullable: true
+              type: [string, 'null']
             phone:
-              type: string
-              nullable: true
+              type: [string, 'null']
             mobile:
-              type: string
-              nullable: true
+              type: [string, 'null']
         address:
           type: object
+          required: [line, city, state, postal_code, country_code]
           properties:
             line:
-              type: string
-              nullable: true
+              type: [string, 'null']
             city:
-              type: string
-              nullable: true
+              type: [string, 'null']
             state:
-              type: string
-              nullable: true
+              type: [string, 'null']
             postal_code:
-              type: string
-              nullable: true
+              type: [string, 'null']
             country_code:
-              type: string
-              nullable: true
+              type: [string, 'null']
         credit:
           type: object
+          required: [limit, balance, available]
           properties:
             limit:
               type: number
@@ -1952,17 +1941,16 @@ components:
               format: float
         flags:
           type: object
+          required: [is_active, is_blocked, blocked_reason]
           properties:
             is_active:
               type: boolean
             is_blocked:
               type: boolean
             blocked_reason:
-              type: string
-              nullable: true
+              type: [string, 'null']
         notes:
-          type: string
-          nullable: true
+          type: [string, 'null']
         created_at:
           type: string
           format: date-time
@@ -1971,11 +1959,13 @@ components:
           format: date-time
     CustomerResponse:
       type: object
+      required: [data]
       properties:
         data:
           $ref: '#/components/schemas/Customer'
     CustomerListResponse:
       type: object
+      required: [data, links, meta]
       properties:
         data:
           type: array
