@@ -3012,7 +3012,7 @@ components:
           $ref: '#/components/schemas/PaginationMeta'
     Stock:
       type: object
-      required: [quantity]
+      required: [quantity, thresholds, average_cost, last_movement_at]
       properties:
         product:
           type: object
