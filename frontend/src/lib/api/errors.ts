@@ -55,3 +55,31 @@ export function humanizeError(err: unknown, fallback: string): string {
   }
   return fallback
 }
+
+/**
+ * Como humanizeError, pero ademas inspecciona el shape de validacion 422
+ * de Laravel ({ message, errors: { campo: [msg] } }) y devuelve el primer
+ * mensaje de error de campo. Orden de prioridad:
+ *   1. error.errors -> primer mensaje del primer campo.
+ *   2. error.error.message (ErrorEnvelope).
+ *   3. fallback.
+ * Util en formularios CRUD donde el backend valida campos unique
+ * (ej. code, tax_id, email) y el usuario necesita saber cual fallo.
+ */
+export function humanizeValidationError(err: unknown, fallback: string): string {
+  if (
+    err &&
+    typeof err === 'object' &&
+    'errors' in err &&
+    typeof (err as { errors?: unknown }).errors === 'object' &&
+    (err as { errors?: unknown }).errors !== null
+  ) {
+    const validationErrors = (err as { errors: Record<string, string[]> }).errors
+    const firstKey = Object.keys(validationErrors)[0]
+    const firstList = firstKey ? validationErrors[firstKey] : undefined
+    if (firstList && firstList[0]) {
+      return firstList[0]
+    }
+  }
+  return humanizeError(err, fallback)
+}
