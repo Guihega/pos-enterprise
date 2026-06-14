@@ -146,6 +146,12 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/{uuid}/cancel', [\App\Http\Controllers\Api\V1\Sales\SalesController::class, 'cancel'])
                     ->name('sales.cancel');
             });
+
+            // ----- Reportes -----
+            Route::prefix('reports')->group(function (): void {
+                Route::get('sales-summary', [\App\Http\Controllers\Api\V1\Reports\ReportsController::class, 'salesSummary'])
+                    ->name('reports.sales-summary');
+            });
         });
     });
 
