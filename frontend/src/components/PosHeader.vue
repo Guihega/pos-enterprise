@@ -33,6 +33,7 @@ async function onLogout(): Promise<void> {
       <RouterLink :to="{ name: 'catalogo' }" class="pos-header__navlink">Catalogo</RouterLink>
       <RouterLink :to="{ name: 'clientes' }" class="pos-header__navlink">Clientes</RouterLink>
       <RouterLink :to="{ name: 'inventario' }" class="pos-header__navlink">Inventario</RouterLink>
+        <RouterLink :to="{ name: 'dashboard' }" class="pos-header__navlink">Dashboard</RouterLink>
     </nav>
 
     <div class="pos-header__user">
