@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: POS Enterprise API
-  version: 0.8.0
+  version: 0.9.0
   description: |
     Contrato HTTP del backend de POS Enterprise.
 
@@ -49,6 +49,8 @@ tags:
     description: Clientes (CRUD, credito, bloqueo).
   - name: Inventory
     description: Existencias, ajustes y kardex de movimientos.
+  - name: Reports
+    description: Reportes de lectura y metricas agregadas.
 
 paths:
 
@@ -1762,6 +1764,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /reports/sales-summary:
+    get:
+      tags: [Reports]
+      operationId: getSalesSummary
+      summary: Resumen de ventas de un dia (alimenta reporte y dashboard).
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - name: date
+          in: query
+          required: false
+          description: Fecha del resumen (YYYY-MM-DD). Por defecto hoy.
+          schema:
+            type: string
+            format: date
+        - name: branch_uuid
+          in: query
+          required: false
+          description: Filtra el resumen por sucursal.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resumen del dia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesSummaryResponse'
+        '403':
+          description: Sin permiso de reportes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 components:
 
   securitySchemes:
@@ -1802,6 +1841,95 @@ components:
         format: uuid
 
   schemas:
+
+    # ----- Reports: salida -----
+    SalesSummaryTotals:
+      type: object
+      required: [sales_count, gross_amount, subtotal_amount, discount_amount, tax_amount, average_ticket]
+      properties:
+        sales_count:
+          type: integer
+        gross_amount:
+          type: number
+          format: float
+        subtotal_amount:
+          type: number
+          format: float
+        discount_amount:
+          type: number
+          format: float
+        tax_amount:
+          type: number
+          format: float
+        average_ticket:
+          type: number
+          format: float
+    SalesSummaryBranch:
+      type: object
+      required: [uuid, code, name]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    SalesSummaryPayment:
+      type: object
+      required: [method, count, amount]
+      properties:
+        method:
+          type: string
+        count:
+          type: integer
+        amount:
+          type: number
+          format: float
+    SalesSummaryTopProduct:
+      type: object
+      required: [product_uuid, sku, name, quantity, amount]
+      properties:
+        product_uuid:
+          type: [string, 'null']
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        quantity:
+          type: number
+          format: float
+        amount:
+          type: number
+          format: float
+    SalesSummary:
+      type: object
+      required: [date, branch, totals, payments, top_products]
+      properties:
+        date:
+          type: string
+          format: date
+        branch:
+          oneOf:
+            - $ref: '#/components/schemas/SalesSummaryBranch'
+            - type: 'null'
+        totals:
+          $ref: '#/components/schemas/SalesSummaryTotals'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesSummaryPayment'
+        top_products:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesSummaryTopProduct'
+    SalesSummaryResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/SalesSummary'
 
     # ----- Auth: input/output -----
 
