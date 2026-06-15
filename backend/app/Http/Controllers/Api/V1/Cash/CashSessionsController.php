@@ -8,11 +8,13 @@ use App\Domain\Authorization\Permissions;
 use App\Domain\Cash\Exceptions\CashSessionAlreadyOpenException;
 use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashRegister;
+use App\Domain\Cash\Services\CashSessionReportService;
 use App\Domain\Cash\Models\CashSession;
 use App\Domain\Cash\Services\CashService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cash\CloseSessionRequest;
 use App\Http\Requests\Cash\OpenSessionRequest;
+use App\Http\Resources\CashSessionReportResource;
 use App\Http\Resources\CashSessionResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,7 @@ class CashSessionsController extends Controller
 {
     public function __construct(
         private readonly CashService $service,
+        private readonly CashSessionReportService $report,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -54,6 +57,19 @@ class CashSessionsController extends Controller
         $session->load(['register', 'openedBy', 'closedBy'])->loadCount('movements');
 
         return response()->json(['data' => new CashSessionResource($session)]);
+    }
+
+    /**
+     * GET /api/v1/cash/sessions/{session_uuid}/report
+     *
+     * Corte de caja (X/Z). Sesion open -> corte X en vivo (counted_amount/
+     * difference null). Sesion closed -> corte Z con el cierre persistido.
+     */
+    public function report(Request $request, CashSession $session): JsonResponse
+    {
+        abort_unless((bool) $request->user()?->can(Permissions::CASH_VIEW), 403);
+
+        return response()->json(['data' => new CashSessionReportResource($this->report->build($session))]);
     }
 
     public function open(OpenSessionRequest $request): JsonResponse

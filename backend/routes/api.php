@@ -122,6 +122,7 @@ Route::prefix('v1')->group(function (): void {
                 // Cash sessions
                 Route::get('sessions', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'index']);
                 Route::get('sessions/{session:uuid}', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'show']);
+                Route::get('sessions/{session:uuid}/report', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'report']);
                 Route::post('sessions/open', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'open']);
                 Route::post('sessions/{session:uuid}/close', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'close']);
 
