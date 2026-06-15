@@ -218,6 +218,54 @@ it('POST /products con admin crea producto y devuelve 201', function () {
     ]);
 });
 
+it('POST /products sin cost no queda null (default 0 en BD)', function () {
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson(
+        '/api/v1/products',
+        [
+            'sku' => 'NO-COST-001',
+            'name' => 'Producto sin costo',
+            'unit_uuid' => $this->unit->uuid,
+            'price' => 10,
+            // 'cost' deliberadamente ausente.
+        ],
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertCreated();
+
+    $this->assertDatabaseHas('products', [
+        'sku' => 'NO-COST-001',
+        'company_id' => $this->tenant->id,
+        'cost' => 0,
+    ]);
+});
+
+it('POST /products con cost null no queda null (default 0 en BD)', function () {
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson(
+        '/api/v1/products',
+        [
+            'sku' => 'NULL-COST-001',
+            'name' => 'Producto cost null',
+            'unit_uuid' => $this->unit->uuid,
+            'price' => 10,
+            'cost' => null,
+        ],
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertCreated();
+
+    $this->assertDatabaseHas('products', [
+        'sku' => 'NULL-COST-001',
+        'company_id' => $this->tenant->id,
+        'cost' => 0,
+    ]);
+});
+
 it('POST /products con cajero devuelve 403 (no tiene PRODUCT_CREATE)', function () {
     Sanctum::actingAs($this->cashier);
 
