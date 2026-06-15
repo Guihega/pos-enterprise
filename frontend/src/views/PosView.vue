@@ -11,13 +11,17 @@ import PinSupervisorModal from '@/components/PinSupervisorModal.vue'
 import { useCartStore } from '@/stores/cart'
 import { useCashSessionStore } from '@/stores/cashSession'
 import { useSalesStore } from '@/stores/sales'
+import { useAuthStore } from '@/stores/auth'
+import TicketModal from '@/components/TicketModal.vue'
 import type { CashSession, CreateSalePayment, Product, Sale } from '@/lib/api/generated'
 
 const cartStore = useCartStore()
 const cashStore = useCashSessionStore()
 const salesStore = useSalesStore()
+const authStore = useAuthStore()
 
 const showPaymentModal = ref(false)
+const showTicket = ref(false)
 const showCloseModal = ref(false)
 const showCartDrawer = ref(false)
 // Sesion recien cerrada: alimenta el banner de arqueo. null = sin banner.
@@ -220,6 +224,13 @@ function dismissCancelBanner(): void {
       <button
         type="button"
         class="pos-success-banner__cancel"
+        @click="showTicket = true"
+      >
+        Ver ticket
+      </button>
+      <button
+        type="button"
+        class="pos-success-banner__cancel"
         @click="onCancelRequested"
       >
         Anular
@@ -235,6 +246,15 @@ function dismissCancelBanner(): void {
     </div>
 
     <!-- PIN supervisor para autorizar la anulacion. -->
+    <!-- Ticket de la venta recien hecha. -->
+    <TicketModal
+      v-if="salesStore.lastSale"
+      :sale="salesStore.lastSale"
+      :branch="authStore.user?.default_branch ?? null"
+      :visible="showTicket"
+      @close="showTicket = false"
+    />
+
     <PinSupervisorModal
       :open="showCancelPin"
       @confirmed="onCancelPinConfirmed"
