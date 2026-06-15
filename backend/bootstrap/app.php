@@ -111,7 +111,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 // ----- Cash (por nombre de clase, sin acoplar import) -----
                 is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionNotOpenException')
                     => [409, 'SESSION_NOT_OPEN', []],
-                is_a($e, 'App\\Domain\\Cash\\Exceptions\\SessionAlreadyOpenException')
+                is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionAlreadyOpenException')
                     => [409, 'SESSION_ALREADY_OPEN', []],
 
                 // ----- Argumentos invalidos de dominio -----
