@@ -13,15 +13,19 @@ import { useCashSessionStore } from '@/stores/cashSession'
 import { useSalesStore } from '@/stores/sales'
 import { useAuthStore } from '@/stores/auth'
 import TicketModal from '@/components/TicketModal.vue'
+import CashSessionReportModal from '@/components/CashSessionReportModal.vue'
+import { useCashSessionReport } from '@/composables/useCashSessionReport'
 import type { CashSession, CreateSalePayment, Product, Sale } from '@/lib/api/generated'
 
 const cartStore = useCartStore()
 const cashStore = useCashSessionStore()
 const salesStore = useSalesStore()
 const authStore = useAuthStore()
+const cashReport = useCashSessionReport()
 
 const showPaymentModal = ref(false)
 const showTicket = ref(false)
+const showCashReport = ref(false)
 const showCloseModal = ref(false)
 const showCartDrawer = ref(false)
 // Sesion recien cerrada: alimenta el banner de arqueo. null = sin banner.
@@ -84,6 +88,36 @@ function onCloseCashRequested(): void {
   if (!cashStore.currentSession) return
   cashStore.errorMessage = null
   showCloseModal.value = true
+}
+
+/**
+ * Corte X: en vivo, mientras la sesion esta abierta. Carga el reporte
+ * de cashStore.currentSession y abre el modal de corte.
+ */
+async function onCorteXRequested(): Promise<void> {
+  if (!cashStore.currentSession) return
+  await cashReport.load(cashStore.currentSession.uuid)
+  if (cashReport.report.value) {
+    showCashReport.value = true
+  }
+}
+
+/**
+ * Ver corte Z: desde el banner de arqueo tras cerrar caja. Carga el
+ * mismo reporte pero de la sesion ya cerrada (closedSession), que
+ * refleja expected/counted/difference persistidos.
+ */
+async function onCorteZRequested(): Promise<void> {
+  if (!closedSession.value) return
+  await cashReport.load(closedSession.value.uuid)
+  if (cashReport.report.value) {
+    showCashReport.value = true
+  }
+}
+
+function onCloseCashReport(): void {
+  showCashReport.value = false
+  cashReport.clear()
 }
 
 async function onConfirmClose(
@@ -178,7 +212,7 @@ function dismissCancelBanner(): void {
 
 <template>
   <div class="pos-shell">
-    <PosHeader @close-cash="onCloseCashRequested" />
+    <PosHeader @close-cash="onCloseCashRequested" @corte-x="onCorteXRequested" />
     <main class="pos-main">
       <PosCatalog @product-selected="onProductSelected" />
       <PosCart :drawer="showCartDrawer" />
@@ -253,6 +287,14 @@ function dismissCancelBanner(): void {
       :branch="authStore.user?.default_branch ?? null"
       :visible="showTicket"
       @close="showTicket = false"
+    />
+
+    <!-- Corte de caja X/Z. -->
+    <CashSessionReportModal
+      v-if="cashReport.report.value"
+      :report="cashReport.report.value"
+      :visible="showCashReport"
+      @close="onCloseCashReport"
     />
 
     <PinSupervisorModal
@@ -342,6 +384,13 @@ function dismissCancelBanner(): void {
           {{ (closedSession.closing.difference ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) }}
         </span>
       </div>
+      <button
+        type="button"
+        class="pos-arqueo-banner__corte-z"
+        @click="onCorteZRequested"
+      >
+        Ver corte Z
+      </button>
       <button
         type="button"
         class="pos-arqueo-banner__close"
@@ -504,6 +553,23 @@ function dismissCancelBanner(): void {
 
 .pos-arqueo-banner__close:hover {
   opacity: 1;
+}
+
+.pos-arqueo-banner__corte-z {
+  background: transparent;
+  border: 1px solid var(--pos-accent);
+  color: var(--pos-accent);
+  border-radius: var(--pos-radius-md, 8px);
+  font-size: 0.8rem;
+  font-family: inherit;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.pos-arqueo-banner__corte-z:hover {
+  background: var(--pos-accent);
+  color: var(--pos-accent-text);
 }
 
 .pos-cart-overlay {

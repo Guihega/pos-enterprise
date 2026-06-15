@@ -10,6 +10,7 @@ const cashStore = useCashSessionStore()
 
 const emit = defineEmits<{
   (e: 'close-cash'): void
+  (e: 'corte-x'): void
 }>()
 
 
@@ -45,6 +46,14 @@ async function onLogout(): Promise<void> {
         {{ cashStore.currentSession.register?.code ?? 'Caja' }} ·
         {{ formatPrice(cashStore.currentSession.opening.amount) }}
       </span>
+      <button
+        v-if="cashStore.currentSession"
+        type="button"
+        class="pos-header__corte-x"
+        @click="emit('corte-x')"
+      >
+        Corte X
+      </button>
       <button
         v-if="cashStore.currentSession"
         type="button"
@@ -156,6 +165,21 @@ async function onLogout(): Promise<void> {
 
 .pos-header__close-cash:hover {
   background: rgba(255, 0, 0, 0.06);
+}
+
+.pos-header__corte-x {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--pos-radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pos-header__corte-x:hover {
+  border-color: var(--color-border-hover);
 }
 
 .pos-header__cash {
