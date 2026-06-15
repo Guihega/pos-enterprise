@@ -157,3 +157,54 @@ it('provisionar el admin tiene todos los permisos del catálogo de admin', funct
             ->toBeTrue("Admin debe tener '$perm'");
     }
 });
+
+// ====================================================================
+//  Auditoria: permisos usados en controllers vs defaultMatrix()
+// ====================================================================
+//
+// Objetivo: si un controller hace abort_unless(...->can(Permissions::X))
+// y NINGUN rol del defaultMatrix() otorga ese permiso, el endpoint queda
+// inalcanzable para TODOS los usuarios (403 perpetuo) sin que ningun
+// test de feature lo detecte necesariamente. Este test escanea los
+// controllers reales y lo verifica de forma permanente.
+
+it('todo permiso usado en controllers Api/V1 esta otorgado por al menos un rol del defaultMatrix', function () {
+    // glob con ** no recursa en PHP nativo; recorrer recursivamente.
+    $controllerFiles = [];
+    $dir = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(app_path('Http/Controllers/Api/V1'))
+    );
+    foreach ($dir as $file) {
+        if ($file->isFile() && $file->getExtension() === 'php') {
+            $controllerFiles[] = $file->getPathname();
+        }
+    }
+
+    expect($controllerFiles)->not->toBeEmpty();
+
+    $usedPermissions = [];
+    foreach ($controllerFiles as $file) {
+        $contents = file_get_contents($file);
+        preg_match_all('/Permissions::([A-Z_]+)/', $contents, $matches);
+        foreach ($matches[1] as $constName) {
+            $usedPermissions[$constName] = true;
+        }
+    }
+
+    expect($usedPermissions)->not->toBeEmpty();
+
+    // Union de todos los permisos otorgados por algun rol.
+    $grantedPermissions = [];
+    foreach (Roles::defaultMatrix() as $perms) {
+        foreach ($perms as $perm) {
+            $grantedPermissions[$perm] = true;
+        }
+    }
+
+    foreach (array_keys($usedPermissions) as $constName) {
+        $value = constant(Perms::class.'::'.$constName);
+
+        expect($grantedPermissions)
+            ->toHaveKey($value, "Permission '{$value}' (Permissions::{$constName}) se usa en un controller pero ningun rol del defaultMatrix lo otorga: el endpoint quedaria inalcanzable para todos.");
+    }
+});
