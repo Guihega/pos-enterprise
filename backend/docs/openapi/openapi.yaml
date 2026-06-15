@@ -1043,6 +1043,59 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /cash/sessions/{session}/report:
+    get:
+      operationId: getCashSessionReport
+      tags: [Cash]
+      summary: Corte de caja (X/Z) de una sesion
+      description: |
+        Devuelve el corte de caja de la sesion indicada: ventas
+        completadas del turno, desglose de pagos por metodo, desglose
+        de movimientos de caja por tipo, y el resumen de efectivo
+        (apertura, delta de movimientos, esperado).
+
+        Si la sesion esta `open`, es un corte X "en vivo":
+        `counted_amount` y `difference` son `null`. Si la sesion esta
+        `closed`, es un corte Z que refleja el cierre ya persistido por
+        `POST .../close`.
+      parameters:
+        - $ref: '#/components/parameters/XTenant'
+        - $ref: '#/components/parameters/XRequestId'
+        - in: path
+          name: session
+          required: true
+          description: UUID de la sesion de caja.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Corte de caja de la sesion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionReportResponse'
+        '400':
+          $ref: '#/components/responses/TenantNotResolved'
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Sin permiso `cash.view`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: La sesion de caja no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   # ====================================================================
   # Sales
   # ====================================================================
@@ -3221,6 +3274,84 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/CashSession'
+    CashSessionReportSales:
+      type: object
+      required: [count, total_amount]
+      properties:
+        count:
+          type: integer
+        total_amount:
+          type: number
+          format: float
+    CashSessionReportPayment:
+      type: object
+      required: [method, count, amount]
+      properties:
+        method:
+          type: string
+        count:
+          type: integer
+        amount:
+          type: number
+          format: float
+    CashSessionReportMovement:
+      type: object
+      required: [type, count, amount, delta_signed]
+      properties:
+        type:
+          type: string
+          enum: [sale_cash, sale_other, refund_cash, cash_in, cash_out, tip, adjustment]
+        count:
+          type: integer
+        amount:
+          type: number
+          format: float
+        delta_signed:
+          type: number
+          format: float
+    CashSessionReportCash:
+      type: object
+      required: [opening_amount, cash_affecting_delta, expected_amount, counted_amount, difference]
+      properties:
+        opening_amount:
+          type: number
+          format: float
+        cash_affecting_delta:
+          type: number
+          format: float
+        expected_amount:
+          type: number
+          format: float
+        counted_amount:
+          type: [number, 'null']
+          format: float
+        difference:
+          type: [number, 'null']
+          format: float
+    CashSessionReport:
+      type: object
+      required: [session, sales, payments, movements, cash]
+      properties:
+        session:
+          $ref: '#/components/schemas/CashSession'
+        sales:
+          $ref: '#/components/schemas/CashSessionReportSales'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashSessionReportPayment'
+        movements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashSessionReportMovement'
+        cash:
+          $ref: '#/components/schemas/CashSessionReportCash'
+    CashSessionReportResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CashSessionReport'
     OpenCashSessionRequest:
       type: object
       required: [cash_register_uuid]
