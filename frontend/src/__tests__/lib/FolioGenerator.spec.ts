@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextFolio, needsRefill, refill, FolioExhaustedError } from '@/lib/FolioGenerator'
 import { db } from '@/db/schema'
 
@@ -28,6 +28,10 @@ async function seedRange(rangeStart: number, rangeEnd: number, nextValue: number
 beforeEach(async () => {
   await db.folioRanges.clear()
   vi.clearAllMocks()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('nextFolio', () => {
