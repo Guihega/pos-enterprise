@@ -3,13 +3,14 @@ import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 
 import { useProducts } from '@/composables/useProducts'
+import type { listProducts as ListProductsFn } from '@/lib/api/generated'
 
 /**
  * Mock del SDK generado por Hey API. Solo nos importa listProducts en
  * este composable.
  */
 vi.mock('@/lib/api/generated', () => ({
-  listProducts: vi.fn<typeof apiListProducts>(),
+  listProducts: vi.fn<typeof ListProductsFn>(),
 }))
 
 /**
@@ -164,6 +165,14 @@ describe('useProducts', () => {
     } as unknown)
 
     await loadMore()
+
+    // Verifica que la segunda llamada envio page: 2 (regresion del bug
+    // donde fetchPage no pasaba el numero de pagina a listProducts y
+    // loadMore siempre repetia la pagina 1 del backend).
+    expect(apiListProducts).toHaveBeenNthCalledWith(2, {
+      headers: { 'X-Tenant': 'acme' },
+      query: expect.objectContaining({ page: 2 }),
+    })
 
     expect(items.value).toHaveLength(4)
     expect(items.value[0]?.uuid).toBe('p-1')

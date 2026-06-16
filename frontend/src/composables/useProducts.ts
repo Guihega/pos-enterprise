@@ -66,6 +66,7 @@ export function useProducts() {
       headers: { 'X-Tenant': tenantSlug },
       query: {
         ...(term ? { q: term } : {}),
+        page,
         per_page: PER_PAGE,
         sort: 'name',
         direction: 'asc',
