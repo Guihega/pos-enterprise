@@ -71,12 +71,74 @@ export interface SettingLocal {
 
 export const SETTING_LAST_PRODUCT_SYNC = 'catalog:last_full_sync'
 
+export const SETTING_DEVICE_ID = 'device:id'
+
+export interface FolioRangeLocal {
+  /** cashRegisterUuid:series:deviceId */
+  id: string
+  cashRegisterUuid: string
+  series: string
+  deviceId: string
+  rangeStart: number
+  rangeEnd: number
+  /** Proximo folio a usar; se incrementa atomicamente con cada venta. */
+  nextValue: number
+  syncedAt: string
+}
+
+export type SyncStatus = 'pending' | 'in_flight' | 'success' | 'conflict' | 'failed'
+export type SyncOperation = 'create' | 'update' | 'delete'
+export type SyncEntityType = 'sale'
+
+export interface SyncQueueItem {
+  /** Auto-incremented by Dexie. */
+  id?: number
+  clientUuid: string
+  entityType: SyncEntityType
+  entityUuid: string
+  operation: SyncOperation
+  payload: unknown
+  clientTimestamp: string
+  attempts: number
+  nextAttemptAt: string
+  lastError: string | null
+  status: SyncStatus
+  createdAt: string
+}
+
+export type SaleLocalStatus = 'draft' | 'completed' | 'voided'
+
+export interface SaleLocal {
+  uuid: string
+  folio: string
+  cashRegisterUuid: string
+  cashSessionUuid: string
+  customerUuid: string | null
+  subtotal: number
+  discountTotal: number
+  taxTotal: number
+  total: number
+  amountPaid: number
+  change: number
+  paymentMethod: string
+  status: SaleLocalStatus
+  /** true = creada sin red, pendiente de sync */
+  createdOffline: boolean
+  syncStatus: SyncStatus
+  clientTimestamp: string
+  serverTimestamp: string | null
+  createdAt: string
+}
+
 export class POSDatabase extends Dexie {
   products!: Table<ProductLocal, string>
   categories!: Table<CategoryLocal, string>
   taxes!: Table<TaxLocal, string>
   units!: Table<UnitLocal, string>
   settings!: Table<SettingLocal, string>
+  folioRanges!: Table<FolioRangeLocal, string>
+  syncQueue!: Table<SyncQueueItem, number>
+  sales!: Table<SaleLocal, string>
 
   constructor() {
     super('POSDatabase')
@@ -86,6 +148,16 @@ export class POSDatabase extends Dexie {
       taxes: 'uuid, code',
       units: 'uuid, code',
       settings: 'key',
+    })
+    this.version(2).stores({
+      products: 'uuid, sku, name, categoryUuid, status, *searchBlob, updatedAt',
+      categories: 'uuid, parentUuid, name',
+      taxes: 'uuid, code',
+      units: 'uuid, code',
+      settings: 'key',
+      folioRanges: 'id, cashRegisterUuid, series',
+      syncQueue: '++id, status, nextAttemptAt, entityType, entityUuid, clientUuid',
+      sales: 'uuid, folio, cashRegisterUuid, cashSessionUuid, status, syncStatus, createdAt',
     })
   }
 }
