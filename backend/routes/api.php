@@ -136,6 +136,11 @@ Route::prefix('v1')->group(function (): void {
                 ->parameters(['customers' => 'customer'])
                 ->scoped(['customer' => 'uuid']);
 
+            // ----- Sync (sec. 38.3) -----
+            Route::prefix('sync')->group(function (): void {
+                Route::post('/batch', \App\Http\Controllers\Api\V1\Sync\SyncBatchController::class)
+                    ->name('sync.batch');
+            });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {
                 Route::post('/reserve', [\App\Http\Controllers\Api\V1\Sales\FolioRangesController::class, 'reserve'])
