@@ -136,6 +136,11 @@ Route::prefix('v1')->group(function (): void {
                 ->parameters(['customers' => 'customer'])
                 ->scoped(['customer' => 'uuid']);
 
+            // ----- Folios (ADR-0009) -----
+            Route::prefix('folio-ranges')->group(function (): void {
+                Route::post('/reserve', [\App\Http\Controllers\Api\V1\Sales\FolioRangesController::class, 'reserve'])
+                    ->name('folio-ranges.reserve');
+            });
             // ----- Ventas -----
             Route::prefix('sales')->group(function (): void {
                 Route::get('/', [\App\Http\Controllers\Api\V1\Sales\SalesController::class, 'index'])
