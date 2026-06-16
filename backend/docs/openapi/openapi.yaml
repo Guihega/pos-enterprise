@@ -392,6 +392,14 @@ paths:
           schema:
             type: boolean
         - in: query
+          name: page
+          required: false
+          description: Numero de pagina (paginacion estandar de Laravel).
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
           name: per_page
           required: false
           description: Tamaño de página. Máximo 100, default 20.
