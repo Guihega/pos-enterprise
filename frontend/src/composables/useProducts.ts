@@ -15,6 +15,7 @@
 import { ref, watch } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import { listProducts } from '@/lib/api/generated'
+import { hasData, getPage, fullSync, getLastFullSync } from '@/repositories/ProductRepository'
 import type { Product } from '@/lib/api/generated'
 import { humanizeError } from '@/lib/api/errors'
 import { useAuthStore } from '@/stores/auth'
@@ -62,34 +63,62 @@ export function useProducts() {
 
     const term = debouncedTerm.value.trim()
 
-    const { data, error } = await listProducts({
-      headers: { 'X-Tenant': tenantSlug },
-      query: {
-        ...(term ? { q: term } : {}),
-        page,
-        per_page: PER_PAGE,
-        sort: 'name',
-        direction: 'asc',
-      },
-    })
+    try {
+      const offline = await hasData()
 
-    if (error || !data) {
-      errorMessage.value = humanizeError(error, 'No se pudo cargar el catalogo. Intenta de nuevo.')
-      loading.value = false
-      loadingMore.value = false
-      return
+      if (offline) {
+        // Leer desde Dexie (catalogo ya sincronizado)
+        const result = await getPage({ search: term || undefined, page, perPage: PER_PAGE })
+        if (append) {
+          items.value = [...items.value, ...result.data]
+        } else {
+          items.value = result.data
+        }
+        currentPage.value = result.meta.current_page
+        lastPage.value = result.meta.last_page
+        total.value = result.meta.total
+        hasMore.value = result.meta.current_page < result.meta.last_page
+
+        // Si los datos tienen mas de 1 hora, re-sincronizar en background
+        const lastSync = await getLastFullSync()
+        const ONE_HOUR_MS = 60 * 60 * 1000
+        if (!lastSync || Date.now() - new Date(lastSync).getTime() > ONE_HOUR_MS) {
+          fullSync(tenantSlug).catch(() => { /* background, no bloquear UI */ })
+        }
+      } else {
+        // Sin datos locales: API online como fallback y poblar Dexie en background
+        const { data, error } = await listProducts({
+          headers: { 'X-Tenant': tenantSlug },
+          query: {
+            ...(term ? { q: term } : {}),
+            page,
+            per_page: PER_PAGE,
+            sort: 'name',
+            direction: 'asc',
+          },
+        })
+        if (error || !data) {
+          errorMessage.value = humanizeError(error, 'No se pudo cargar el catalogo. Intenta de nuevo.')
+          loading.value = false
+          loadingMore.value = false
+          return
+        }
+        if (append) {
+          items.value = [...items.value, ...data.data]
+        } else {
+          items.value = data.data
+        }
+        currentPage.value = data.meta.current_page
+        lastPage.value = data.meta.last_page
+        total.value = data.meta.total
+        hasMore.value = data.meta.current_page < data.meta.last_page
+
+        // Disparar fullSync para poblar Dexie; proxima carga usara repositorio local
+        fullSync(tenantSlug).catch(() => { /* background, no bloquear UI */ })
+      }
+    } catch {
+      errorMessage.value = 'No se pudo cargar el catalogo. Intenta de nuevo.'
     }
-
-    if (append) {
-      items.value = [...items.value, ...data.data]
-    } else {
-      items.value = data.data
-    }
-
-    currentPage.value = data.meta.current_page
-    lastPage.value = data.meta.last_page
-    total.value = data.meta.total
-    hasMore.value = data.meta.current_page < data.meta.last_page
 
     loading.value = false
     loadingMore.value = false

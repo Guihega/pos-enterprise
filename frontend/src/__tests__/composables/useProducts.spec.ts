@@ -17,6 +17,13 @@ vi.mock('@/lib/api/generated', () => ({
  * Mock del store de auth para que useProducts vea un tenant valido.
  * Definimos un store fake con la forma minima que el composable consume.
  */
+vi.mock('@/repositories/ProductRepository', () => ({
+  hasData: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
+  getPage: vi.fn(),
+  fullSync: vi.fn().mockResolvedValue(undefined),
+  getLastFullSync: vi.fn<() => Promise<string | null>>().mockResolvedValue(null),
+}))
+
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
     tenant: 'acme',
