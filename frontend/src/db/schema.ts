@@ -130,6 +130,46 @@ export interface SaleLocal {
   createdAt: string
 }
 
+export type ConflictReason =
+  | 'IDEMPOTENT'
+  | 'STOCK_NEGATIVE'
+  | 'PRICE_MISMATCH'
+  | 'PRODUCT_DELETED'
+  | 'CASH_SESSION_CLOSED'
+  | 'STALE_VERSION'
+  | 'FOLIO_DUPLICATE'
+  | 'TENANT_SUSPENDED'
+  | 'UNKNOWN'
+
+export type ConflictResolutionKind = 'use_client' | 'use_server' | 'manual'
+
+export interface ConflictLocal {
+  /** uuid del conflicto (generado en cliente al detectar). */
+  uuid: string
+  /** Tipo de entidad en conflicto: 'sale' | 'product' | 'customer' ... */
+  entityType: SyncEntityType
+  /** uuid de la entidad en conflicto. */
+  entityUuid: string
+  /** clientUuid del item de la cola que origino el conflicto. */
+  clientUuid: string
+  /** Razon del conflicto (ver tabla 39.1). */
+  reason: ConflictReason
+  /** Payload original que el cliente intento sincronizar. */
+  clientPayload: unknown
+  /** Estado/datos que devolvio el servidor (si aplica). */
+  serverData: unknown
+  /** Resolucion aplicada, null si pendiente. */
+  resolution: ConflictResolutionKind | null
+  /** true si se resolvio automaticamente, false si requiere humano. */
+  auto: boolean
+  /** Rol requerido para resolver manualmente (ej: 'manager'), null si auto. */
+  requireRole: string | null
+  /** ISO timestamp de deteccion. */
+  detectedAt: string
+  /** ISO timestamp de resolucion, null si pendiente. */
+  resolvedAt: string | null
+}
+
 export class POSDatabase extends Dexie {
   products!: Table<ProductLocal, string>
   categories!: Table<CategoryLocal, string>
@@ -139,6 +179,7 @@ export class POSDatabase extends Dexie {
   folioRanges!: Table<FolioRangeLocal, string>
   syncQueue!: Table<SyncQueueItem, number>
   sales!: Table<SaleLocal, string>
+  conflicts!: Table<ConflictLocal, string>
 
   constructor() {
     super('POSDatabase')
@@ -158,6 +199,17 @@ export class POSDatabase extends Dexie {
       folioRanges: 'id, cashRegisterUuid, series',
       syncQueue: '++id, status, nextAttemptAt, entityType, entityUuid, clientUuid',
       sales: 'uuid, folio, cashRegisterUuid, cashSessionUuid, status, syncStatus, createdAt',
+    })
+    this.version(3).stores({
+      products: 'uuid, sku, name, categoryUuid, status, *searchBlob, updatedAt',
+      categories: 'uuid, parentUuid, name',
+      taxes: 'uuid, code',
+      units: 'uuid, code',
+      settings: 'key',
+      folioRanges: 'id, cashRegisterUuid, series',
+      syncQueue: '++id, status, nextAttemptAt, entityType, entityUuid, clientUuid',
+      sales: 'uuid, folio, cashRegisterUuid, cashSessionUuid, status, syncStatus, createdAt',
+      conflicts: 'uuid, entityType, entityUuid, clientUuid, reason, resolvedAt, detectedAt',
     })
   }
 }
