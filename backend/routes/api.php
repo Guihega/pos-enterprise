@@ -140,6 +140,8 @@ Route::prefix('v1')->group(function (): void {
             Route::prefix('sync')->group(function (): void {
                 Route::post('/batch', \App\Http\Controllers\Api\V1\Sync\SyncBatchController::class)
                     ->name('sync.batch');
+                Route::get('/changes', \App\Http\Controllers\Api\V1\Sync\SyncChangesController::class)
+                    ->name('sync.changes');
             });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {
