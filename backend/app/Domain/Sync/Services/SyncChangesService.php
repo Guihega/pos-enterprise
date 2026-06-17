@@ -7,8 +7,11 @@ namespace App\Domain\Sync\Services;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Customer\Models\Customer;
-use Illuminate\Database\Eloquent\Builder;
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\ProductResource;
+use App\Http\Resources\TaxResource;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 
 /**
@@ -27,11 +30,28 @@ use Illuminate\Support\Carbon;
  */
 final class SyncChangesService
 {
-    /** Entidades soportadas y su modelo asociado. */
-    private const ENTITY_MODELS = [
-        'products'  => Product::class,
-        'taxes'     => Tax::class,
-        'customers' => Customer::class,
+    /**
+     * Entidades soportadas: modelo, relaciones a eager-load (para que los
+     * Resources con whenLoaded las incluyan) y la clase Resource.
+     *
+     * @var array<string, array{model: class-string<Model>, with: string[], resource: class-string<JsonResource>}>
+     */
+    private const ENTITY_CONFIG = [
+        'products' => [
+            'model'    => Product::class,
+            'with'     => ['category', 'unit', 'tax'],
+            'resource' => ProductResource::class,
+        ],
+        'taxes' => [
+            'model'    => Tax::class,
+            'with'     => [],
+            'resource' => TaxResource::class,
+        ],
+        'customers' => [
+            'model'    => Customer::class,
+            'with'     => [],
+            'resource' => CustomerResource::class,
+        ],
     ];
 
     /**
@@ -45,11 +65,11 @@ final class SyncChangesService
 
         $data = [];
         foreach ($entities as $entity) {
-            $modelClass = self::ENTITY_MODELS[$entity] ?? null;
-            if ($modelClass === null) {
+            $config = self::ENTITY_CONFIG[$entity] ?? null;
+            if ($config === null) {
                 continue;
             }
-            $data[$entity] = $this->changesForModel($modelClass, $sinceCarbon);
+            $data[$entity] = $this->changesForEntity($config, $sinceCarbon);
         }
 
         return [
@@ -65,50 +85,65 @@ final class SyncChangesService
     }
 
     /**
-     * @param  class-string<Model>  $modelClass
-     * @return array{created: array<int, array<string, mixed>>, updated: array<int, array<string, mixed>>, deleted: array<int, array{uuid: string}>}
+     * @param  array{model: class-string<Model>, with: string[], resource: class-string<JsonResource>}  $config
+     * @return array{created: array<int, mixed>, updated: array<int, mixed>, deleted: array<int, array{uuid: string}>}
      */
-    private function changesForModel(string $modelClass, ?Carbon $since): array
+    private function changesForEntity(array $config, ?Carbon $since): array
     {
+        $modelClass = $config['model'];
+        $with       = $config['with'];
+        $resource   = $config['resource'];
+
         // Sin since => snapshot completo: todo es created.
         if ($since === null) {
-            $created = $modelClass::query()
-                ->get()
-                ->map(fn (Model $m) => $this->serialize($m))
-                ->all();
+            $created = $modelClass::query()->with($with)->get();
 
-            return ['created' => $created, 'updated' => [], 'deleted' => []];
+            return [
+                'created' => $this->serializeMany($created, $resource),
+                'updated' => [],
+                'deleted' => [],
+            ];
         }
 
-        $created = $modelClass::query()
+        $created = $modelClass::query()->with($with)
             ->where('created_at', '>', $since)
-            ->get()
-            ->map(fn (Model $m) => $this->serialize($m))
-            ->all();
+            ->get();
 
-        $updated = $modelClass::query()
+        $updated = $modelClass::query()->with($with)
             ->where('updated_at', '>', $since)
             ->where('created_at', '<=', $since)
-            ->get()
-            ->map(fn (Model $m) => $this->serialize($m))
-            ->all();
+            ->get();
 
         $deleted = $modelClass::query()
             ->onlyTrashed()
             ->where('deleted_at', '>', $since)
             ->get()
             ->map(fn (Model $m) => ['uuid' => $m->uuid])
+            ->values()
             ->all();
 
-        return ['created' => $created, 'updated' => $updated, 'deleted' => $deleted];
+        return [
+            'created' => $this->serializeMany($created, $resource),
+            'updated' => $this->serializeMany($updated, $resource),
+            'deleted' => $deleted,
+        ];
     }
 
     /**
-     * Serializa un modelo a array para el cliente.
-     * @return array<string, mixed>
+     * Serializa una coleccion de modelos con su Resource, devolviendo el
+     * mismo shape que el endpoint REST (simetria de contrato cliente-servidor).
+     *
+     * @param  \Illuminate\Support\Collection<int, Model>  $models
+     * @param  class-string<JsonResource>  $resource
+     * @return array<int, mixed>
      */
-    private function serialize(Model $model): array
+    private function serializeMany($models, string $resource): array
     {
-        return $model->toArray();
+        $request = request();
+
+        return $models
+            ->map(fn (Model $m) => (new $resource($m))->toArray($request))
+            ->values()
+            ->all();
     }
 }

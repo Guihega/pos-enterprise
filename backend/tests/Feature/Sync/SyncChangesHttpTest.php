@@ -153,3 +153,26 @@ test('ignora entidades no soportadas sin fallar', function () {
         ->assertJsonCount(1, 'data.products.created')
         ->assertJsonMissingPath('data.promotions');
 });
+
+test('el shape de producto coincide con ProductResource (pricing, flags, tax anidados)', function () {
+    makeProduct();
+
+    $this->withHeaders(['X-Tenant' => 'changes-test'])
+        ->getJson('/api/v1/sync/changes?entities=products')
+        ->assertStatus(200)
+        ->assertJsonStructure([
+            'data' => [
+                'products' => [
+                    'created' => [
+                        [
+                            'uuid', 'sku', 'name', 'status',
+                            'pricing' => ['price', 'cost', 'has_discount'],
+                            'flags'   => ['track_inventory', 'is_sellable'],
+                            'tax'     => ['uuid', 'rate', 'is_inclusive'],
+                            'updated_at',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+});
