@@ -258,3 +258,48 @@ describe('PushQueue — eventos', () => {
     expect(events.some(e => e.type === 'sync.error')).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Hook onConflict (integracion con ConflictResolver)
+// ---------------------------------------------------------------------------
+
+describe('PushQueue — hook onConflict', () => {
+  it('invoca onConflict con el contexto crudo del servidor', async () => {
+    await enqueue(baseItem({ clientUuid: 'c-conf', entityUuid: 'e-conf' }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        batch_uuid: 'b',
+        results: [{
+          client_uuid: 'c-conf',
+          status: 'conflict',
+          message: 'cash session closed',
+          data: { server_status: 'closed' },
+        }],
+      }),
+    }))
+
+    const onConflict = vi.fn()
+    const pq = new PushQueue({ tenantSlug: 'demo', onConflict })
+    await pq.drainOnce()
+
+    expect(onConflict).toHaveBeenCalledOnce()
+    const ctx = onConflict.mock.calls[0][0]
+    expect(ctx.clientUuid).toBe('c-conf')
+    expect(ctx.entityType).toBe('sale')
+    expect(ctx.entityUuid).toBe('e-conf')
+    expect(ctx.message).toBe('cash session closed')
+    expect(ctx.serverData).toEqual({ server_status: 'closed' })
+  })
+
+  it('no falla si onConflict no esta definido', async () => {
+    await enqueue(baseItem({ clientUuid: 'c-conf' }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      mixedResponse({ 'c-conf': 'conflict' }),
+    ))
+
+    const pq = new PushQueue({ tenantSlug: 'demo' })
+    const result = await pq.drainOnce()
+    expect(result.conflicts).toBe(1)
+  })
+})

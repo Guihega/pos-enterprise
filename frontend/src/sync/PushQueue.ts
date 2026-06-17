@@ -98,6 +98,26 @@ export interface PushQueueOptions {
   onEvent?:   PushEventListener
   /** Senal de aborto para cancelar el fetch en curso. */
   signal?:    AbortSignal
+  /**
+   * Hook invocado cuando un item vuelve 'conflict'. Recibe el contexto
+   * crudo del servidor. El orquestador (SyncEngine) lo conecta a
+   * ConflictRepository.store + ConflictResolver.resolve. PushQueue NO
+   * infiere el reason desde el mensaje: eso es responsabilidad del caller.
+   */
+  onConflict?: (ctx: ConflictContext) => void | Promise<void>
+}
+
+/** Contexto que PushQueue entrega al hook onConflict. */
+export interface ConflictContext {
+  clientUuid:  string
+  entityType:  string
+  entityUuid:  string
+  /** Mensaje crudo devuelto por el servidor (campo error del backend). */
+  message:     string | undefined
+  /** Payload original que el cliente intento sincronizar. */
+  clientPayload: unknown
+  /** Datos que devolvio el servidor, si los hay. */
+  serverData:  Record<string, unknown> | undefined
 }
 
 export class PushQueue {
@@ -105,12 +125,14 @@ export class PushQueue {
   private apiBase:    string
   private onEvent?:   PushEventListener
   private signal?:    AbortSignal
+  private onConflict?: (ctx: ConflictContext) => void | Promise<void>
 
   constructor(opts: PushQueueOptions) {
     this.tenantSlug = opts.tenantSlug
     this.apiBase    = opts.apiBase ?? ''
     this.onEvent    = opts.onEvent
     this.signal     = opts.signal
+    this.onConflict  = opts.onConflict
   }
 
   /**
@@ -210,6 +232,14 @@ export class PushQueue {
           break
         case 'conflict':
           await markConflict(item.id!, result.message ?? 'conflict')
+          await this.onConflict?.({
+            clientUuid:    item.clientUuid,
+            entityType:    item.entityType,
+            entityUuid:    item.entityUuid,
+            message:       result.message,
+            clientPayload: item.payload,
+            serverData:    result.data,
+          })
           this.emit({ type: 'sync.conflict.detected', clientUuid: item.clientUuid, message: result.message })
           conflicts++
           break
