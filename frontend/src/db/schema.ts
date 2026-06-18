@@ -63,6 +63,30 @@ export interface UnitLocal {
   symbol: string | null
 }
 
+export interface CustomerLocal {
+  uuid: string
+  code: string | null
+  type: 'individual' | 'business'
+  name: string
+  legalName: string | null
+  taxId: string | null
+  email: string | null
+  phone: string | null
+  mobile: string | null
+  addressLine: string | null
+  city: string | null
+  state: string | null
+  postalCode: string | null
+  countryCode: string | null
+  creditLimit: number
+  creditBalance: number
+  isActive: boolean
+  isBlocked: boolean
+  blockedReason: string | null
+  notes: string | null
+  updatedAt: string
+}
+
 export interface SettingLocal {
   key: string
   value: unknown
@@ -72,6 +96,8 @@ export interface SettingLocal {
 export const SETTING_LAST_PRODUCT_SYNC = 'catalog:last_full_sync'
 
 export const SETTING_DEVICE_ID = 'device:id'
+
+export const SETTING_LAST_PULL = 'sync:last_pull'
 
 export interface FolioRangeLocal {
   /** cashRegisterUuid:series:deviceId */
@@ -180,6 +206,7 @@ export class POSDatabase extends Dexie {
   syncQueue!: Table<SyncQueueItem, number>
   sales!: Table<SaleLocal, string>
   conflicts!: Table<ConflictLocal, string>
+  customers!: Table<CustomerLocal, string>
 
   constructor() {
     super('POSDatabase')
@@ -210,6 +237,18 @@ export class POSDatabase extends Dexie {
       syncQueue: '++id, status, nextAttemptAt, entityType, entityUuid, clientUuid',
       sales: 'uuid, folio, cashRegisterUuid, cashSessionUuid, status, syncStatus, createdAt',
       conflicts: 'uuid, entityType, entityUuid, clientUuid, reason, resolvedAt, detectedAt',
+    })
+    this.version(4).stores({
+      products: 'uuid, sku, name, categoryUuid, status, *searchBlob, updatedAt',
+      categories: 'uuid, parentUuid, name',
+      taxes: 'uuid, code',
+      units: 'uuid, code',
+      settings: 'key',
+      folioRanges: 'id, cashRegisterUuid, series',
+      syncQueue: '++id, status, nextAttemptAt, entityType, entityUuid, clientUuid',
+      sales: 'uuid, folio, cashRegisterUuid, cashSessionUuid, status, syncStatus, createdAt',
+      conflicts: 'uuid, entityType, entityUuid, clientUuid, reason, resolvedAt, detectedAt',
+      customers: 'uuid, code, name, isActive',
     })
   }
 }

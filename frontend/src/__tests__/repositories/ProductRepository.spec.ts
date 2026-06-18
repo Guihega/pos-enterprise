@@ -12,6 +12,8 @@ import {
   getLastFullSync,
   fullSync,
   getPage,
+  upsertMany,
+  deleteMany,
 } from '@/repositories/ProductRepository'
 
 // ---------------------------------------------------------------------------
@@ -258,5 +260,84 @@ describe('getPage', () => {
     expect(product.category?.uuid).toBe('cat-1')
     expect(product.unit?.code).toBe('PZA')
     expect(product.tax?.rate).toBe(0.16)
+  })
+})
+
+describe('upsertMany', () => {
+  it('no falla con lista vacia', async () => {
+    await expect(upsertMany([])).resolves.toBeUndefined()
+  })
+
+  it('crea productos nuevos sin borrar los existentes', async () => {
+    await db.products.put({
+      uuid: 'pre', sku: 'PRE', name: 'Previo', price: 1, cost: 0,
+      hasDiscount: false, trackInventory: false, isSellable: true,
+      isPurchasable: true, allowDecimals: false, status: 'active',
+      categoryUuid: null, categoryName: null, categorySlug: null,
+      unitUuid: null, unitCode: null, unitName: null, unitSymbol: null,
+      taxUuid: null, taxCode: null, taxName: null, taxRate: null, taxIsInclusive: null,
+      searchBlob: ['previo'], updatedAt: '2026-01-01T00:00:00Z',
+    })
+    await upsertMany([makeApiProduct('new-1', 'Nuevo')])
+    expect(await db.products.count()).toBe(2)
+    expect(await db.products.get('pre')).toBeDefined()
+    expect(await db.products.get('new-1')).toBeDefined()
+  })
+
+  it('actualiza producto existente con nuevos valores', async () => {
+    vi.mocked(apiListProducts).mockResolvedValueOnce(
+      makePageResponse([makeApiProduct('p-upd', 'Original')], 1, 1) as never,
+    )
+    await fullSync('demo')
+    await upsertMany([makeApiProduct('p-upd', 'Modificado')])
+    const local = await db.products.get('p-upd')
+    expect(local?.name).toBe('Modificado')
+  })
+})
+
+describe('deleteMany', () => {
+  it('no falla con lista vacia', async () => {
+    await expect(deleteMany([])).resolves.toBeUndefined()
+  })
+
+  it('elimina productos por uuid', async () => {
+    await db.products.bulkPut([
+      {
+        uuid: 'd-1', sku: 'D1', name: 'Del1', price: 1, cost: 0,
+        hasDiscount: false, trackInventory: false, isSellable: true,
+        isPurchasable: true, allowDecimals: false, status: 'active',
+        categoryUuid: null, categoryName: null, categorySlug: null,
+        unitUuid: null, unitCode: null, unitName: null, unitSymbol: null,
+        taxUuid: null, taxCode: null, taxName: null, taxRate: null, taxIsInclusive: null,
+        searchBlob: ['del1'], updatedAt: '2026-01-01T00:00:00Z',
+      },
+      {
+        uuid: 'd-2', sku: 'D2', name: 'Del2', price: 2, cost: 0,
+        hasDiscount: false, trackInventory: false, isSellable: true,
+        isPurchasable: true, allowDecimals: false, status: 'active',
+        categoryUuid: null, categoryName: null, categorySlug: null,
+        unitUuid: null, unitCode: null, unitName: null, unitSymbol: null,
+        taxUuid: null, taxCode: null, taxName: null, taxRate: null, taxIsInclusive: null,
+        searchBlob: ['del2'], updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ])
+    await deleteMany(['d-1'])
+    expect(await db.products.count()).toBe(1)
+    expect(await db.products.get('d-1')).toBeUndefined()
+    expect(await db.products.get('d-2')).toBeDefined()
+  })
+
+  it('ignora uuids inexistentes', async () => {
+    await db.products.put({
+      uuid: 'kept', sku: 'K', name: 'Kept', price: 1, cost: 0,
+      hasDiscount: false, trackInventory: false, isSellable: true,
+      isPurchasable: true, allowDecimals: false, status: 'active',
+      categoryUuid: null, categoryName: null, categorySlug: null,
+      unitUuid: null, unitCode: null, unitName: null, unitSymbol: null,
+      taxUuid: null, taxCode: null, taxName: null, taxRate: null, taxIsInclusive: null,
+      searchBlob: ['kept'], updatedAt: '2026-01-01T00:00:00Z',
+    })
+    await deleteMany(['no-existe'])
+    expect(await db.products.count()).toBe(1)
   })
 })

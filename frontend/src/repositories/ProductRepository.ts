@@ -159,6 +159,25 @@ export async function fullSync(tenant: string): Promise<void> {
 }
 
 /**
+ * Upsert de multiples productos en IndexedDB sin borrar los existentes.
+ * Reutiliza toLocal para simetria con fullSync.
+ * Usado por PullStream para aplicar created/updated del servidor (sec. 38.5).
+ */
+export async function upsertMany(items: Product[]): Promise<void> {
+  if (items.length === 0) return
+  await db.products.bulkPut(items.map(toLocal))
+}
+
+/**
+ * Elimina productos por uuid.
+ * Usado por PullStream para aplicar deleted del servidor (sec. 38.5).
+ */
+export async function deleteMany(uuids: string[]): Promise<void> {
+  if (uuids.length === 0) return
+  await db.products.bulkDelete(uuids)
+}
+
+/**
  * Lee productos de IndexedDB con paginacion y busqueda local.
  * Devuelve el mismo shape { data, meta } que listProducts() del SDK,
  * para que useProducts.fetchPage() no cambie su contrato.
