@@ -142,6 +142,8 @@ Route::prefix('v1')->group(function (): void {
                     ->name('sync.batch');
                 Route::get('/changes', \App\Http\Controllers\Api\V1\Sync\SyncChangesController::class)
                     ->name('sync.changes');
+                Route::get('/heartbeat', \App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController::class)
+                    ->name('sync.heartbeat');
             });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {
