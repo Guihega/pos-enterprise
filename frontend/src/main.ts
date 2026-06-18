@@ -8,6 +8,7 @@ import { initApiClient } from '@/lib/api/client'
 import { installAuthInterceptor } from '@/lib/api/authInterceptor'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
+import { useSyncStore } from '@/stores/sync'
 
 async function bootstrap(): Promise<void> {
   const app = createApp(App)
@@ -34,6 +35,23 @@ async function bootstrap(): Promise<void> {
   // DESPUES de auth.hydrate() porque depende de authStore.tenant.
   const cart = useCartStore()
   cart.hydrate()
+
+  // Motor de sync en background (doc 35.4 pasos 6-9). Se arranca si la
+  // sesion quedo hidratada, y se sincroniza con las transiciones de auth
+  // via $onAction para no crear dependencia circular auth -> sync.
+  const sync = useSyncStore()
+  if (auth.isAuthenticated) {
+    sync.start()
+  }
+  auth.$onAction(({ name, after }) => {
+    after(() => {
+      if (name === 'login') {
+        sync.start()
+      } else if (name === 'logout' || name === 'forceLogout') {
+        sync.stop()
+      }
+    })
+  })
 
   app.use(router)
   app.mount('#app')
