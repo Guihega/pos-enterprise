@@ -7,6 +7,7 @@ import router from './router'
 import { initApiClient } from '@/lib/api/client'
 import { installAuthInterceptor } from '@/lib/api/authInterceptor'
 import { useAuthStore } from '@/stores/auth'
+import { registerServiceWorker } from '@/sw/registerServiceWorker'
 import { useCartStore } from '@/stores/cart'
 import { useSyncStore } from '@/stores/sync'
 
@@ -60,6 +61,23 @@ async function bootstrap(): Promise<void> {
 
   app.use(router)
   app.mount('#app')
+
+  // Registra el Service Worker tras montar la app (doc 37.2 manual-approve).
+  // onNeedRefresh: se conectara a estado UI cuando se defina el banner de actualizacion.
+  // onOfflineReady: idem para notificacion de modo offline.
+  void registerServiceWorker({
+    onNeedRefresh: () => {
+      // TODO: notificar al store/UI que hay nueva version disponible (37.2)
+      console.info('[SW] Nueva version disponible. Recarga para actualizar.')
+    },
+    onOfflineReady: () => {
+      // TODO: notificar al store/UI que la app esta lista offline (37.1)
+      console.info('[SW] App lista para uso offline.')
+    },
+    onError: (err) => {
+      console.warn('[SW] Error al registrar service worker:', err)
+    },
+  })
 }
 
 void bootstrap()
