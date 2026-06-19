@@ -241,6 +241,46 @@ describe('useSyncStore degraded', () => {
 })
 
 // ---------------------------------------------------------------------------
+// blocked / unblocked (sec. 35.5: tenant suspendido)
+// ---------------------------------------------------------------------------
+
+describe('useSyncStore blocked', () => {
+  it('bgsync.blocked -> status blocked', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.blocked' })
+    expect(store.status).toBe('blocked')
+    expect(store.isBlocked).toBe(true)
+  })
+
+  it('bgsync.unblocked tras blocked -> idle', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.blocked' })
+    emit({ type: 'bgsync.unblocked' })
+    expect(store.status).toBe('idle')
+    expect(store.isBlocked).toBe(false)
+  })
+
+  it('blocked tiene prioridad sobre degraded', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.blocked' })
+    emit({ type: 'bgsync.degraded' })
+    expect(store.status).toBe('blocked')
+  })
+
+  it('tick estando blocked NO lo baja a idle', async () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.blocked' })
+    emit({ type: 'bgsync.tick', result: {} as any })
+    await vi.waitFor(() => expect(store.lastSyncAt).not.toBeNull())
+    expect(store.status).toBe('blocked')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // getters
 // ---------------------------------------------------------------------------
 

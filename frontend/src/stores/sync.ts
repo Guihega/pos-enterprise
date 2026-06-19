@@ -24,7 +24,7 @@ import { HeartbeatClient } from '@/sync/HeartbeatClient'
 import { countByStatus } from '@/repositories/SyncQueueRepository'
 import { countUnresolved } from '@/repositories/ConflictRepository'
 
-export type SyncUiStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'degraded' | 'error'
+export type SyncUiStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'degraded' | 'blocked' | 'error'
 
 export const useSyncStore = defineStore('sync', () => {
   // ---- state ----
@@ -43,6 +43,7 @@ export const useSyncStore = defineStore('sync', () => {
   const hasPending = computed(() => pendingCount.value > 0)
   const hasConflicts = computed(() => conflictCount.value > 0)
   const isDegraded = computed(() => status.value === 'degraded')
+  const isBlocked = computed(() => status.value === 'blocked')
 
   // ---- helpers ----
 
@@ -71,11 +72,22 @@ export const useSyncStore = defineStore('sync', () => {
         break
       case 'bgsync.degraded':
         // Online a nivel de red pero el servidor no responde (sec. 35.5).
-        // No tocar isOnline: navigator sigue reportando conexion.
-        if (status.value !== 'offline') status.value = 'degraded'
+        // No tocar isOnline: navigator sigue reportando conexion. blocked
+        // tiene prioridad (suspension es mas grave que degradacion).
+        if (status.value !== 'offline' && status.value !== 'blocked') {
+          status.value = 'degraded'
+        }
         break
       case 'bgsync.recovered':
         if (status.value === 'degraded') status.value = 'idle'
+        break
+      case 'bgsync.blocked':
+        // Tenant suspendido (HTTP 402, sec. 35.5). Estado terminal: la UI
+        // pasa a solo-lectura. Tiene prioridad sobre cualquier otro estado.
+        status.value = 'blocked'
+        break
+      case 'bgsync.unblocked':
+        if (status.value === 'blocked') status.value = 'idle'
         break
       case 'bgsync.tick':
         lastSyncAt.value = new Date().toISOString()
@@ -83,7 +95,11 @@ export const useSyncStore = defineStore('sync', () => {
         // tick limpio vuelve a idle salvo que estemos offline o degraded;
         // si el ciclo detecto degradacion, el evento bgsync.degraded llega
         // despues de este tick y deja el estado correcto.
-        if (status.value !== 'offline' && status.value !== 'degraded') {
+        if (
+          status.value !== 'offline' &&
+          status.value !== 'degraded' &&
+          status.value !== 'blocked'
+        ) {
           status.value = 'idle'
         }
         await refreshCounts()
@@ -156,6 +172,7 @@ export const useSyncStore = defineStore('sync', () => {
     hasPending,
     hasConflicts,
     isDegraded,
+    isBlocked,
     // actions
     start,
     stop,

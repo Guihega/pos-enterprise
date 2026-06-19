@@ -526,6 +526,114 @@ describe('BackgroundSync sonda heartbeat (cola vacia)', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// Blocked (sec. 35.5: tenant suspendido, HTTP 402)
+// ---------------------------------------------------------------------------
+
+/** Error con status, imita HeartbeatError sin importarlo. */
+function statusError(status: number) {
+  return Object.assign(new Error(`HTTP ${status}`), { status })
+}
+
+describe('BackgroundSync blocked', () => {
+  it('sonda heartbeat con 402 -> isBlocked true y emite bgsync.blocked', async () => {
+    const events: string[] = []
+    const ping = vi.fn().mockRejectedValue(statusError(402))
+    const bg = new BackgroundSync({
+      engine: makeEngine(), // cola vacia
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+      heartbeat: { ping }, onEvent: (e) => events.push(e.type),
+    })
+
+    bg.start()
+    await flush()
+
+    expect(bg.isBlocked()).toBe(true)
+    expect(bg.isDegraded()).toBe(false) // blocked no es degraded
+    expect(events).toContain('bgsync.blocked')
+  })
+
+  it('sonda con error no-402 -> degraded, NO blocked', async () => {
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+      heartbeat: { ping: vi.fn().mockRejectedValue(statusError(500)) },
+    })
+    bg.start()
+    await flush()
+    expect(bg.isBlocked()).toBe(false)
+    expect(bg.isDegraded()).toBe(true)
+  })
+
+  it('sonda con error de red (status 0) -> degraded, NO blocked', async () => {
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+      heartbeat: { ping: vi.fn().mockRejectedValue(statusError(0)) },
+    })
+    bg.start()
+    await flush()
+    expect(bg.isBlocked()).toBe(false)
+    expect(bg.isDegraded()).toBe(true)
+  })
+
+  it('ping OK tras blocked -> unblocked', async () => {
+    const events: string[] = []
+    const ping = vi.fn()
+      .mockRejectedValueOnce(statusError(402)) // primer tick: bloquea
+      .mockResolvedValue({ server_time: '2026-06-18T12:00:00Z' }) // luego OK
+    const sched = new FakeScheduler()
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: new FakeConnectivity(true), scheduler: sched,
+      heartbeat: { ping }, onEvent: (e) => events.push(e.type),
+    })
+
+    bg.start()
+    await flush()
+    expect(bg.isBlocked()).toBe(true)
+
+    sched.tickAll()
+    await flush()
+
+    expect(bg.isBlocked()).toBe(false)
+    expect(events).toContain('bgsync.unblocked')
+  })
+
+  it('no re-emite blocked si ya estaba bloqueado', async () => {
+    const events: string[] = []
+    const sched = new FakeScheduler()
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: new FakeConnectivity(true), scheduler: sched,
+      heartbeat: { ping: vi.fn().mockRejectedValue(statusError(402)) },
+      onEvent: (e) => events.push(e.type),
+    })
+
+    bg.start()
+    await flush()
+    sched.tickAll()
+    await flush()
+
+    expect(events.filter((e) => e === 'bgsync.blocked').length).toBe(1)
+  })
+
+  it('pasar a offline limpia el estado blocked', async () => {
+    const conn = new FakeConnectivity(true)
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: conn, scheduler: new FakeScheduler(),
+      heartbeat: { ping: vi.fn().mockRejectedValue(statusError(402)) },
+    })
+    bg.start()
+    await flush()
+    expect(bg.isBlocked()).toBe(true)
+
+    conn.goOffline()
+    expect(bg.isBlocked()).toBe(false)
+  })
+})
+
 afterEach(() => {
   vi.restoreAllMocks()
 })

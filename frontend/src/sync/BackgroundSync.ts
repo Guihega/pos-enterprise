@@ -97,6 +97,8 @@ export type BackgroundSyncEvent =
   | { type: 'bgsync.tick'; result: SyncResult }
   | { type: 'bgsync.degraded' }
   | { type: 'bgsync.recovered' }
+  | { type: 'bgsync.blocked' }
+  | { type: 'bgsync.unblocked' }
   | { type: 'bgsync.error'; error: string }
 
 export type BackgroundSyncListener = (event: BackgroundSyncEvent) => void
@@ -134,6 +136,8 @@ export class BackgroundSync {
   private syncing       = false
   /** True si el servidor no responde pese a navigator.onLine (35.5). */
   private degraded      = false
+  /** True si el tenant esta suspendido (HTTP 402, sec. 35.5 blocked). */
+  private blocked       = false
 
   constructor(opts: BackgroundSyncOptions) {
     this.engine       = opts.engine
@@ -188,6 +192,11 @@ export class BackgroundSync {
     return this.degraded
   }
 
+  /** True si el tenant esta suspendido (35.5 blocked). */
+  isBlocked(): boolean {
+    return this.blocked
+  }
+
   // -------------------------------------------------------------------------
   // Conectividad
   // -------------------------------------------------------------------------
@@ -203,9 +212,11 @@ export class BackgroundSync {
     if (!this.running) return
     this.emit({ type: 'bgsync.offline' })
     this.stopInterval() // pausa el polling; SyncEngine no se llama sin red
-    // offline es un estado distinto de degraded: al perder la red dejamos
-    // de considerar 'servidor caido' (no hay forma de saberlo sin red).
-    this.degraded = false
+    // offline es un estado distinto de degraded/blocked: al perder la red
+    // dejamos de considerar 'servidor caido' o 'suspendido' (no hay forma
+    // de confirmarlo sin red). Se reevalua al reconectar.
+    this.markDegraded(false)
+    this.markBlocked(false)
   }
 
   // -------------------------------------------------------------------------
@@ -273,14 +284,30 @@ export class BackgroundSync {
     if (noTraffic && this.heartbeat) {
       try {
         await this.heartbeat.ping()
+        this.markBlocked(false)
         this.markDegraded(false)
-      } catch {
-        this.markDegraded(true)
+      } catch (err) {
+        // HTTP 402 = tenant suspendido (sec. 35.5 blocked); cualquier otro
+        // fallo es servidor inalcanzable (degraded). Duck typing sobre
+        // { status } para no acoplar a HeartbeatError.
+        if (this.isSuspendedError(err)) {
+          this.markBlocked(true)
+        } else {
+          this.markDegraded(true)
+        }
       }
       return
     }
 
+    this.markBlocked(false)
     this.markDegraded(false)
+  }
+
+  /** True si el error trae status HTTP 402 (tenant suspendido). */
+  private isSuspendedError(err: unknown): boolean {
+    return typeof err === 'object'
+      && err !== null
+      && (err as { status?: number }).status === 402
   }
 
   /** Actualiza el estado degraded y emite la transicion si cambio. */
@@ -288,6 +315,13 @@ export class BackgroundSync {
     if (value === this.degraded) return
     this.degraded = value
     this.emit({ type: value ? 'bgsync.degraded' : 'bgsync.recovered' })
+  }
+
+  /** Actualiza el estado blocked y emite la transicion si cambio. */
+  private markBlocked(value: boolean): void {
+    if (value === this.blocked) return
+    this.blocked = value
+    this.emit({ type: value ? 'bgsync.blocked' : 'bgsync.unblocked' })
   }
 
   // -------------------------------------------------------------------------
