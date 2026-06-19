@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/auth'
 import { SyncEngine } from '@/sync/SyncEngine'
 import { BackgroundSync, type BackgroundSyncEvent } from '@/sync/BackgroundSync'
 import { HeartbeatClient } from '@/sync/HeartbeatClient'
+import { SnapshotService, type SnapshotProgress } from '@/sync/SnapshotService'
 import { countByStatus } from '@/repositories/SyncQueueRepository'
 import { countUnresolved } from '@/repositories/ConflictRepository'
 
@@ -34,6 +35,10 @@ export const useSyncStore = defineStore('sync', () => {
   const lastError     = ref<string | null>(null)
   const pendingCount  = ref<number>(0)
   const conflictCount = ref<number>(0)
+  /** True mientras corre el snapshot inicial (38.6). */
+  const snapshotInProgress = ref<boolean>(false)
+  /** Ultimo progreso reportado por el snapshot, null si no aplica. */
+  const snapshotProgress = ref<SnapshotProgress | null>(null)
 
   // Instancia activa del scheduler. null cuando esta detenido.
   let bgsync: BackgroundSync | null = null
@@ -114,6 +119,44 @@ export const useSyncStore = defineStore('sync', () => {
   // ---- actions ----
 
   /**
+   * Repuebla IndexedDB con el catalogo completo si hace falta (38.6,
+   * 35.4 paso 5: nunca sincronizado, sin datos, o ultimo sync > 7 dias).
+   * No bloquea el arranque: reporta progreso a estado reactivo para que
+   * la UI muestre "Cargando catalogo: X/Y". Idempotente y no lanza: los
+   * errores quedan en lastError.
+   *
+   * @param deps  Inyeccion opcional para tests (SnapshotService fake).
+   */
+  async function ensureSnapshot(deps?: {
+    makeSnapshot?: (
+      tenantSlug: string,
+      onProgress: (p: SnapshotProgress) => void,
+    ) => Pick<SnapshotService, 'needsSnapshot' | 'run'>
+  }): Promise<void> {
+    if (snapshotInProgress.value) return
+
+    const auth = useAuthStore()
+    const tenantSlug = auth.tenant
+    if (!tenantSlug) return
+
+    const onProgress = (p: SnapshotProgress) => { snapshotProgress.value = p }
+    const service = deps?.makeSnapshot
+      ? deps.makeSnapshot(tenantSlug, onProgress)
+      : new SnapshotService({ tenantSlug, onProgress })
+
+    try {
+      if (!(await service.needsSnapshot())) return
+      snapshotInProgress.value = true
+      await service.run()
+      await refreshCounts()
+    } catch (err) {
+      lastError.value = err instanceof Error ? err.message : 'snapshot error'
+    } finally {
+      snapshotInProgress.value = false
+    }
+  }
+
+  /**
    * Arranca el motor de sync para el tenant activo. Idempotente: si ya
    * esta corriendo, no hace nada. Requiere sesion (tenant no nulo).
    *
@@ -167,6 +210,8 @@ export const useSyncStore = defineStore('sync', () => {
     lastError,
     pendingCount,
     conflictCount,
+    snapshotInProgress,
+    snapshotProgress,
     // getters
     isRunning,
     hasPending,
@@ -176,6 +221,7 @@ export const useSyncStore = defineStore('sync', () => {
     // actions
     start,
     stop,
+    ensureSnapshot,
     refreshCounts,
   }
 })

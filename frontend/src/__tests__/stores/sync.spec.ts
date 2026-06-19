@@ -281,6 +281,113 @@ describe('useSyncStore blocked', () => {
 })
 
 // ---------------------------------------------------------------------------
+// ensureSnapshot (38.6 / 35.4 paso 5)
+// ---------------------------------------------------------------------------
+
+/** Fake de SnapshotService con needsSnapshot/run controlables. */
+function fakeSnapshot(opts: {
+  needs?: boolean
+  run?: () => Promise<void>
+}) {
+  return {
+    needsSnapshot: vi.fn().mockResolvedValue(opts.needs ?? true),
+    run: vi.fn().mockImplementation(opts.run ?? (() => Promise.resolve())),
+  }
+}
+
+describe('useSyncStore ensureSnapshot', () => {
+  it('no corre si no hay tenant', async () => {
+    mockTenant = null
+    const store = useSyncStore()
+    const snap = fakeSnapshot({ needs: true })
+    await store.ensureSnapshot({ makeSnapshot: () => snap })
+    expect(snap.needsSnapshot).not.toHaveBeenCalled()
+    expect(snap.run).not.toHaveBeenCalled()
+  })
+
+  it('no corre run si needsSnapshot es false', async () => {
+    const store = useSyncStore()
+    const snap = fakeSnapshot({ needs: false })
+    await store.ensureSnapshot({ makeSnapshot: () => snap })
+    expect(snap.needsSnapshot).toHaveBeenCalledOnce()
+    expect(snap.run).not.toHaveBeenCalled()
+    expect(store.snapshotInProgress).toBe(false)
+  })
+
+  it('corre run cuando needsSnapshot es true', async () => {
+    const store = useSyncStore()
+    const snap = fakeSnapshot({ needs: true })
+    await store.ensureSnapshot({ makeSnapshot: () => snap })
+    expect(snap.run).toHaveBeenCalledOnce()
+    expect(store.snapshotInProgress).toBe(false) // termino
+  })
+
+  it('marca snapshotInProgress durante run y lo limpia al final', async () => {
+    const store = useSyncStore()
+    let duranteRun = false
+    const snap = fakeSnapshot({
+      needs: true,
+      run: () => {
+        duranteRun = store.snapshotInProgress
+        return Promise.resolve()
+      },
+    })
+    await store.ensureSnapshot({ makeSnapshot: () => snap })
+    expect(duranteRun).toBe(true)
+    expect(store.snapshotInProgress).toBe(false)
+  })
+
+  it('reporta progreso via snapshotProgress', async () => {
+    const store = useSyncStore()
+    const snap = {
+      needsSnapshot: vi.fn().mockResolvedValue(true),
+      run: vi.fn(),
+    }
+    // El store pasa onProgress al factory; lo capturamos y emitimos.
+    let captured: ((p: any) => void) | undefined
+    await store.ensureSnapshot({
+      makeSnapshot: (_tenant, onProgress) => {
+        captured = onProgress
+        return snap
+      },
+    })
+    captured!({ entity: 'products', phase: 'done', count: 5 })
+    expect(store.snapshotProgress).toEqual({ entity: 'products', phase: 'done', count: 5 })
+  })
+
+  it('captura error de run en lastError sin lanzar', async () => {
+    const store = useSyncStore()
+    const snap = fakeSnapshot({
+      needs: true,
+      run: () => Promise.reject(new Error('snapshot fallo')),
+    })
+    await expect(
+      store.ensureSnapshot({ makeSnapshot: () => snap }),
+    ).resolves.toBeUndefined()
+    expect(store.lastError).toBe('snapshot fallo')
+    expect(store.snapshotInProgress).toBe(false)
+  })
+
+  it('es idempotente: no corre si ya hay snapshot en progreso', async () => {
+    const store = useSyncStore()
+    let resolveRun!: () => void
+    const snap = fakeSnapshot({
+      needs: true,
+      run: () => new Promise<void>((r) => { resolveRun = r }),
+    })
+    const first = store.ensureSnapshot({ makeSnapshot: () => snap })
+    await Promise.resolve() // deja avanzar hasta marcar inProgress
+    await Promise.resolve()
+    // segundo intento mientras el primero sigue: factory no se invoca de nuevo
+    const snap2 = fakeSnapshot({ needs: true })
+    await store.ensureSnapshot({ makeSnapshot: () => snap2 })
+    expect(snap2.needsSnapshot).not.toHaveBeenCalled()
+    resolveRun()
+    await first
+  })
+})
+
+// ---------------------------------------------------------------------------
 // getters
 // ---------------------------------------------------------------------------
 

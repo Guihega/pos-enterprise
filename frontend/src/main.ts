@@ -42,11 +42,16 @@ async function bootstrap(): Promise<void> {
   const sync = useSyncStore()
   if (auth.isAuthenticated) {
     sync.start()
+    // Repuebla IndexedDB si hace falta (38.6, 35.4 paso 5). No se hace
+    // await: el arranque de la UI no se bloquea por el snapshot; el
+    // progreso se observa via sync.snapshotProgress.
+    void sync.ensureSnapshot()
   }
   auth.$onAction(({ name, after }) => {
     after(() => {
       if (name === 'login') {
         sync.start()
+        void sync.ensureSnapshot()
       } else if (name === 'logout' || name === 'forceLogout') {
         sync.stop()
       }
