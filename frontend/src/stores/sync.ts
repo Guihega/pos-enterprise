@@ -20,6 +20,7 @@ import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { SyncEngine } from '@/sync/SyncEngine'
 import { BackgroundSync, type BackgroundSyncEvent } from '@/sync/BackgroundSync'
+import { HeartbeatClient } from '@/sync/HeartbeatClient'
 import { countByStatus } from '@/repositories/SyncQueueRepository'
 import { countUnresolved } from '@/repositories/ConflictRepository'
 
@@ -120,7 +121,12 @@ export const useSyncStore = defineStore('sync', () => {
 
     bgsync = deps?.makeBgSync
       ? deps.makeBgSync(engine, onEvent)
-      : new BackgroundSync({ engine, onEvent })
+      : new BackgroundSync({
+          engine,
+          onEvent,
+          // Sonda para detectar degraded cuando la cola esta vacia (35.5).
+          heartbeat: new HeartbeatClient({ tenantSlug }),
+        })
 
     bgsync.start()
     void refreshCounts()
