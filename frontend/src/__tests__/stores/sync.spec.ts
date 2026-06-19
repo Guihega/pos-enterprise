@@ -192,6 +192,55 @@ describe('useSyncStore eventos', () => {
 })
 
 // ---------------------------------------------------------------------------
+// degraded / recovered (sec. 35.5)
+// ---------------------------------------------------------------------------
+
+describe('useSyncStore degraded', () => {
+  it('bgsync.degraded -> status degraded, isOnline intacto', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.degraded' })
+    expect(store.status).toBe('degraded')
+    expect(store.isDegraded).toBe(true)
+    expect(store.isOnline).toBe(true) // navigator sigue online
+  })
+
+  it('bgsync.recovered tras degraded -> idle', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.degraded' })
+    emit({ type: 'bgsync.recovered' })
+    expect(store.status).toBe('idle')
+    expect(store.isDegraded).toBe(false)
+  })
+
+  it('offline tiene prioridad sobre degraded', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.offline' })
+    emit({ type: 'bgsync.degraded' })
+    expect(store.status).toBe('offline')
+  })
+
+  it('tick estando degraded NO lo baja a idle', async () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.degraded' })
+    emit({ type: 'bgsync.tick', result: {} as any })
+    await vi.waitFor(() => expect(store.lastSyncAt).not.toBeNull())
+    expect(store.status).toBe('degraded')
+  })
+
+  it('recovered sin degradacion previa no fuerza idle desde offline', () => {
+    const store = useSyncStore()
+    const { emit } = startWithFakes(store)
+    emit({ type: 'bgsync.offline' })
+    emit({ type: 'bgsync.recovered' })
+    expect(store.status).toBe('offline')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // getters
 // ---------------------------------------------------------------------------
 

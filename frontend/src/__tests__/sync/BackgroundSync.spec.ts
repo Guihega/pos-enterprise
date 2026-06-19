@@ -357,6 +357,175 @@ describe('BackgroundSync tick', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// Degraded (sec. 35.5: online pero servidor caido)
+// ---------------------------------------------------------------------------
+
+/** Resultado con networkError en push (servidor inalcanzable con trafico). */
+const PUSH_NET_ERROR: SyncResult = {
+  push: { sent: 2, succeeded: 0, conflicts: 0, failed: 0, networkError: true },
+  pull: {
+    products: { ...ZERO }, taxes: { ...ZERO }, customers: { ...ZERO },
+    snapshotTimestamp: '', networkError: false,
+  },
+}
+
+describe('BackgroundSync degraded', () => {
+  it('push.networkError -> isDegraded true y emite bgsync.degraded', async () => {
+    const events: string[] = []
+    const engine = makeEngine(vi.fn().mockResolvedValue(PUSH_NET_ERROR))
+    const bg = new BackgroundSync({
+      engine, connectivity: new FakeConnectivity(true),
+      scheduler: new FakeScheduler(), onEvent: (e) => events.push(e.type),
+    })
+
+    bg.start()
+    await flush()
+
+    expect(bg.isDegraded()).toBe(true)
+    expect(events).toContain('bgsync.degraded')
+  })
+
+  it('pull.networkError -> isDegraded true', async () => {
+    const pullErr: SyncResult = {
+      push: { sent: 0, succeeded: 0, conflicts: 0, failed: 0, networkError: false },
+      pull: {
+        products: { ...ZERO }, taxes: { ...ZERO }, customers: { ...ZERO },
+        snapshotTimestamp: '', networkError: true,
+      },
+    }
+    const bg = new BackgroundSync({
+      engine: makeEngine(vi.fn().mockResolvedValue(pullErr)),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+    })
+    bg.start()
+    await flush()
+    expect(bg.isDegraded()).toBe(true)
+  })
+
+  it('tick limpio tras degraded -> recovered', async () => {
+    const events: string[] = []
+    const syncOnce = vi.fn()
+      .mockResolvedValueOnce(PUSH_NET_ERROR) // primer tick: degrada
+      .mockResolvedValue(EMPTY_RESULT)        // siguientes: sano
+    const sched = new FakeScheduler()
+    const bg = new BackgroundSync({
+      engine: makeEngine(syncOnce), connectivity: new FakeConnectivity(true),
+      scheduler: sched, onEvent: (e) => events.push(e.type),
+    })
+
+    bg.start()
+    await flush()
+    expect(bg.isDegraded()).toBe(true)
+
+    sched.tickAll()
+    await flush()
+
+    expect(bg.isDegraded()).toBe(false)
+    expect(events).toContain('bgsync.recovered')
+  })
+
+  it('no re-emite degraded si ya estaba degradado', async () => {
+    const events: string[] = []
+    const sched = new FakeScheduler()
+    const bg = new BackgroundSync({
+      engine: makeEngine(vi.fn().mockResolvedValue(PUSH_NET_ERROR)),
+      connectivity: new FakeConnectivity(true), scheduler: sched,
+      onEvent: (e) => events.push(e.type),
+    })
+
+    bg.start()
+    await flush()
+    sched.tickAll()
+    await flush()
+
+    const degradedCount = events.filter((e) => e === 'bgsync.degraded').length
+    expect(degradedCount).toBe(1)
+  })
+
+  it('excepcion en syncOnce -> degraded', async () => {
+    const bg = new BackgroundSync({
+      engine: makeEngine(vi.fn().mockRejectedValue(new Error('boom'))),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+    })
+    bg.start()
+    await flush()
+    expect(bg.isDegraded()).toBe(true)
+  })
+
+  it('pasar a offline limpia el estado degraded', async () => {
+    const conn = new FakeConnectivity(true)
+    const bg = new BackgroundSync({
+      engine: makeEngine(vi.fn().mockResolvedValue(PUSH_NET_ERROR)),
+      connectivity: conn, scheduler: new FakeScheduler(),
+    })
+    bg.start()
+    await flush()
+    expect(bg.isDegraded()).toBe(true)
+
+    conn.goOffline()
+    expect(bg.isDegraded()).toBe(false)
+  })
+})
+
+describe('BackgroundSync sonda heartbeat (cola vacia)', () => {
+  it('cola vacia + heartbeat OK -> no degraded', async () => {
+    const ping = vi.fn().mockResolvedValue({ server_time: '2026-06-18T12:00:00Z' })
+    const bg = new BackgroundSync({
+      engine: makeEngine(), // EMPTY_RESULT: sent 0
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+      heartbeat: { ping },
+    })
+    bg.start()
+    await flush()
+    expect(ping).toHaveBeenCalledOnce()
+    expect(bg.isDegraded()).toBe(false)
+  })
+
+  it('cola vacia + heartbeat falla -> degraded', async () => {
+    const ping = vi.fn().mockRejectedValue(new Error('servidor caido'))
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+      heartbeat: { ping },
+    })
+    bg.start()
+    await flush()
+    expect(ping).toHaveBeenCalledOnce()
+    expect(bg.isDegraded()).toBe(true)
+  })
+
+  it('con trafico (push.sent > 0) NO usa la sonda heartbeat', async () => {
+    const ping = vi.fn().mockResolvedValue({})
+    const withTraffic: SyncResult = {
+      push: { sent: 3, succeeded: 3, conflicts: 0, failed: 0, networkError: false },
+      pull: {
+        products: { ...ZERO }, taxes: { ...ZERO }, customers: { ...ZERO },
+        snapshotTimestamp: '', networkError: false,
+      },
+    }
+    const bg = new BackgroundSync({
+      engine: makeEngine(vi.fn().mockResolvedValue(withTraffic)),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+      heartbeat: { ping },
+    })
+    bg.start()
+    await flush()
+    expect(ping).not.toHaveBeenCalled()
+    expect(bg.isDegraded()).toBe(false)
+  })
+
+  it('sin sonda inyectada y cola vacia -> no degraded (no rompe)', async () => {
+    const bg = new BackgroundSync({
+      engine: makeEngine(),
+      connectivity: new FakeConnectivity(true), scheduler: new FakeScheduler(),
+    })
+    bg.start()
+    await flush()
+    expect(bg.isDegraded()).toBe(false)
+  })
+})
+
 afterEach(() => {
   vi.restoreAllMocks()
 })

@@ -23,7 +23,7 @@ import { BackgroundSync, type BackgroundSyncEvent } from '@/sync/BackgroundSync'
 import { countByStatus } from '@/repositories/SyncQueueRepository'
 import { countUnresolved } from '@/repositories/ConflictRepository'
 
-export type SyncUiStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'error'
+export type SyncUiStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'degraded' | 'error'
 
 export const useSyncStore = defineStore('sync', () => {
   // ---- state ----
@@ -41,6 +41,7 @@ export const useSyncStore = defineStore('sync', () => {
   const isRunning = computed(() => bgsync !== null)
   const hasPending = computed(() => pendingCount.value > 0)
   const hasConflicts = computed(() => conflictCount.value > 0)
+  const isDegraded = computed(() => status.value === 'degraded')
 
   // ---- helpers ----
 
@@ -67,10 +68,23 @@ export const useSyncStore = defineStore('sync', () => {
         isOnline.value = false
         status.value = 'offline'
         break
+      case 'bgsync.degraded':
+        // Online a nivel de red pero el servidor no responde (sec. 35.5).
+        // No tocar isOnline: navigator sigue reportando conexion.
+        if (status.value !== 'offline') status.value = 'degraded'
+        break
+      case 'bgsync.recovered':
+        if (status.value === 'degraded') status.value = 'idle'
+        break
       case 'bgsync.tick':
         lastSyncAt.value = new Date().toISOString()
         lastError.value = null
-        if (status.value !== 'offline') status.value = 'idle'
+        // tick limpio vuelve a idle salvo que estemos offline o degraded;
+        // si el ciclo detecto degradacion, el evento bgsync.degraded llega
+        // despues de este tick y deja el estado correcto.
+        if (status.value !== 'offline' && status.value !== 'degraded') {
+          status.value = 'idle'
+        }
         await refreshCounts()
         break
       case 'bgsync.error':
@@ -135,6 +149,7 @@ export const useSyncStore = defineStore('sync', () => {
     isRunning,
     hasPending,
     hasConflicts,
+    isDegraded,
     // actions
     start,
     stop,

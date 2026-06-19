@@ -21,6 +21,17 @@
 
 import type { SyncEngine, SyncResult } from '@/sync/SyncEngine'
 
+/**
+ * Sonda de conectividad real. HeartbeatClient lo implementa (ping()).
+ * Se usa para detectar 'online pero servidor caido' cuando la cola de
+ * sync esta vacia y syncOnce no genera trafico de red (estado degraded,
+ * sec. 35.5). Opcional: si no se inyecta, degraded se deriva solo del
+ * networkError del SyncResult.
+ */
+export interface HeartbeatProbe {
+  ping(): Promise<unknown>
+}
+
 // ---------------------------------------------------------------------------
 // Parametros (sec. 38.5)
 // ---------------------------------------------------------------------------
@@ -84,6 +95,8 @@ export type BackgroundSyncEvent =
   | { type: 'bgsync.online' }
   | { type: 'bgsync.offline' }
   | { type: 'bgsync.tick'; result: SyncResult }
+  | { type: 'bgsync.degraded' }
+  | { type: 'bgsync.recovered' }
   | { type: 'bgsync.error'; error: string }
 
 export type BackgroundSyncListener = (event: BackgroundSyncEvent) => void
@@ -98,6 +111,8 @@ export interface BackgroundSyncOptions {
   scheduler?:    Scheduler
   intervalMs?:   number
   onEvent?:      BackgroundSyncListener
+  /** Sonda opcional para detectar degraded con cola vacia (sec. 35.5). */
+  heartbeat?:    HeartbeatProbe
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +125,15 @@ export class BackgroundSync {
   private scheduler:    Scheduler
   private intervalMs:   number
   private onEvent?:     BackgroundSyncListener
+  private heartbeat?:   HeartbeatProbe
 
   private intervalId:   number | null = null
   private cleanupFns:   Array<() => void> = []
   private running       = false
   /** Evita ciclos solapados si uno tarda mas que el intervalo. */
   private syncing       = false
+  /** True si el servidor no responde pese a navigator.onLine (35.5). */
+  private degraded      = false
 
   constructor(opts: BackgroundSyncOptions) {
     this.engine       = opts.engine
@@ -123,6 +141,7 @@ export class BackgroundSync {
     this.scheduler    = opts.scheduler ?? defaultScheduler
     this.intervalMs   = opts.intervalMs ?? SYNC_INTERVAL_MS
     this.onEvent      = opts.onEvent
+    this.heartbeat    = opts.heartbeat
   }
 
   /**
@@ -164,6 +183,11 @@ export class BackgroundSync {
     return this.running
   }
 
+  /** True si el servidor no responde pese a estar online (35.5). */
+  isDegraded(): boolean {
+    return this.degraded
+  }
+
   // -------------------------------------------------------------------------
   // Conectividad
   // -------------------------------------------------------------------------
@@ -179,6 +203,9 @@ export class BackgroundSync {
     if (!this.running) return
     this.emit({ type: 'bgsync.offline' })
     this.stopInterval() // pausa el polling; SyncEngine no se llama sin red
+    // offline es un estado distinto de degraded: al perder la red dejamos
+    // de considerar 'servidor caido' (no hay forma de saberlo sin red).
+    this.degraded = false
   }
 
   // -------------------------------------------------------------------------
@@ -214,12 +241,53 @@ export class BackgroundSync {
     try {
       const result = await this.engine.syncOnce()
       this.emit({ type: 'bgsync.tick', result })
+      await this.evaluateHealth(result)
     } catch (err) {
       const error = err instanceof Error ? err.message : 'sync error'
       this.emit({ type: 'bgsync.error', error })
+      // Una excepcion en syncOnce tambien es senal de servidor inalcanzable.
+      this.markDegraded(true)
     } finally {
       this.syncing = false
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Salud de conexion (sec. 35.5: degraded)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Decide si la conexion esta degradada a partir del resultado del sync.
+   *   - Si push o pull reportaron networkError => degraded (servidor caido).
+   *   - Si el ciclo no genero trafico (cola vacia, sin cambios) y hay sonda
+   *     heartbeat inyectada => hace un ping para confirmar conectividad real.
+   *   - En otro caso => sano (recovered si venia degradado).
+   */
+  private async evaluateHealth(result: SyncResult): Promise<void> {
+    if (result.push.networkError || result.pull.networkError) {
+      this.markDegraded(true)
+      return
+    }
+
+    const noTraffic = result.push.sent === 0
+    if (noTraffic && this.heartbeat) {
+      try {
+        await this.heartbeat.ping()
+        this.markDegraded(false)
+      } catch {
+        this.markDegraded(true)
+      }
+      return
+    }
+
+    this.markDegraded(false)
+  }
+
+  /** Actualiza el estado degraded y emite la transicion si cambio. */
+  private markDegraded(value: boolean): void {
+    if (value === this.degraded) return
+    this.degraded = value
+    this.emit({ type: value ? 'bgsync.degraded' : 'bgsync.recovered' })
   }
 
   // -------------------------------------------------------------------------
