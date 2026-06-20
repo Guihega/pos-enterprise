@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { registerServiceWorker } from '@/sw/registerServiceWorker'
 import { useCartStore } from '@/stores/cart'
 import { useSyncStore } from '@/stores/sync'
+import { useIntegrityStore } from '@/stores/integrity'
 
 async function bootstrap(): Promise<void> {
   const app = createApp(App)
@@ -40,6 +41,11 @@ async function bootstrap(): Promise<void> {
   // Motor de sync en background (doc 35.4 pasos 6-9). Se arranca si la
   // sesion quedo hidratada, y se sincroniza con las transiciones de auth
   // via $onAction para no crear dependencia circular auth -> sync.
+  // Verifica integridad de IndexedDB (35.4 paso 4, 42.3). Si esta corrupta,
+  // integrity.isCorrupt activa el modal de recuperacion en App.vue.
+  const integrity = useIntegrityStore()
+  void integrity.check()
+
   const sync = useSyncStore()
   if (auth.isAuthenticated) {
     sync.start()
@@ -47,12 +53,15 @@ async function bootstrap(): Promise<void> {
     // await: el arranque de la UI no se bloquea por el snapshot; el
     // progreso se observa via sync.snapshotProgress.
     void sync.ensureSnapshot()
+    // Mide el desfase del reloj contra el servidor (42.5).
+    if (auth.tenant) void integrity.measureClockDrift(auth.tenant)
   }
   auth.$onAction(({ name, after }) => {
     after(() => {
       if (name === 'login') {
         sync.start()
         void sync.ensureSnapshot()
+        if (auth.tenant) void integrity.measureClockDrift(auth.tenant)
       } else if (name === 'logout' || name === 'forceLogout') {
         sync.stop()
       }
