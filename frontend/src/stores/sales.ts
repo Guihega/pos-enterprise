@@ -247,7 +247,7 @@ export const useSalesStore = defineStore('sales', () => {
         entityType: 'sale',
         entityUuid: clientUuid,
         operation: 'create',
-        payload: body,
+        payload: JSON.parse(JSON.stringify(body)),
         clientTimestamp: now,
       })
       // Refrescar contadores para que el banner muestre el pendiente.
