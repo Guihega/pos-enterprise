@@ -19,6 +19,7 @@ const {
   isEmpty,
   load,
   resolveManual,
+  actionsFor,
 } = useConflicts()
 
 onMounted(() => {
@@ -89,20 +90,15 @@ function entityLabel(entity: string): string {
           </p>
           <div v-if="canResolve" class="conf-card__actions">
             <button
+              v-for="action in actionsFor(c)"
+              :key="action.label"
               type="button"
-              class="conf-card__btn conf-card__btn--client"
+              class="conf-card__btn"
+              :class="{ 'conf-card__btn--server': action.variant === 'default' && action.resolution === 'use_server' }"
               :disabled="resolvingUuid === c.uuid"
-              @click="resolveManual(c.uuid, 'use_client')"
+              @click="resolveManual(c.uuid, action.resolution)"
             >
-              Mantener mio
-            </button>
-            <button
-              type="button"
-              class="conf-card__btn conf-card__btn--server"
-              :disabled="resolvingUuid === c.uuid"
-              @click="resolveManual(c.uuid, 'use_server')"
-            >
-              Aceptar el otro
+              {{ action.label }}
             </button>
           </div>
         </li>

@@ -21,6 +21,56 @@ import type { ConflictLocal, ConflictResolutionKind } from '@/db/schema'
  */
 const RESOLVER_ROLES = ['super_admin', 'admin', 'gerente'] as const
 
+/**
+ * Una accion de resolucion ofrecida en la UI para un conflicto concreto.
+ * Cada accion mapea a una decision que el sistema soporta hoy (use_client /
+ * use_server); la etiqueta se contextualiza segun (entityType, reason) para
+ * acercarse al mockup 39.3 sin prometer flujos backend inexistentes.
+ */
+export interface ConflictAction {
+  /** Texto del boton (ej "Mantener mi venta", "Aceptar precio del servidor"). */
+  label: string
+  /** Decision que aplica markResolved. */
+  resolution: Extract<ConflictResolutionKind, 'use_client' | 'use_server'>
+  /** Variante visual: 'primary' resalta la opcion recomendada. */
+  variant: 'primary' | 'default'
+}
+
+/**
+ * Acciones contextuales por (entityType, reason). Reglas alineadas a 39.4:
+ *  - venta: el servidor ya acepto el historico; lo normal es conservar la
+ *    venta del cliente (use_client). Para CASH_SESSION_CLOSED se ofrece tambien
+ *    aceptar el estado del servidor.
+ *  - producto PRICE_MISMATCH: elegir entre mi precio o el del servidor.
+ *  - cliente duplicado/STALE: conservar el mio o aceptar el del servidor.
+ * Cualquier combinacion no contemplada cae al par generico.
+ */
+function buildActions(entityType: string, reason: string): ConflictAction[] {
+  const keep = (label: string, variant: ConflictAction['variant'] = 'default'): ConflictAction =>
+    ({ label, resolution: 'use_client', variant })
+  const accept = (label: string, variant: ConflictAction['variant'] = 'default'): ConflictAction =>
+    ({ label, resolution: 'use_server', variant })
+
+  if (entityType === 'sale') {
+    // El historico de venta normalmente se conserva (39.4 resolveSale).
+    if (reason === 'CASH_SESSION_CLOSED') {
+      return [keep('Conservar mi venta', 'primary'), accept('Usar estado del servidor')]
+    }
+    return [keep('Conservar mi venta', 'primary'), accept('Descartar y usar servidor')]
+  }
+
+  if (entityType === 'product' && reason === 'PRICE_MISMATCH') {
+    return [keep('Mantener mi precio', 'primary'), accept('Aceptar precio del servidor')]
+  }
+
+  if (entityType === 'customer') {
+    return [keep('Mantener mis datos', 'primary'), accept('Aceptar datos del servidor')]
+  }
+
+  // Generico.
+  return [keep('Mantener mio', 'primary'), accept('Aceptar el otro')]
+}
+
 export function useConflicts() {
   const auth = useAuthStore()
   const sync = useSyncStore()
@@ -89,6 +139,11 @@ export function useConflicts() {
     }
   }
 
+  /** Acciones contextuales a mostrar para un conflicto (mockup 39.3). */
+  function actionsFor(conflict: ConflictLocal): ConflictAction[] {
+    return buildActions(conflict.entityType, conflict.reason)
+  }
+
   return {
     // state
     items,
@@ -101,5 +156,6 @@ export function useConflicts() {
     // actions
     load,
     resolveManual,
+    actionsFor,
   }
 }

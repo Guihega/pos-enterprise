@@ -138,4 +138,55 @@ describe('useConflicts', () => {
     expect(errorMessage.value).toBe('write fail')
     expect(items.value).toHaveLength(1)
   })
+
+  // ---- actionsFor: acciones contextuales por tipo (mockup 39.3) ----
+
+  it('actionsFor: venta CASH_SESSION_CLOSED ofrece conservar y usar servidor', () => {
+    const { actionsFor } = useConflicts()
+    const actions = actionsFor(makeConflict('a', 'sale', 'CASH_SESSION_CLOSED'))
+    expect(actions).toHaveLength(2)
+    expect(actions[0]!.resolution).toBe('use_client')
+    expect(actions[0]!.variant).toBe('primary')
+    expect(actions[1]!.resolution).toBe('use_server')
+    expect(actions[0]!.label).toContain('venta')
+  })
+
+  it('actionsFor: producto PRICE_MISMATCH habla de precio', () => {
+    const { actionsFor } = useConflicts()
+    const actions = actionsFor(makeConflict('b', 'product', 'PRICE_MISMATCH'))
+    expect(actions[0]!.label.toLowerCase()).toContain('precio')
+    expect(actions[1]!.label.toLowerCase()).toContain('precio')
+    expect(actions[0]!.resolution).toBe('use_client')
+    expect(actions[1]!.resolution).toBe('use_server')
+  })
+
+  it('actionsFor: cliente habla de datos', () => {
+    const { actionsFor } = useConflicts()
+    const actions = actionsFor(makeConflict('c', 'customer', 'STALE_VERSION'))
+    expect(actions[0]!.label.toLowerCase()).toContain('datos')
+    expect(actions[1]!.label.toLowerCase()).toContain('datos')
+  })
+
+  it('actionsFor: combinacion no contemplada cae al par generico', () => {
+    const { actionsFor } = useConflicts()
+    const actions = actionsFor(makeConflict('d', 'product', 'UNKNOWN'))
+    expect(actions).toHaveLength(2)
+    expect(actions[0]!.resolution).toBe('use_client')
+    expect(actions[1]!.resolution).toBe('use_server')
+  })
+
+  it('actionsFor: toda accion mapea a use_client o use_server (sin flujos inexistentes)', () => {
+    const { actionsFor } = useConflicts()
+    const samples = [
+      makeConflict('1', 'sale', 'STOCK_NEGATIVE'),
+      makeConflict('2', 'product', 'PRICE_MISMATCH'),
+      makeConflict('3', 'customer', 'STALE_VERSION'),
+      makeConflict('4', 'sale', 'CASH_SESSION_CLOSED'),
+    ]
+    for (const c of samples) {
+      for (const a of actionsFor(c)) {
+        expect(['use_client', 'use_server']).toContain(a.resolution)
+      }
+    }
+  })
 })

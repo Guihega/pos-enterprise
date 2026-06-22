@@ -11,6 +11,7 @@ import { registerServiceWorker } from '@/sw/registerServiceWorker'
 import { useCartStore } from '@/stores/cart'
 import { useSyncStore } from '@/stores/sync'
 import { useIntegrityStore } from '@/stores/integrity'
+import { usePwaStore } from '@/stores/pwa'
 
 async function bootstrap(): Promise<void> {
   const app = createApp(App)
@@ -72,21 +73,17 @@ async function bootstrap(): Promise<void> {
   app.mount('#app')
 
   // Registra el Service Worker tras montar la app (doc 37.2 manual-approve).
-  // onNeedRefresh: se conectara a estado UI cuando se defina el banner de actualizacion.
-  // onOfflineReady: idem para notificacion de modo offline.
-  void registerServiceWorker({
-    onNeedRefresh: () => {
-      // TODO: notificar al store/UI que hay nueva version disponible (37.2)
-      console.info('[SW] Nueva version disponible. Recarga para actualizar.')
-    },
-    onOfflineReady: () => {
-      // TODO: notificar al store/UI que la app esta lista offline (37.1)
-      console.info('[SW] App lista para uso offline.')
-    },
+  // Conecta los eventos del SW al store pwa, que alimenta PwaUpdateBanner.
+  const pwa = usePwaStore()
+  const applyUpdate = await registerServiceWorker({
+    onNeedRefresh: () => pwa.setNeedRefresh(true),
+    onOfflineReady: () => pwa.setOfflineReady(true),
     onError: (err) => {
       console.warn('[SW] Error al registrar service worker:', err)
     },
   })
+  // Guarda la funcion de actualizacion para el boton "Actualizar ahora" (37.2).
+  pwa.setApplyUpdate(applyUpdate)
 }
 
 void bootstrap()
