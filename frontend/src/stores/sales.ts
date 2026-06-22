@@ -21,6 +21,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { createSale, cancelSale } from '@/lib/api/generated'
+import { db } from '@/db/schema'
+import type { SaleLocal } from '@/db/schema'
+import { enqueue } from '@/repositories/SyncQueueRepository'
+import { useSyncStore } from '@/stores/sync'
 import type {
   CreateSaleItem,
   CreateSalePayment,
@@ -42,6 +46,10 @@ export interface CheckoutResult {
   sale?: Sale
   /** True si el error implica que la sesion de caja ya no esta abierta. */
   sessionLost?: boolean
+  /** True si la venta se guardo localmente y se encolo para sync (9a, RN-150). */
+  offline?: boolean
+  /** Venta local creada en modo offline. */
+  localSale?: SaleLocal
 }
 
 export const useSalesStore = defineStore('sales', () => {
@@ -101,17 +109,27 @@ export const useSalesStore = defineStore('sales', () => {
       quantity: it.quantity,
     }))
 
+    // Body del checkout: identico online y offline. En offline se encola
+    // como payload del item de sync (backend lo lee con CheckoutRequest::fromArray).
+    const body = {
+      cash_session_uuid: session.uuid,
+      warehouse_uuid: warehouseUuid,
+      items,
+      payments,
+    }
+
+    // Modo offline (doc 9a, RN-150): si no hay red, no intentamos el POST;
+    // creamos la venta local con UUID de cliente y la encolamos en sync_queue.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return await checkoutOffline(body, session.uuid, payments)
+    }
+
     submitting.value = true
     try {
       const tenant = getTenantOrThrow(authStore.tenant)
       const { data, error } = await createSale({
         headers: { 'X-Tenant': tenant },
-        body: {
-          cash_session_uuid: session.uuid,
-          warehouse_uuid: warehouseUuid,
-          items,
-          payments,
-        },
+        body,
       })
 
       if (data && !error) {
@@ -170,8 +188,76 @@ export const useSalesStore = defineStore('sales', () => {
 
       errorMessage.value = humanizeError(error, 'No se pudo registrar la venta.')
       return { ok: false }
+    } catch {
+      // Fallo de red durante el POST (cayo la conexion a media venta):
+      // degradar a modo offline y encolar (RN-150, 9a).
+      submitting.value = false
+      return await checkoutOffline(body, session.uuid, payments)
     } finally {
       submitting.value = false
+    }
+  }
+
+  /**
+   * Crea la venta en IndexedDB con UUID de cliente y la encola en sync_queue
+   * para drenarla al recuperar conexion (doc 9a, RN-150). No bloquea: la venta
+   * se considera completada localmente.
+   */
+  async function checkoutOffline(
+    body: {
+      cash_session_uuid: string
+      warehouse_uuid: string
+      items: CreateSaleItem[]
+      payments: CreateSalePayment[]
+    },
+    cashSessionUuid: string,
+    payments: CreateSalePayment[],
+  ): Promise<CheckoutResult> {
+    const clientUuid = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const amountPaid = payments.reduce((acc, p) => acc + (p.amount ?? 0), 0)
+    const total = cartStore.grandTotal
+
+    const localSale: SaleLocal = {
+      uuid: clientUuid,
+      folio: `OFFLINE-${clientUuid.slice(0, 8)}`,
+      cashRegisterUuid: cashStore.currentSession?.register?.uuid ?? '',
+      cashSessionUuid,
+      customerUuid: null,
+      subtotal: cartStore.subtotal,
+      discountTotal: 0,
+      taxTotal: cartStore.taxTotal,
+      total,
+      amountPaid,
+      change: Math.max(0, amountPaid - total),
+      paymentMethod: payments[0]?.method ?? 'cash',
+      status: 'completed',
+      createdOffline: true,
+      syncStatus: 'pending',
+      clientTimestamp: now,
+      serverTimestamp: null,
+      createdAt: now,
+    }
+
+    try {
+      // Persistir la venta local + encolar en sync_queue (ambos en 9a).
+      await db.sales.put(localSale)
+      await enqueue({
+        clientUuid,
+        entityType: 'sale',
+        entityUuid: clientUuid,
+        operation: 'create',
+        payload: body,
+        clientTimestamp: now,
+      })
+      // Refrescar contadores para que el banner muestre el pendiente.
+      await useSyncStore().refreshCounts()
+      lastSale.value = null
+      return { ok: true, offline: true, localSale }
+    } catch (err) {
+      errorMessage.value =
+        err instanceof Error ? err.message : 'No se pudo guardar la venta offline.'
+      return { ok: false }
     }
   }
 

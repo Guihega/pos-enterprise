@@ -10,6 +10,26 @@ vi.mock('@/lib/api/generated', () => ({
 
 import { createSale as apiCreateSale } from '@/lib/api/generated'
 
+// --- Mocks db / SyncQueueRepository / sync store ---
+const salesPut = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+const enqueueSpy = vi.fn<() => Promise<number>>().mockResolvedValue(1)
+const refreshCountsSpy = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+
+vi.mock('@/db/schema', () => ({
+  db: {
+    sales: { put: (...args: unknown[]) => salesPut(...args) },
+  },
+}))
+
+vi.mock('@/repositories/SyncQueueRepository', () => ({
+  enqueue: (...args: unknown[]) => enqueueSpy(...args),
+}))
+
+vi.mock('@/stores/sync', () => ({
+  useSyncStore: () => ({ refreshCounts: refreshCountsSpy }),
+}))
+// ---------------------------------------------------
+
 const mockAuth = {
   tenant: 'demo' as string | null,
   user: {
@@ -22,12 +42,17 @@ const mockAuth = {
 const mockCart = {
   items: [] as Array<{ productUuid: string; quantity: number }>,
   isEmpty: true,
+  subtotal: 0,
+  taxTotal: 0,
+  grandTotal: 0,
 }
 
 const loadCurrentSpy = vi.fn<() => Promise<void>>()
 
 const mockCash = {
-  currentSession: { uuid: 's-1' } as { uuid: string } | null,
+  currentSession: { uuid: 's-1', register: { uuid: 'reg-1' } } as
+    | { uuid: string; register?: { uuid: string } }
+    | null,
   loadCurrent: loadCurrentSpy,
 }
 
@@ -51,7 +76,11 @@ function resetScenario(): void {
     { productUuid: 'p-2', quantity: 1 },
   ]
   mockCart.isEmpty = false
-  mockCash.currentSession = { uuid: 's-1' }
+  mockCart.subtotal = 86
+  mockCart.taxTotal = 14
+  mockCart.grandTotal = 100
+  mockCash.currentSession = { uuid: 's-1', register: { uuid: 'reg-1' } }
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
 }
 
 function cashPayment(amount = 100): CreateSalePayment {
@@ -280,5 +309,83 @@ describe('sales store', () => {
     expect(store.submitting).toBe(false)
     expect(store.errorMessage).toBeNull()
     expect(store.lastSale).toBeNull()
+  })
+})
+
+describe('checkout offline (9a, RN-150)', () => {
+  it('navigator.onLine=false: NO llama createSale, persiste SaleLocal, encola y refresca conteos', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    const store = useSalesStore()
+    const payments = [cashPayment(100)]
+
+    const result = await store.checkout(payments)
+
+    expect(apiCreateSale).not.toHaveBeenCalled()
+    expect(salesPut).toHaveBeenCalledTimes(1)
+    const sale = salesPut.mock.calls[0][0] as Record<string, unknown>
+    expect(sale.createdOffline).toBe(true)
+    expect(sale.syncStatus).toBe('pending')
+    expect(sale.status).toBe('completed')
+
+    expect(enqueueSpy).toHaveBeenCalledTimes(1)
+    const eq = enqueueSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(eq.entityType).toBe('sale')
+    expect(eq.operation).toBe('create')
+    expect(eq.payload).toMatchObject({
+      cash_session_uuid: 's-1',
+      warehouse_uuid: 'wh-default',
+    })
+
+    expect(refreshCountsSpy).toHaveBeenCalledTimes(1)
+    expect(result.ok).toBe(true)
+    expect(result.offline).toBe(true)
+  })
+
+  it('clientUuid de enqueue coincide con uuid de la SaleLocal', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    const store = useSalesStore()
+
+    const result = await store.checkout([cashPayment()])
+
+    expect(result.ok).toBe(true)
+    const sale = salesPut.mock.calls[0][0] as Record<string, unknown>
+    const eq = enqueueSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(eq.clientUuid).toBe(sale.uuid)
+    expect(eq.entityUuid).toBe(sale.uuid)
+  })
+
+  it('fallo de red durante POST online degrada a offline (ok=true, offline=true)', async () => {
+    vi.mocked(apiCreateSale).mockRejectedValue(new TypeError('Failed to fetch'))
+    const store = useSalesStore()
+
+    const result = await store.checkout([cashPayment()])
+
+    expect(result.ok).toBe(true)
+    expect(result.offline).toBe(true)
+    expect(salesPut).toHaveBeenCalledTimes(1)
+    expect(enqueueSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('si db.sales.put lanza -> ok=false y errorMessage poblado', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    salesPut.mockRejectedValueOnce(new Error('IDB error'))
+    const store = useSalesStore()
+
+    const result = await store.checkout([cashPayment()])
+
+    expect(result.ok).toBe(false)
+    expect(store.errorMessage).not.toBeNull()
+  })
+
+  it('navigator.onLine=true y createSale ok: NO encola (ruta online intacta)', async () => {
+    vi.mocked(apiCreateSale).mockResolvedValue(saleOk('sale-online') as never)
+    const store = useSalesStore()
+
+    const result = await store.checkout([cashPayment()])
+
+    expect(result.ok).toBe(true)
+    expect(result.offline).toBeUndefined()
+    expect(enqueueSpy).not.toHaveBeenCalled()
+    expect(salesPut).not.toHaveBeenCalled()
   })
 })
