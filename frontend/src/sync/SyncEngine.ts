@@ -34,6 +34,7 @@ export type SyncEventListener = (event: SyncEvent) => void
 export interface SyncEngineOptions {
   tenantSlug:     string
   apiBase?:       string
+  authToken?:      string
   signal?:        AbortSignal
   onEvent?:       SyncEventListener
   resolverHooks?: ConflictResolverHooks
@@ -84,6 +85,7 @@ export class SyncEngine {
     const pushOpts: PushQueueOptions = {
       tenantSlug: opts.tenantSlug,
       apiBase:    opts.apiBase,
+      authToken: opts.authToken,
       signal:     opts.signal,
       onEvent:    opts.onEvent,
       onConflict: async (ctx) => {
@@ -103,7 +105,6 @@ export class SyncEngine {
     }
 
     this.pushQueue = new PushQueue(pushOpts)
-
     this.pullStream = new PullStream({
       tenantSlug: opts.tenantSlug,
       apiBase:    opts.apiBase,

@@ -92,6 +92,8 @@ const EMPTY_RESULT: DrainResult = {
 export interface PushQueueOptions {
   /** Slug del tenant activo — se envia como X-Tenant. */
   tenantSlug: string
+  /** Token de autorizacion Sanctum. */
+  authToken?: string
   /** URL base de la API (default: ''). */
   apiBase?:   string
   /** Escuchar eventos del push. */
@@ -122,6 +124,7 @@ export interface ConflictContext {
 
 export class PushQueue {
   private tenantSlug: string
+  private authToken: string
   private apiBase:    string
   private onEvent?:   PushEventListener
   private signal?:    AbortSignal
@@ -129,6 +132,7 @@ export class PushQueue {
 
   constructor(opts: PushQueueOptions) {
     this.tenantSlug = opts.tenantSlug
+    this.authToken  = opts.authToken ?? ''
     this.apiBase    = opts.apiBase ?? ''
     this.onEvent    = opts.onEvent
     this.signal     = opts.signal
@@ -279,9 +283,9 @@ export class PushQueue {
       headers: {
         'Content-Type': 'application/json',
         'X-Tenant':     this.tenantSlug,
+        ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
       },
-      body:        JSON.stringify(body),
-      credentials: 'include',
+      body: JSON.stringify(body),
       signal:      this.signal ?? null,
     })
 

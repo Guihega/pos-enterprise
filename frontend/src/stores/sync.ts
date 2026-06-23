@@ -174,7 +174,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     const engine = deps?.makeEngine
       ? deps.makeEngine(tenantSlug)
-      : new SyncEngine({ tenantSlug, apiBase: import.meta.env.VITE_API_URL ?? '' })
+      : new SyncEngine({ tenantSlug, apiBase: import.meta.env.VITE_API_URL ?? '', authToken: useAuthStore().token ?? '' })
 
     const onEvent = (e: BackgroundSyncEvent) => { void handleEvent(e) }
 
