@@ -110,6 +110,7 @@ export class SyncEngine {
       apiBase:    opts.apiBase,
       signal:     opts.signal,
       onEvent:    opts.onEvent,
+      authToken:    opts.authToken,
     })
   }
 
