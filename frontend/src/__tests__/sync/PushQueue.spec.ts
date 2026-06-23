@@ -96,7 +96,7 @@ describe('PushQueue.drainOnce — drenaje basico', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce()
     const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toContain('/api/v1/sync/batch')
+    expect(url).toContain('/sync/batch')
     expect(init.headers['X-Tenant']).toBe('mi-tenant')
     const body = JSON.parse(init.body)
     expect(body.batch_uuid).toBeTruthy()

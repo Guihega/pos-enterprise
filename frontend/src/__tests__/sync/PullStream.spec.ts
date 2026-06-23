@@ -172,7 +172,7 @@ describe('PullStream.pullOnce', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce()
     const url = fetchMock.mock.calls[0]![0] as string
-    expect(url).toContain('/api/v1/sync/changes')
+    expect(url).toContain('/sync/changes')
     expect(url).toContain('entities=products,taxes,customers')
     expect(url).not.toContain('since=')
   })
@@ -364,6 +364,6 @@ describe('PullStream.pullOnce', () => {
     await makePull({ apiBase: 'https://api.example.com' }).pullOnce()
 
     const url = fetchMock.mock.calls[0]![0] as string
-    expect(url).toContain('https://api.example.com/api/v1/sync/changes')
+    expect(url).toContain('https://api.example.com/sync/changes')
   })
 })

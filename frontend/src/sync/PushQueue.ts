@@ -278,7 +278,7 @@ export class PushQueue {
       })),
     }
 
-    const res = await fetch(`${this.apiBase}/api/v1/sync/batch`, {
+    const res = await fetch(`${this.apiBase}/sync/batch`, {
       method:  'POST',
       headers: {
         'Content-Type': 'application/json',

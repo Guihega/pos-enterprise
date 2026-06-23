@@ -109,6 +109,7 @@ export interface PullStreamOptions {
   tenantSlug: string
   /** URL base de la API (default: ''). */
   apiBase?:  string
+  authToken?: string
   /** Escuchar eventos del pull. */
   onEvent?:  PullEventListener
   /** Senal de aborto para cancelar el fetch en curso. */
@@ -125,12 +126,14 @@ const PULL_ENTITIES = ['products', 'taxes', 'customers'] as const
 export class PullStream {
   private tenantSlug: string
   private apiBase:    string
+  private authToken:   string
   private onEvent?:   PullEventListener
   private signal?:    AbortSignal
 
   constructor(opts: PullStreamOptions) {
     this.tenantSlug = opts.tenantSlug
     this.apiBase    = opts.apiBase ?? ''
+    this.authToken  = opts.authToken ?? ''
     this.onEvent    = opts.onEvent
     this.signal     = opts.signal
   }
@@ -310,15 +313,14 @@ export class PullStream {
 
   private buildUrl(since: string | null): string {
     const entities = PULL_ENTITIES.join(',')
-    const base     = `${this.apiBase}/api/v1/sync/changes?entities=${entities}`
+    const base     = `${this.apiBase}/sync/changes?entities=${entities}`
     return since ? `${base}&since=${encodeURIComponent(since)}` : base
   }
 
   private async fetchChanges(url: string): Promise<SyncChangesResponse> {
     const res = await fetch(url, {
       method:      'GET',
-      headers:     { 'X-Tenant': this.tenantSlug },
-      credentials: 'include',
+      headers:      { 'X-Tenant': this.tenantSlug, ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}) },
       signal:      this.signal ?? null,
     })
 
