@@ -26,6 +26,7 @@ import {
 } from '@/lib/api/generated'
 import type { CashRegister, CashSession } from '@/lib/api/generated'
 import { errorCode, getTenantOrThrow, humanizeError } from '@/lib/api/errors'
+import { needsRefill, refill, DEFAULT_SERIES, getDeviceId } from '@/lib/FolioGenerator'
 import { useAuthStore } from '@/stores/auth'
 
 export interface CloseResult {
@@ -134,6 +135,7 @@ export const useCashSessionStore = defineStore('cashSession', () => {
 
       if (data && !error) {
         currentSession.value = data.data
+        await ensureFolioRange()
         return true
       }
 
@@ -213,6 +215,26 @@ export const useCashSessionStore = defineStore('cashSession', () => {
     currentSession.value = null
     registers.value = []
     errorMessage.value = null
+  }
+
+  /**
+   * Reserva un rango de folios para la caja activa si hace falta.
+   * Best-effort: si no hay conexion o el backend falla, NO rompe la
+   * apertura de caja. La venta offline avisara con FolioExhaustedError
+   * si finalmente no hay rango. Requiere conexion para reservar.
+   */
+  async function ensureFolioRange(): Promise<void> {
+    const cashRegisterUuid = currentSession.value?.register?.uuid
+    if (!cashRegisterUuid) return
+    if (!navigator.onLine) return
+    try {
+      if (!(await needsRefill(cashRegisterUuid, DEFAULT_SERIES))) return
+      const tenant = getTenantOrThrow(authStore.tenant)
+      const deviceId = await getDeviceId()
+      await refill(cashRegisterUuid, DEFAULT_SERIES, tenant, deviceId)
+    } catch {
+      // Silencioso: la apertura de caja no debe fallar por la reserva.
+    }
   }
 
   return {

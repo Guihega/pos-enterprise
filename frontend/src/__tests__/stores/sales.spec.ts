@@ -28,6 +28,20 @@ vi.mock('@/repositories/SyncQueueRepository', () => ({
 vi.mock('@/stores/sync', () => ({
   useSyncStore: () => ({ refreshCounts: refreshCountsSpy }),
 }))
+const nextFolioSpy = vi.fn<() => Promise<string>>().mockResolvedValue('A000001')
+vi.mock('@/lib/FolioGenerator', () => {
+  class FolioExhaustedError extends Error {
+    constructor() {
+      super('Sin rango de folios activo. Abre caja con conexion para reservar un rango.')
+      this.name = 'FolioExhaustedError'
+    }
+  }
+  return {
+    nextFolio: (...args: unknown[]) => nextFolioSpy(...args),
+    DEFAULT_SERIES: 'A',
+    FolioExhaustedError,
+  }
+})
 // ---------------------------------------------------
 
 const mockAuth = {
@@ -105,6 +119,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   vi.clearAllMocks()
   resetScenario()
+  nextFolioSpy.mockResolvedValue('A000001')
 })
 
 describe('sales store', () => {
@@ -375,6 +390,20 @@ describe('checkout offline (9a, RN-150)', () => {
 
     expect(result.ok).toBe(false)
     expect(store.errorMessage).not.toBeNull()
+  })
+
+  it('offline sin rango de folios -> FolioExhaustedError -> ok=false, no persiste ni encola', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    const { FolioExhaustedError } = await import('@/lib/FolioGenerator')
+    nextFolioSpy.mockRejectedValueOnce(new FolioExhaustedError())
+    const store = useSalesStore()
+
+    const result = await store.checkout([cashPayment()])
+
+    expect(result.ok).toBe(false)
+    expect(store.errorMessage).not.toBeNull()
+    expect(salesPut).not.toHaveBeenCalled()
+    expect(enqueueSpy).not.toHaveBeenCalled()
   })
 
   it('navigator.onLine=true y createSale ok: NO encola (ruta online intacta)', async () => {

@@ -4,9 +4,18 @@
  * ADR-0009: el servidor reserva rangos disjuntos por dispositivo/caja.
  * El cliente consume nextValue atomicamente sin necesitar red.
  */
-import { db } from '@/db/schema'
+import { db, SETTING_DEVICE_ID } from '@/db/schema'
 import type { FolioRangeLocal } from '@/db/schema'
 import { reserveFolioRange } from '@/lib/api/folio'
+
+/** Serie de folios por defecto. El backend aun no expone serie por caja/sucursal (CashRegister no trae series); cuando lo haga, se cambia aqui. */
+export const DEFAULT_SERIES = 'A'
+
+/** Lee el device_id persistido en settings. Vacio si aun no se registro el dispositivo. */
+export async function getDeviceId(): Promise<string> {
+  const setting = await db.settings.get(SETTING_DEVICE_ID)
+  return typeof setting?.value === 'string' ? setting.value : ''
+}
 
 export class FolioExhaustedError extends Error {
   constructor(cashRegisterUuid: string, series: string) {

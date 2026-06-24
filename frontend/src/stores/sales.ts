@@ -24,6 +24,7 @@ import { createSale, cancelSale } from '@/lib/api/generated'
 import { db } from '@/db/schema'
 import type { SaleLocal } from '@/db/schema'
 import { enqueue } from '@/repositories/SyncQueueRepository'
+import { nextFolio, DEFAULT_SERIES, FolioExhaustedError } from '@/lib/FolioGenerator'
 import { useSyncStore } from '@/stores/sync'
 import type {
   CreateSaleItem,
@@ -217,11 +218,25 @@ export const useSalesStore = defineStore('sales', () => {
     const now = new Date().toISOString()
     const amountPaid = payments.reduce((acc, p) => acc + (p.amount ?? 0), 0)
     const total = cartStore.grandTotal
+    const cashRegisterUuid = cashStore.currentSession?.register?.uuid ?? ''
+
+    let folio: string
+    try {
+      folio = await nextFolio(cashRegisterUuid, DEFAULT_SERIES)
+    } catch (err) {
+      if (err instanceof FolioExhaustedError) {
+        errorMessage.value = err.message
+        return { ok: false }
+      }
+      errorMessage.value =
+        err instanceof Error ? err.message : 'No se pudo asignar folio a la venta.'
+      return { ok: false }
+    }
 
     const localSale: SaleLocal = {
       uuid: clientUuid,
-      folio: `OFFLINE-${clientUuid.slice(0, 8)}`,
-      cashRegisterUuid: cashStore.currentSession?.register?.uuid ?? '',
+      folio,
+      cashRegisterUuid,
       cashSessionUuid,
       customerUuid: null,
       subtotal: cartStore.subtotal,
