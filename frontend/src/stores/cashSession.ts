@@ -251,5 +251,6 @@ export const useCashSessionStore = defineStore('cashSession', () => {
     open,
     close,
     clear,
+    ensureFolioRange,
   }
 })
