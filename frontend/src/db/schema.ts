@@ -254,3 +254,22 @@ export class POSDatabase extends Dexie {
 }
 
 export const db = new POSDatabase()
+
+/**
+ * Garantiza que exista un device_id local (doc 35.4 paso 3, 40.1).
+ * Si no existe en settings, genera un UUID v4 en cliente y lo persiste.
+ * Idempotente: devuelve siempre el mismo id en llamadas posteriores.
+ */
+export async function ensureDeviceId(): Promise<string> {
+  const existing = await db.settings.get(SETTING_DEVICE_ID)
+  if (typeof existing?.value === 'string' && existing.value.length > 0) {
+    return existing.value
+  }
+  const deviceId = crypto.randomUUID()
+  await db.settings.put({
+    key: SETTING_DEVICE_ID,
+    value: deviceId,
+    updatedAt: new Date().toISOString(),
+  })
+  return deviceId
+}

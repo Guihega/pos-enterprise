@@ -231,7 +231,7 @@ export const useCashSessionStore = defineStore('cashSession', () => {
       if (!(await needsRefill(cashRegisterUuid, DEFAULT_SERIES))) return
       const tenant = getTenantOrThrow(authStore.tenant)
       const deviceId = await getDeviceId()
-      await refill(cashRegisterUuid, DEFAULT_SERIES, tenant, deviceId)
+      await refill(cashRegisterUuid, DEFAULT_SERIES, tenant, deviceId, authStore.token ?? '')
     } catch {
       // Silencioso: la apertura de caja no debe fallar por la reserva.
     }

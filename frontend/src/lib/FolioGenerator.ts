@@ -84,12 +84,14 @@ export async function refill(
   series: string,
   tenantSlug: string,
   deviceId: string,
+  authToken: string,
 ): Promise<void> {
   const { rangeStart, rangeEnd } = await reserveFolioRange({
     tenantSlug,
     cashRegisterUuid,
     series,
     deviceId,
+    authToken,
   })
 
   const entry: FolioRangeLocal = {

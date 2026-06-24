@@ -11,6 +11,7 @@ import { registerServiceWorker } from '@/sw/registerServiceWorker'
 import { useCartStore } from '@/stores/cart'
 import { useSyncStore } from '@/stores/sync'
 import { useIntegrityStore } from '@/stores/integrity'
+import { ensureDeviceId } from '@/db/schema'
 import { usePwaStore } from '@/stores/pwa'
 
 async function bootstrap(): Promise<void> {
@@ -33,6 +34,9 @@ async function bootstrap(): Promise<void> {
   // el interceptor tambien lo manejaria via 401).
   const auth = useAuthStore()
   await auth.hydrate()
+  // Paso 3 (35.4): garantizar device_id en IndexedDB antes de sync
+  await ensureDeviceId()
+  // Paso 3 (35.4): garantizar device_id en IndexedDB antes de sync
 
   // Rehidratar el carrito si pertenece al tenant restaurado. Debe ir
   // DESPUES de auth.hydrate() porque depende de authStore.tenant.
