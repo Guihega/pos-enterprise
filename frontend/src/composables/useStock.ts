@@ -37,7 +37,7 @@ async function init(tenant: string, warehouseUuid: string): Promise<void> {
     let lastPage = 1
 
     do {
-      const { data, error: apiErr } = await listInventoryStocks({
+      const { data, error: apiErr, response } = await listInventoryStocks({
         headers: { 'X-Tenant': tenant },
         query: {
           warehouse: warehouseUuid,
@@ -45,6 +45,13 @@ async function init(tenant: string, warehouseUuid: string): Promise<void> {
         },
       })
 
+      // 403: el usuario (p.ej. cajero) no tiene permiso inventory.view.
+      // No es error de sync: el POS opera sin mapa y availableFor() devuelve
+      // Infinity por defecto. Mapa vacio, sin error en banner.
+      if (response?.status === 403) {
+        stockMap.value = {}
+        return
+      }
       if (apiErr !== undefined || data === undefined) {
         error.value = 'Error al cargar existencias'
         break

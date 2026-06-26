@@ -96,6 +96,17 @@ describe('useStock', () => {
     expect(error.value).toBe('Error al cargar existencias')
   })
 
+  it('init NO pone error y deja mapa vacio si la API devuelve 403 (sin permiso inventory.view)', async () => {
+    mockListInventoryStocks.mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'FORBIDDEN', message: 'no autorizado' } },
+      response: { status: 403 },
+    } as never)
+    const { init, error, availableFor } = useStock()
+    await init('demo', 'wh-uuid')
+    expect(error.value).toBeNull()
+    expect(availableFor('cualquier-uuid')).toBe(Infinity)
+  })
   it('loading es false antes y despues de init', async () => {
     mockListInventoryStocks.mockResolvedValue(makeStockResponse([]))
     const { init, loading } = useStock()
