@@ -184,7 +184,11 @@ export const useSyncStore = defineStore('sync', () => {
           engine,
           onEvent,
           // Sonda para detectar degraded cuando la cola esta vacia (35.5).
-          heartbeat: new HeartbeatClient({ tenantSlug }),
+          heartbeat: new HeartbeatClient({
+          tenantSlug,
+          apiBase: import.meta.env.VITE_API_URL ?? '',
+          authToken: useAuthStore().token ?? '',
+        }),
         })
 
     bgsync.start()

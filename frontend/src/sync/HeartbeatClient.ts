@@ -81,8 +81,10 @@ export function classifyDrift(driftMs: number): DriftSeverity {
 export interface HeartbeatClientOptions {
   /** Slug del tenant activo — se envia como X-Tenant. */
   tenantSlug: string
-  /** URL base de la API (default: ''). */
+  /** URL base de la API (default: ''). Ya incluye /api/v1. */
   apiBase?:   string
+  /** Token Bearer para autenticar el heartbeat (endpoint bajo auth:sanctum). */
+  authToken?: string
   /** Senal de aborto para cancelar el fetch en curso. */
   signal?:    AbortSignal
 }
@@ -90,11 +92,13 @@ export interface HeartbeatClientOptions {
 export class HeartbeatClient {
   private tenantSlug: string
   private apiBase:    string
+  private authToken:  string
   private signal?:    AbortSignal
 
   constructor(opts: HeartbeatClientOptions) {
     this.tenantSlug = opts.tenantSlug
     this.apiBase    = opts.apiBase ?? ''
+    this.authToken  = opts.authToken ?? ''
     this.signal     = opts.signal
   }
 
@@ -106,11 +110,13 @@ export class HeartbeatClient {
   async ping(): Promise<HeartbeatResult> {
     let res: Response
     try {
-      res = await fetch(`${this.apiBase}/api/v1/sync/heartbeat`, {
-        method:      'GET',
-        headers:     { 'X-Tenant': this.tenantSlug },
-        credentials: 'include',
-        signal:      this.signal ?? null,
+      res = await fetch(`${this.apiBase}/sync/heartbeat`, {
+        method:  'GET',
+        headers: {
+          'X-Tenant':      this.tenantSlug,
+          'Authorization': `Bearer ${this.authToken}`,
+        },
+        signal:  this.signal ?? null,
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'network error'

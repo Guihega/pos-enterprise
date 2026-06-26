@@ -85,7 +85,7 @@ describe('classifyDrift', () => {
 // ---------------------------------------------------------------------------
 
 describe('HeartbeatClient.ping', () => {
-  it('GET a /api/v1/sync/heartbeat con X-Tenant', async () => {
+  it('GET a /sync/heartbeat con X-Tenant (apiBase ya trae /api/v1)', async () => {
     fetchMock.mockResolvedValueOnce(
       heartbeatResponse({ server_time: '2026-06-18T12:00:00Z', tenant: 'demo', user_uuid: 'u-1' }),
     )
@@ -94,7 +94,7 @@ describe('HeartbeatClient.ping', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce()
     const [url, opts] = fetchMock.mock.calls[0]!
-    expect(url).toContain('/api/v1/sync/heartbeat')
+    expect(url).toContain('/sync/heartbeat')
     expect((opts as RequestInit).headers).toMatchObject({ 'X-Tenant': 'demo' })
     expect(result.serverTime).toBe('2026-06-18T12:00:00Z')
     expect(result.tenant).toBe('demo')
@@ -106,7 +106,27 @@ describe('HeartbeatClient.ping', () => {
       heartbeatResponse({ server_time: '2026-06-18T12:00:00Z', tenant: 'demo', user_uuid: 'u-1' }),
     )
     await makeClient({ apiBase: 'https://api.test' }).ping()
-    expect(fetchMock.mock.calls[0]![0]).toContain('https://api.test/api/v1/sync/heartbeat')
+    expect(fetchMock.mock.calls[0]![0]).toContain('https://api.test/sync/heartbeat')
+  })
+
+  it('envia Authorization Bearer cuando se proporciona authToken', async () => {
+    fetchMock.mockResolvedValueOnce(
+      heartbeatResponse({ server_time: '2026-06-18T12:00:00Z', tenant: 'demo', user_uuid: 'u-1' }),
+    )
+    await makeClient({ authToken: 'tok-abc-123' }).ping()
+    const [, opts] = fetchMock.mock.calls[0]!
+    expect((opts as RequestInit).headers).toMatchObject({
+      Authorization: 'Bearer tok-abc-123',
+    })
+  })
+
+  it('NO envia credentials include (usa Bearer, no cookies)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      heartbeatResponse({ server_time: '2026-06-18T12:00:00Z', tenant: 'demo', user_uuid: 'u-1' }),
+    )
+    await makeClient({ authToken: 'tok' }).ping()
+    const [, opts] = fetchMock.mock.calls[0]!
+    expect((opts as RequestInit).credentials).toBeUndefined()
   })
 
   it('lanza HeartbeatError status 0 en error de red', async () => {
