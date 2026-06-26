@@ -75,6 +75,79 @@ test('falla 422 si device_id supera 36 caracteres', function () {
         ->assertStatus(422);
 });
 
+test('dos terminales obtienen rangos disjuntos via HTTP', function () {
+    $payloadT1 = [
+        'cash_register_uuid' => $this->register->uuid,
+        'series'             => 'A',
+        'device_id'          => 'terminal-http-001',
+        'size'               => 50,
+    ];
+    $payloadT2 = [
+        'cash_register_uuid' => $this->register->uuid,
+        'series'             => 'A',
+        'device_id'          => 'terminal-http-002',
+        'size'               => 50,
+    ];
+
+    $r1 = $this->withHeaders(['X-Tenant' => 'folio-http'])->postJson('/api/v1/folio-ranges/reserve', $payloadT1);
+    $r2 = $this->withHeaders(['X-Tenant' => 'folio-http'])->postJson('/api/v1/folio-ranges/reserve', $payloadT2);
+
+    $r1->assertStatus(201);
+    $r2->assertStatus(201);
+
+    $start1 = $r1->json('range_start');
+    $end1   = $r1->json('range_end');
+    $start2 = $r2->json('range_start');
+    $end2   = $r2->json('range_end');
+
+    // Rangos disjuntos: [start1..end1] y [start2..end2] no se solapan
+    expect($end1)->toBeLessThan($start2);
+
+    // Cada terminal recibio exactamente 50 folios
+    expect($end1 - $start1 + 1)->toBe(50);
+    expect($end2 - $start2 + 1)->toBe(50);
+
+    // device_id correcto en cada respuesta
+    $r1->assertJson(['device_id' => 'terminal-http-001']);
+    $r2->assertJson(['device_id' => 'terminal-http-002']);
+});
+
+test('tres terminales obtienen rangos disjuntos sin solapamiento', function () {
+    $devices = ['terminal-A', 'terminal-B', 'terminal-C'];
+    $ranges  = [];
+
+    foreach ($devices as $device) {
+        $response = $this->withHeaders(['X-Tenant' => 'folio-http'])
+            ->postJson('/api/v1/folio-ranges/reserve', [
+                'cash_register_uuid' => $this->register->uuid,
+                'series'             => 'A',
+                'device_id'          => $device,
+                'size'               => 30,
+            ]);
+        $response->assertStatus(201);
+        $ranges[] = ['start' => $response->json('range_start'), 'end' => $response->json('range_end')];
+    }
+
+    // Verificar que todos los rangos son disjuntos entre si
+    for ($i = 0; $i < count($ranges); $i++) {
+        for ($j = $i + 1; $j < count($ranges); $j++) {
+            $a = $ranges[$i];
+            $b = $ranges[$j];
+            $solapan = $a['start'] <= $b['end'] && $b['start'] <= $a['end'];
+            expect($solapan)->toBeFalse("Rangos [{$a['start']}-{$a['end']}] y [{$b['start']}-{$b['end']}] se solapan");
+        }
+    }
+
+    // 90 folios en total, todos distintos
+    $numeros = [];
+    foreach ($ranges as $r) {
+        for ($n = $r['start']; $n <= $r['end']; $n++) {
+            $numeros[] = $n;
+        }
+    }
+    expect(count(array_unique($numeros)))->toBe(90);
+});
+
 test('requiere autenticacion', function () {
     $this->app['auth']->forgetGuards();
     $this->withHeaders(['X-Tenant' => 'folio-http'])
