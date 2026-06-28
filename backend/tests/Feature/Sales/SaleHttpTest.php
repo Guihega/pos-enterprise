@@ -15,7 +15,6 @@ use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Sales\Models\Sale;
-use App\Domain\Sales\Services\SalesService;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;

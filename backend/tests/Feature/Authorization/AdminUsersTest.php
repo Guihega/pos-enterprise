@@ -77,7 +77,7 @@ it('admin puede asignar rol cajero a otro usuario', function () {
     ]);
 
     // Y el rol asociado debe ser efectivamente "cajero".
-    \App\Domain\Tenancy\Services\TenantContext::set($this->tenant);
+    TenantContext::set($this->tenant);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     expect($target->fresh()->hasRole(Roles::CAJERO))->toBeTrue();
 });

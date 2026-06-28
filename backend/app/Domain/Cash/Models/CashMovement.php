@@ -6,6 +6,7 @@ namespace App\Domain\Cash\Models;
 
 use App\Domain\Identity\Models\User;
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Database\Factories\CashMovementFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $reference
  * @property int $user_id
  * @property array<string, mixed> $metadata
- * @property \Carbon\Carbon $movement_at
+ * @property Carbon $movement_at
  */
 class CashMovement extends Model
 {
@@ -38,11 +39,17 @@ class CashMovement extends Model
     use HasFactory;
 
     public const TYPE_SALE_CASH = 'sale_cash';
+
     public const TYPE_SALE_OTHER = 'sale_other';
+
     public const TYPE_REFUND_CASH = 'refund_cash';
+
     public const TYPE_CASH_IN = 'cash_in';
+
     public const TYPE_CASH_OUT = 'cash_out';
+
     public const TYPE_TIP = 'tip';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
 
     /**

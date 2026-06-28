@@ -7,6 +7,7 @@ namespace App\Http\Requests\Cash;
 use App\Domain\Cash\Models\CashMovement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * Solo permite movimientos manuales: cash_in, cash_out, adjustment.
@@ -42,7 +43,7 @@ class RecordMovementRequest extends FormRequest
     /**
      * Validación contextual: adjustment requiere sign.
      */
-    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    public function withValidator(Validator $validator): void
     {
         $validator->after(function ($validator): void {
             if (

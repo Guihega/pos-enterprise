@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Support\TenantTable;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -51,8 +50,8 @@ return new class extends Migration
         // RLS condicional: filtra cuando hay tenant context, deja pasar
         // los registros con company_id IS NULL (permisos globales).
         DB::statement('ALTER TABLE permissions ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY tenant_isolation_permissions ON permissions
-            USING (company_id IS NULL OR company_id = current_tenant_id())");
+        DB::statement('CREATE POLICY tenant_isolation_permissions ON permissions
+            USING (company_id IS NULL OR company_id = current_tenant_id())');
 
         // ---- roles ----
         Schema::create('roles', function (Blueprint $table) use ($teamForeignKey): void {
@@ -70,8 +69,8 @@ return new class extends Migration
         DB::statement('ALTER TABLE roles ADD CONSTRAINT roles_company_id_foreign '.
             'FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE');
         DB::statement('ALTER TABLE roles ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY tenant_isolation_roles ON roles
-            USING (company_id IS NULL OR company_id = current_tenant_id())");
+        DB::statement('CREATE POLICY tenant_isolation_roles ON roles
+            USING (company_id IS NULL OR company_id = current_tenant_id())');
 
         // ---- model_has_permissions (pivot) ----
         Schema::create('model_has_permissions', function (Blueprint $table) use ($teamForeignKey): void {
@@ -93,8 +92,8 @@ return new class extends Migration
         DB::statement('ALTER TABLE model_has_permissions ADD CONSTRAINT model_has_permissions_company_id_foreign '.
             'FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE');
         DB::statement('ALTER TABLE model_has_permissions ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY tenant_isolation_model_has_permissions ON model_has_permissions
-            USING (company_id = current_tenant_id())");
+        DB::statement('CREATE POLICY tenant_isolation_model_has_permissions ON model_has_permissions
+            USING (company_id = current_tenant_id())');
 
         // ---- model_has_roles (pivot) ----
         Schema::create('model_has_roles', function (Blueprint $table) use ($teamForeignKey): void {
@@ -116,8 +115,8 @@ return new class extends Migration
         DB::statement('ALTER TABLE model_has_roles ADD CONSTRAINT model_has_roles_company_id_foreign '.
             'FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE');
         DB::statement('ALTER TABLE model_has_roles ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY tenant_isolation_model_has_roles ON model_has_roles
-            USING (company_id = current_tenant_id())");
+        DB::statement('CREATE POLICY tenant_isolation_model_has_roles ON model_has_roles
+            USING (company_id = current_tenant_id())');
 
         // ---- role_has_permissions ----
         Schema::create('role_has_permissions', function (Blueprint $table): void {

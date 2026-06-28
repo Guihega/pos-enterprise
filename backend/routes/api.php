@@ -2,7 +2,25 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\Admin\UsersController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\Cash\CashMovementsController;
+use App\Http\Controllers\Api\V1\Cash\CashRegistersController;
+use App\Http\Controllers\Api\V1\Cash\CashSessionsController;
+use App\Http\Controllers\Api\V1\Catalog\BrandsController;
+use App\Http\Controllers\Api\V1\Catalog\CategoriesController;
+use App\Http\Controllers\Api\V1\Catalog\ProductsController;
+use App\Http\Controllers\Api\V1\Catalog\TaxesController;
+use App\Http\Controllers\Api\V1\Catalog\UnitsController;
+use App\Http\Controllers\Api\V1\Customer\CustomersController;
+use App\Http\Controllers\Api\V1\Inventory\InventoryController;
+use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
+use App\Http\Controllers\Api\V1\Reports\ReportsController;
+use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
+use App\Http\Controllers\Api\V1\Sales\SalesController;
+use App\Http\Controllers\Api\V1\Sync\SyncBatchController;
+use App\Http\Controllers\Api\V1\Sync\SyncChangesController;
+use App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -70,101 +88,101 @@ Route::prefix('v1')->group(function (): void {
 
             // ----- Admin: gestión de usuarios y roles -----
             Route::prefix('admin')->group(function (): void {
-                Route::get('/users', [\App\Http\Controllers\Api\V1\Admin\UsersController::class, 'index'])
+                Route::get('/users', [UsersController::class, 'index'])
                     ->name('admin.users.index');
-                Route::get('/users/{uuid}', [\App\Http\Controllers\Api\V1\Admin\UsersController::class, 'show'])
+                Route::get('/users/{uuid}', [UsersController::class, 'show'])
                     ->name('admin.users.show');
-                Route::post('/users/{uuid}/roles', [\App\Http\Controllers\Api\V1\Admin\UsersController::class, 'syncRoles'])
+                Route::post('/users/{uuid}/roles', [UsersController::class, 'syncRoles'])
                     ->name('admin.users.sync_roles');
             });
 
             // ----- Catálogo: products -----
-            Route::apiResource('products', \App\Http\Controllers\Api\V1\Catalog\ProductsController::class)
+            Route::apiResource('products', ProductsController::class)
                 ->parameters(['products' => 'product'])
                 ->scoped(['product' => 'uuid']);
 
             // ----- Catálogo auxiliar -----
-            Route::apiResource('categories', \App\Http\Controllers\Api\V1\Catalog\CategoriesController::class)
+            Route::apiResource('categories', CategoriesController::class)
                 ->parameters(['categories' => 'category'])
                 ->scoped(['category' => 'uuid']);
 
-            Route::apiResource('brands', \App\Http\Controllers\Api\V1\Catalog\BrandsController::class)
+            Route::apiResource('brands', BrandsController::class)
                 ->parameters(['brands' => 'brand'])
                 ->scoped(['brand' => 'uuid']);
 
-            Route::apiResource('units', \App\Http\Controllers\Api\V1\Catalog\UnitsController::class)
+            Route::apiResource('units', UnitsController::class)
                 ->parameters(['units' => 'unit'])
                 ->scoped(['unit' => 'uuid']);
 
-            Route::apiResource('taxes', \App\Http\Controllers\Api\V1\Catalog\TaxesController::class)
+            Route::apiResource('taxes', TaxesController::class)
                 ->parameters(['taxes' => 'tax'])
                 ->scoped(['tax' => 'uuid']);
 
             // ----- Inventario -----
-            Route::get('warehouses', [\App\Http\Controllers\Api\V1\Inventory\WarehousesController::class, 'index']);
-            Route::get('warehouses/{warehouse:uuid}', [\App\Http\Controllers\Api\V1\Inventory\WarehousesController::class, 'show']);
-            Route::post('warehouses', [\App\Http\Controllers\Api\V1\Inventory\WarehousesController::class, 'store']);
+            Route::get('warehouses', [WarehousesController::class, 'index']);
+            Route::get('warehouses/{warehouse:uuid}', [WarehousesController::class, 'show']);
+            Route::post('warehouses', [WarehousesController::class, 'store']);
 
             Route::prefix('inventory')->group(function (): void {
-                Route::get('stocks', [\App\Http\Controllers\Api\V1\Inventory\InventoryController::class, 'stocks']);
-                Route::get('movements', [\App\Http\Controllers\Api\V1\Inventory\InventoryController::class, 'movements']);
-                Route::post('adjust', [\App\Http\Controllers\Api\V1\Inventory\InventoryController::class, 'adjust']);
-                Route::post('transfer', [\App\Http\Controllers\Api\V1\Inventory\InventoryController::class, 'transfer']);
+                Route::get('stocks', [InventoryController::class, 'stocks']);
+                Route::get('movements', [InventoryController::class, 'movements']);
+                Route::post('adjust', [InventoryController::class, 'adjust']);
+                Route::post('transfer', [InventoryController::class, 'transfer']);
             });
 
             // ----- Caja -----
             Route::prefix('cash')->group(function (): void {
                 // Cash registers (puntos de cobro físicos)
-                Route::get('registers', [\App\Http\Controllers\Api\V1\Cash\CashRegistersController::class, 'index']);
-                Route::get('registers/{register:uuid}', [\App\Http\Controllers\Api\V1\Cash\CashRegistersController::class, 'show']);
-                Route::post('registers', [\App\Http\Controllers\Api\V1\Cash\CashRegistersController::class, 'store']);
+                Route::get('registers', [CashRegistersController::class, 'index']);
+                Route::get('registers/{register:uuid}', [CashRegistersController::class, 'show']);
+                Route::post('registers', [CashRegistersController::class, 'store']);
 
                 // Cash sessions
-                Route::get('sessions', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'index']);
-                Route::get('sessions/{session:uuid}', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'show']);
-                Route::get('sessions/{session:uuid}/report', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'report']);
-                Route::post('sessions/open', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'open']);
-                Route::post('sessions/{session:uuid}/close', [\App\Http\Controllers\Api\V1\Cash\CashSessionsController::class, 'close']);
+                Route::get('sessions', [CashSessionsController::class, 'index']);
+                Route::get('sessions/{session:uuid}', [CashSessionsController::class, 'show']);
+                Route::get('sessions/{session:uuid}/report', [CashSessionsController::class, 'report']);
+                Route::post('sessions/open', [CashSessionsController::class, 'open']);
+                Route::post('sessions/{session:uuid}/close', [CashSessionsController::class, 'close']);
 
                 // Movements within a session
-                Route::get('sessions/{session:uuid}/movements', [\App\Http\Controllers\Api\V1\Cash\CashMovementsController::class, 'index']);
-                Route::post('sessions/{session:uuid}/movements', [\App\Http\Controllers\Api\V1\Cash\CashMovementsController::class, 'store']);
+                Route::get('sessions/{session:uuid}/movements', [CashMovementsController::class, 'index']);
+                Route::post('sessions/{session:uuid}/movements', [CashMovementsController::class, 'store']);
             });
 
             // ----- Clientes -----
-            Route::apiResource('customers', \App\Http\Controllers\Api\V1\Customer\CustomersController::class)
+            Route::apiResource('customers', CustomersController::class)
                 ->parameters(['customers' => 'customer'])
                 ->scoped(['customer' => 'uuid']);
 
             // ----- Sync (sec. 38.3) -----
             Route::prefix('sync')->group(function (): void {
-                Route::post('/batch', \App\Http\Controllers\Api\V1\Sync\SyncBatchController::class)
+                Route::post('/batch', SyncBatchController::class)
                     ->name('sync.batch');
-                Route::get('/changes', \App\Http\Controllers\Api\V1\Sync\SyncChangesController::class)
+                Route::get('/changes', SyncChangesController::class)
                     ->name('sync.changes');
-                Route::get('/heartbeat', \App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController::class)
+                Route::get('/heartbeat', SyncHeartbeatController::class)
                     ->name('sync.heartbeat');
             });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {
-                Route::post('/reserve', [\App\Http\Controllers\Api\V1\Sales\FolioRangesController::class, 'reserve'])
+                Route::post('/reserve', [FolioRangesController::class, 'reserve'])
                     ->name('folio-ranges.reserve');
             });
             // ----- Ventas -----
             Route::prefix('sales')->group(function (): void {
-                Route::get('/', [\App\Http\Controllers\Api\V1\Sales\SalesController::class, 'index'])
+                Route::get('/', [SalesController::class, 'index'])
                     ->name('sales.index');
-                Route::get('/{uuid}', [\App\Http\Controllers\Api\V1\Sales\SalesController::class, 'show'])
+                Route::get('/{uuid}', [SalesController::class, 'show'])
                     ->name('sales.show');
-                Route::post('/', [\App\Http\Controllers\Api\V1\Sales\SalesController::class, 'store'])
+                Route::post('/', [SalesController::class, 'store'])
                     ->name('sales.store');
-                Route::post('/{uuid}/cancel', [\App\Http\Controllers\Api\V1\Sales\SalesController::class, 'cancel'])
+                Route::post('/{uuid}/cancel', [SalesController::class, 'cancel'])
                     ->name('sales.cancel');
             });
 
             // ----- Reportes -----
             Route::prefix('reports')->group(function (): void {
-                Route::get('sales-summary', [\App\Http\Controllers\Api\V1\Reports\ReportsController::class, 'salesSummary'])
+                Route::get('sales-summary', [ReportsController::class, 'salesSummary'])
                     ->name('reports.sales-summary');
             });
         });

@@ -17,11 +17,17 @@ namespace App\Domain\Authorization;
 final class Roles
 {
     public const SUPER_ADMIN = 'super_admin';
+
     public const ADMIN = 'admin';
+
     public const GERENTE = 'gerente';
+
     public const SUPERVISOR = 'supervisor';
+
     public const CAJERO = 'cajero';
+
     public const ALMACEN = 'almacen';
+
     public const AUDITOR = 'auditor';
 
     /**

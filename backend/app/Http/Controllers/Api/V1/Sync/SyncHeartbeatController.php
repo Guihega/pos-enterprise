@@ -31,8 +31,8 @@ final class SyncHeartbeatController extends Controller
 
         return response()->json([
             'server_time' => Carbon::now()->toIso8601ZuluString(),
-            'tenant'      => $tenant?->slug,
-            'user_uuid'   => $request->user()?->uuid,
+            'tenant' => $tenant?->slug,
+            'user_uuid' => $request->user()?->uuid,
         ]);
     }
 }

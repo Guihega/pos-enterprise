@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Tenancy\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -31,8 +32,9 @@ class UserResource extends JsonResource
             'timezone' => $this->timezone,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'default_branch' => $this->whenLoaded('defaultBranch', function () {
-                /** @var \App\Domain\Tenancy\Models\Branch $branch */
+                /** @var Branch $branch */
                 $branch = $this->defaultBranch;
+
                 return [
                     'uuid' => $branch->uuid,
                     'code' => $branch->code,

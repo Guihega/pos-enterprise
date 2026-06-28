@@ -26,7 +26,7 @@ trait BelongsToTenant
 {
     public static function bootBelongsToTenant(): void
     {
-        static::addGlobalScope(new TenantScope());
+        static::addGlobalScope(new TenantScope);
 
         static::creating(function (self $model): void {
             // 1. UUID automático si la columna existe

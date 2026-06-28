@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 use App\Domain\Cash\Models\CashRegister;
 use App\Domain\Sales\Models\SaleNumberCounter;
@@ -9,11 +10,11 @@ use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
 
 beforeEach(function () {
-    $this->tenant   = Company::factory()->create(['slug' => 'test-folio', 'country_code' => 'MX']);
+    $this->tenant = Company::factory()->create(['slug' => 'test-folio', 'country_code' => 'MX']);
     TenantContext::set($this->tenant);
-    $this->branch   = Branch::factory()->default()->create(['company_id' => $this->tenant->id]);
+    $this->branch = Branch::factory()->default()->create(['company_id' => $this->tenant->id]);
     $this->register = CashRegister::factory()->ofBranch($this->branch)->create(['code' => 'CAJA-01']);
-    $this->service  = app(FolioRangeService::class);
+    $this->service = app(FolioRangeService::class);
 });
 
 test('reserva un rango nuevo y avanza el contador global', function () {

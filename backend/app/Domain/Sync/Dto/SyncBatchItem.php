@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Domain\Sync\Dto;
 
 /**
@@ -12,7 +14,7 @@ final class SyncBatchItem
         public readonly string $entityType,
         public readonly string $entityUuid,
         public readonly string $operation,
-        public readonly array  $payload,
+        public readonly array $payload,
         public readonly string $clientTimestamp,
     ) {}
 
@@ -20,11 +22,11 @@ final class SyncBatchItem
     public static function fromArray(array $data): self
     {
         return new self(
-            clientUuid:      (string) $data['client_uuid'],
-            entityType:      (string) $data['entity_type'],
-            entityUuid:      (string) $data['entity_uuid'],
-            operation:       (string) $data['operation'],
-            payload:         (array)  $data['payload'],
+            clientUuid: (string) $data['client_uuid'],
+            entityType: (string) $data['entity_type'],
+            entityUuid: (string) $data['entity_uuid'],
+            operation: (string) $data['operation'],
+            payload: (array) $data['payload'],
             clientTimestamp: (string) $data['client_timestamp'],
         );
     }

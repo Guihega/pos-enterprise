@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Domain\Authorization\Models\Permission;
 use App\Domain\Authorization\Models\Role;
 use App\Domain\Authorization\Permissions as Perms;
-use App\Domain\Authorization\Roles as Roles;
+use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
 use App\Domain\Identity\Models\User;
 use App\Domain\Tenancy\Models\Company;

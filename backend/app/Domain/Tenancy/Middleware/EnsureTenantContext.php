@@ -9,6 +9,7 @@ use App\Domain\Tenancy\Services\TenantContext;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Spatie\Permission\Contracts\PermissionsTeamResolver;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -76,8 +77,8 @@ final class EnsureTenantContext
         // Resetear el team_id en el resolver de Spatie. El nuestro lee del
         // TenantContext, pero si alguien usó setPermissionsTeamId() para
         // override, lo limpiamos aquí.
-        if (app()->bound(\Spatie\Permission\Contracts\PermissionsTeamResolver::class)) {
-            app(\Spatie\Permission\Contracts\PermissionsTeamResolver::class)
+        if (app()->bound(PermissionsTeamResolver::class)) {
+            app(PermissionsTeamResolver::class)
                 ->setPermissionsTeamId(null);
         }
     }

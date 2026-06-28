@@ -11,6 +11,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Tenancy\Models\Branch;
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -50,8 +51,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $void_reason
  * @property int|null $voided_by
  * @property array<string, mixed> $metadata
- * @property \Carbon\Carbon|null $completed_at
- * @property \Carbon\Carbon|null $voided_at
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $voided_at
  */
 class Sale extends Model
 {
@@ -59,8 +60,11 @@ class Sale extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_VOIDED = 'voided';
+
     public const STATUS_REFUNDED = 'refunded';
 
     protected $table = 'sales';

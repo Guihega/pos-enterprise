@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
-use App\Domain\Catalog\Models\Brand;
-use App\Domain\Catalog\Models\Category;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Catalog\Models\Unit;

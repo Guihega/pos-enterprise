@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Sales\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Database\Factories\SalePaymentFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $card_brand
  * @property string|null $card_last4
  * @property array<string, mixed> $metadata
- * @property \Carbon\Carbon $captured_at
+ * @property Carbon $captured_at
  */
 class SalePayment extends Model
 {
@@ -32,12 +33,19 @@ class SalePayment extends Model
     use HasFactory;
 
     public const METHOD_CASH = 'cash';
+
     public const METHOD_CARD_CREDIT = 'card_credit';
+
     public const METHOD_CARD_DEBIT = 'card_debit';
+
     public const METHOD_TRANSFER = 'transfer';
+
     public const METHOD_CHECK = 'check';
+
     public const METHOD_VOUCHER = 'voucher';
+
     public const METHOD_CREDIT = 'credit';
+
     public const METHOD_OTHER = 'other';
 
     /**

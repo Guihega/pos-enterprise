@@ -31,9 +31,13 @@ class Warehouse extends TenantScopedModel
     use HasFactory;
 
     public const TYPE_MAIN = 'main';
+
     public const TYPE_STORAGE = 'storage';
+
     public const TYPE_TRANSIT = 'transit';
+
     public const TYPE_DAMAGED = 'damaged';
+
     public const TYPE_CONSIGNMENT = 'consignment';
 
     protected $table = 'warehouses';

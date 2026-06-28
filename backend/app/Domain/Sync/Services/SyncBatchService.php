@@ -1,9 +1,13 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Domain\Sync\Services;
 
 use App\Domain\Identity\Models\User;
 use App\Domain\Sales\Dto\CheckoutRequest;
+use App\Domain\Sales\Exceptions\InsufficientCreditException;
+use App\Domain\Sales\Exceptions\PaymentMismatchException;
 use App\Domain\Sales\Services\SalesService;
 use App\Domain\Sync\Dto\SyncBatchItem;
 use Throwable;
@@ -33,14 +37,12 @@ final class SyncBatchService
 
         foreach ($items as $item) {
             $results[] = match (true) {
-                $item->entityType === 'sale' && $item->operation === 'create'
-                    => $this->processSaleCreate($item, $user),
-                default
-                    => [
-                        'client_uuid' => $item->clientUuid,
-                        'status'      => 'error',
-                        'error'       => "Tipo de operacion no soportado: {$item->entityType}.{$item->operation}",
-                    ],
+                $item->entityType === 'sale' && $item->operation === 'create' => $this->processSaleCreate($item, $user),
+                default => [
+                    'client_uuid' => $item->clientUuid,
+                    'status' => 'error',
+                    'error' => "Tipo de operacion no soportado: {$item->entityType}.{$item->operation}",
+                ],
             };
         }
 
@@ -51,21 +53,21 @@ final class SyncBatchService
     private function processSaleCreate(SyncBatchItem $item, User $user): array
     {
         try {
-            $dto  = CheckoutRequest::fromArray($item->payload);
+            $dto = CheckoutRequest::fromArray($item->payload);
             $sale = $this->sales->checkout($dto, $user);
 
             return [
-                'client_uuid'  => $item->clientUuid,
-                'entity_uuid'  => $item->entityUuid,
-                'status'       => 'success',
-                'data'         => [
-                    'uuid'  => $sale->uuid,
+                'client_uuid' => $item->clientUuid,
+                'entity_uuid' => $item->entityUuid,
+                'status' => 'success',
+                'data' => [
+                    'uuid' => $sale->uuid,
                     'folio' => $sale->folio,
                 ],
             ];
-        } catch (\App\Domain\Sales\Exceptions\PaymentMismatchException $e) {
+        } catch (PaymentMismatchException $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'conflict', 'error' => $e->getMessage()];
-        } catch (\App\Domain\Sales\Exceptions\InsufficientCreditException $e) {
+        } catch (InsufficientCreditException $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'conflict', 'error' => $e->getMessage()];
         } catch (Throwable $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'error', 'error' => $e->getMessage()];

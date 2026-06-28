@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
@@ -16,9 +17,9 @@ beforeEach(function () {
     TenantContext::set($this->tenant);
     app(RoleProvisioner::class)->provisionDefaultRoles($this->tenant);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
-    $this->branch   = Branch::factory()->default()->create(['company_id' => $this->tenant->id]);
+    $this->branch = Branch::factory()->default()->create(['company_id' => $this->tenant->id]);
     $this->register = CashRegister::factory()->ofBranch($this->branch)->create(['code' => 'CAJA-01']);
-    $this->cashier  = User::factory()->create(['company_id' => $this->tenant->id]);
+    $this->cashier = User::factory()->create(['company_id' => $this->tenant->id]);
     $this->cashier->assignRole(Roles::CAJERO);
     Sanctum::actingAs($this->cashier);
 });
@@ -27,9 +28,9 @@ test('POST /folio-ranges/reserve devuelve 201 con rango valido', function () {
     $this->withHeaders(['X-Tenant' => 'folio-http'])
         ->postJson('/api/v1/folio-ranges/reserve', [
             'cash_register_uuid' => $this->register->uuid,
-            'series'             => 'A',
-            'device_id'          => 'device-abc-001',
-            'size'               => 50,
+            'series' => 'A',
+            'device_id' => 'device-abc-001',
+            'size' => 50,
         ])
         ->assertStatus(201)
         ->assertJsonStructure(['range_start', 'range_end', 'series', 'device_id'])
@@ -39,12 +40,12 @@ test('POST /folio-ranges/reserve devuelve 201 con rango valido', function () {
 test('devuelve el rango activo si ya existe para ese device_id', function () {
     $payload = [
         'cash_register_uuid' => $this->register->uuid,
-        'series'             => 'A',
-        'device_id'          => 'device-abc-001',
-        'size'               => 50,
+        'series' => 'A',
+        'device_id' => 'device-abc-001',
+        'size' => 50,
     ];
 
-    $first  = $this->withHeaders(['X-Tenant' => 'folio-http'])->postJson('/api/v1/folio-ranges/reserve', $payload);
+    $first = $this->withHeaders(['X-Tenant' => 'folio-http'])->postJson('/api/v1/folio-ranges/reserve', $payload);
     $second = $this->withHeaders(['X-Tenant' => 'folio-http'])->postJson('/api/v1/folio-ranges/reserve', $payload);
 
     $first->assertStatus(201);
@@ -59,8 +60,8 @@ test('falla 422 si cash_register_uuid no pertenece al tenant', function () {
     $this->withHeaders(['X-Tenant' => 'folio-http'])
         ->postJson('/api/v1/folio-ranges/reserve', [
             'cash_register_uuid' => '00000000-0000-0000-0000-000000000000',
-            'series'             => 'A',
-            'device_id'          => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+            'series' => 'A',
+            'device_id' => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         ])
         ->assertStatus(422);
 });
@@ -69,8 +70,8 @@ test('falla 422 si device_id supera 36 caracteres', function () {
     $this->withHeaders(['X-Tenant' => 'folio-http'])
         ->postJson('/api/v1/folio-ranges/reserve', [
             'cash_register_uuid' => $this->register->uuid,
-            'series'             => 'A',
-            'device_id'          => str_repeat('x', 37),
+            'series' => 'A',
+            'device_id' => str_repeat('x', 37),
         ])
         ->assertStatus(422);
 });
@@ -78,15 +79,15 @@ test('falla 422 si device_id supera 36 caracteres', function () {
 test('dos terminales obtienen rangos disjuntos via HTTP', function () {
     $payloadT1 = [
         'cash_register_uuid' => $this->register->uuid,
-        'series'             => 'A',
-        'device_id'          => 'terminal-http-001',
-        'size'               => 50,
+        'series' => 'A',
+        'device_id' => 'terminal-http-001',
+        'size' => 50,
     ];
     $payloadT2 = [
         'cash_register_uuid' => $this->register->uuid,
-        'series'             => 'A',
-        'device_id'          => 'terminal-http-002',
-        'size'               => 50,
+        'series' => 'A',
+        'device_id' => 'terminal-http-002',
+        'size' => 50,
     ];
 
     $r1 = $this->withHeaders(['X-Tenant' => 'folio-http'])->postJson('/api/v1/folio-ranges/reserve', $payloadT1);
@@ -96,9 +97,9 @@ test('dos terminales obtienen rangos disjuntos via HTTP', function () {
     $r2->assertStatus(201);
 
     $start1 = $r1->json('range_start');
-    $end1   = $r1->json('range_end');
+    $end1 = $r1->json('range_end');
     $start2 = $r2->json('range_start');
-    $end2   = $r2->json('range_end');
+    $end2 = $r2->json('range_end');
 
     // Rangos disjuntos: [start1..end1] y [start2..end2] no se solapan
     expect($end1)->toBeLessThan($start2);
@@ -114,15 +115,15 @@ test('dos terminales obtienen rangos disjuntos via HTTP', function () {
 
 test('tres terminales obtienen rangos disjuntos sin solapamiento', function () {
     $devices = ['terminal-A', 'terminal-B', 'terminal-C'];
-    $ranges  = [];
+    $ranges = [];
 
     foreach ($devices as $device) {
         $response = $this->withHeaders(['X-Tenant' => 'folio-http'])
             ->postJson('/api/v1/folio-ranges/reserve', [
                 'cash_register_uuid' => $this->register->uuid,
-                'series'             => 'A',
-                'device_id'          => $device,
-                'size'               => 30,
+                'series' => 'A',
+                'device_id' => $device,
+                'size' => 30,
             ]);
         $response->assertStatus(201);
         $ranges[] = ['start' => $response->json('range_start'), 'end' => $response->json('range_end')];
@@ -153,8 +154,8 @@ test('requiere autenticacion', function () {
     $this->withHeaders(['X-Tenant' => 'folio-http'])
         ->postJson('/api/v1/folio-ranges/reserve', [
             'cash_register_uuid' => $this->register->uuid,
-            'series'             => 'A',
-            'device_id'          => 'device-abc-001',
+            'series' => 'A',
+            'device_id' => 'device-abc-001',
         ])
         ->assertStatus(401);
 });

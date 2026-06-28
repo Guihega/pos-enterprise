@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Domain\Sales\Services;
 
 use App\Domain\Cash\Models\CashRegister;
@@ -18,7 +20,8 @@ use Illuminate\Support\Facades\DB;
 final class FolioRangeService
 {
     private const DEFAULT_SIZE = 50;
-    private const MAX_SIZE     = 500;
+
+    private const MAX_SIZE = 500;
 
     /**
      * Reserva (o devuelve el activo) un rango de folios para el dispositivo.
@@ -45,21 +48,21 @@ final class FolioRangeService
             if ($existing) {
                 return [
                     'range_start' => $existing->range_start,
-                    'range_end'   => $existing->range_end,
-                    'series'      => $existing->series,
-                    'device_id'   => $existing->device_id,
+                    'range_end' => $existing->range_end,
+                    'series' => $existing->series,
+                    'device_id' => $existing->device_id,
                 ];
             }
 
             // Lock pesimista sobre el contador global (igual que SaleNumberGenerator).
             SaleNumberCounter::firstOrCreate(
                 [
-                    'branch_id'       => $register->branch_id,
+                    'branch_id' => $register->branch_id,
                     'cash_register_id' => $register->id,
-                    'series'          => $series,
+                    'series' => $series,
                 ],
                 [
-                    'company_id'    => TenantContext::id(),
+                    'company_id' => TenantContext::id(),
                     'current_value' => 0,
                 ]
             );
@@ -73,26 +76,26 @@ final class FolioRangeService
                 ->firstOrFail();
 
             $rangeStart = (int) $counter->current_value + 1;
-            $rangeEnd   = $rangeStart + $size - 1;
+            $rangeEnd = $rangeStart + $size - 1;
 
             $counter->current_value = $rangeEnd;
             $counter->save();
 
             SaleNumberRange::create([
-                'company_id'      => TenantContext::id(),
+                'company_id' => TenantContext::id(),
                 'cash_register_id' => $register->id,
-                'series'          => $series,
-                'device_id'       => $deviceId,
-                'range_start'     => $rangeStart,
-                'range_end'       => $rangeEnd,
-                'exhausted_at'    => null,
+                'series' => $series,
+                'device_id' => $deviceId,
+                'range_start' => $rangeStart,
+                'range_end' => $rangeEnd,
+                'exhausted_at' => null,
             ]);
 
             return [
                 'range_start' => $rangeStart,
-                'range_end'   => $rangeEnd,
-                'series'      => $series,
-                'device_id'   => $deviceId,
+                'range_end' => $rangeEnd,
+                'series' => $series,
+                'device_id' => $deviceId,
             ];
         });
     }

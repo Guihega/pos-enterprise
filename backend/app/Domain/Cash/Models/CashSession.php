@@ -7,6 +7,7 @@ namespace App\Domain\Cash\Models;
 use App\Domain\Identity\Models\User;
 use App\Domain\Tenancy\Models\Branch;
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Database\Factories\CashSessionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -30,8 +31,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|null $difference
  * @property string|null $opening_notes
  * @property string|null $closing_notes
- * @property \Carbon\Carbon $opened_at
- * @property \Carbon\Carbon|null $closed_at
+ * @property Carbon $opened_at
+ * @property Carbon|null $closed_at
  */
 class CashSession extends Model
 {
@@ -39,7 +40,9 @@ class CashSession extends Model
     use HasFactory;
 
     public const STATUS_OPEN = 'open';
+
     public const STATUS_CLOSED = 'closed';
+
     public const STATUS_VOIDED = 'voided';
 
     protected $table = 'cash_sessions';

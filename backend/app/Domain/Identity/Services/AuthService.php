@@ -8,10 +8,8 @@ use App\Domain\Identity\Exceptions\AccountInactiveException;
 use App\Domain\Identity\Exceptions\AccountLockedException;
 use App\Domain\Identity\Exceptions\InvalidCredentialsException;
 use App\Domain\Identity\Models\User;
-use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
 use Illuminate\Support\Facades\Hash;
-use Laravel\Sanctum\NewAccessToken;
 
 /**
  * Punto único para todas las operaciones de autenticación.
@@ -59,7 +57,7 @@ final class AuthService
         // tiempos de respuesta y luego lanzamos excepción genérica.
         if ($user === null) {
             $this->dummyPasswordCheck();
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException;
         }
 
         // Bloqueo por intentos previos
@@ -69,7 +67,7 @@ final class AuthService
 
         // Cuenta deshabilitada
         if (! $user->is_active) {
-            throw new AccountInactiveException();
+            throw new AccountInactiveException;
         }
 
         // Verificación timing-safe de password
@@ -83,7 +81,7 @@ final class AuthService
                 throw new AccountLockedException($user->fresh()->locked_until);
             }
 
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException;
         }
 
         // Login OK: limpia contadores y registra metadatos.

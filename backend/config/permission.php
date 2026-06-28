@@ -1,13 +1,16 @@
 <?php
 
 declare(strict_types=1);
+use App\Domain\Authorization\Models\Permission;
+use App\Domain\Authorization\Models\Role;
+use App\Domain\Authorization\Services\TenantTeamResolver;
 
 return [
 
     'models' => [
         // Modelos custom para que apliquen BelongsToTenant + RLS
-        'permission' => App\Domain\Authorization\Models\Permission::class,
-        'role' => App\Domain\Authorization\Models\Role::class,
+        'permission' => Permission::class,
+        'role' => Role::class,
     ],
 
     'table_names' => [
@@ -40,7 +43,7 @@ return [
      * de la sesión (que es el default). Garantiza que jobs, comandos y
      * controllers siempre usen el mismo origen de verdad.
      */
-    'team_resolver' => App\Domain\Authorization\Services\TenantTeamResolver::class,
+    'team_resolver' => TenantTeamResolver::class,
 
     'use_passport_client_credentials' => false,
     'display_permission_in_exception' => false,

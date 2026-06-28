@@ -30,13 +30,13 @@ beforeEach(function () {
 function makeProduct(): Product
 {
     $unit = Unit::factory()->create(['company_id' => TenantContext::id()]);
-    $tax  = Tax::factory()->create(['company_id' => TenantContext::id()]);
+    $tax = Tax::factory()->create(['company_id' => TenantContext::id()]);
 
     return Product::factory()->create([
         'company_id' => TenantContext::id(),
-        'unit_id'    => $unit->id,
-        'tax_id'     => $tax->id,
-        'status'     => Product::STATUS_ACTIVE,
+        'unit_id' => $unit->id,
+        'tax_id' => $tax->id,
+        'status' => Product::STATUS_ACTIVE,
     ]);
 }
 
@@ -89,7 +89,7 @@ test('con since solo devuelve cambios posteriores', function () {
     $new->saveQuietly();
 
     $resp = $this->withHeaders(['X-Tenant' => 'changes-test'])
-        ->getJson('/api/v1/sync/changes?entities=products&since=' . urlencode($since->toIso8601ZuluString()))
+        ->getJson('/api/v1/sync/changes?entities=products&since='.urlencode($since->toIso8601ZuluString()))
         ->assertStatus(200);
 
     $created = $resp->json('data.products.created');
@@ -107,7 +107,7 @@ test('detecta updated vs created segun timestamps', function () {
     $p->saveQuietly();
 
     $resp = $this->withHeaders(['X-Tenant' => 'changes-test'])
-        ->getJson('/api/v1/sync/changes?entities=products&since=' . urlencode($since->toIso8601ZuluString()))
+        ->getJson('/api/v1/sync/changes?entities=products&since='.urlencode($since->toIso8601ZuluString()))
         ->assertStatus(200);
 
     expect(collect($resp->json('data.products.updated'))->pluck('uuid'))->toContain($p->uuid);
@@ -127,7 +127,7 @@ test('detecta deleted via soft-delete', function () {
     Carbon::setTestNow();
 
     $resp = $this->withHeaders(['X-Tenant' => 'changes-test'])
-        ->getJson('/api/v1/sync/changes?entities=products&since=' . urlencode($since->toIso8601ZuluString()))
+        ->getJson('/api/v1/sync/changes?entities=products&since='.urlencode($since->toIso8601ZuluString()))
         ->assertStatus(200);
 
     expect(collect($resp->json('data.products.deleted'))->pluck('uuid'))->toContain($p->uuid);
@@ -167,8 +167,8 @@ test('el shape de producto coincide con ProductResource (pricing, flags, tax ani
                         [
                             'uuid', 'sku', 'name', 'status',
                             'pricing' => ['price', 'cost', 'has_discount'],
-                            'flags'   => ['track_inventory', 'is_sellable'],
-                            'tax'     => ['uuid', 'rate', 'is_inclusive'],
+                            'flags' => ['track_inventory', 'is_sellable'],
+                            'tax' => ['uuid', 'rate', 'is_inclusive'],
                             'updated_at',
                         ],
                     ],

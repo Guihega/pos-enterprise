@@ -6,7 +6,7 @@
  * Usa vi.useFakeTimers solo para el caso de intervalo; el resto controla
  * el tiempo via el scheduler fake.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   BackgroundSync,
   SYNC_INTERVAL_MS,

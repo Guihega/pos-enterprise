@@ -25,13 +25,14 @@ class SyncChangesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'since'    => ['nullable', 'date'],
+            'since' => ['nullable', 'date'],
             'entities' => ['required', 'string'],
         ];
     }
 
     /**
      * Devuelve las entidades solicitadas como array limpio.
+     *
      * @return string[]
      */
     public function entitiesList(): array

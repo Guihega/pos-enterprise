@@ -13,7 +13,6 @@ use App\Domain\Catalog\Services\CatalogProvisioner;
 use App\Domain\Tenancy\Exceptions\CrossTenantAccessException;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /*

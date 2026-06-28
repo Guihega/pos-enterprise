@@ -13,6 +13,7 @@ use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->tenant = Company::factory()->create();
@@ -217,7 +218,7 @@ it('kardex es inmutable: UPDATE bloqueado por trigger BD', function () {
     $movement = $this->service->recordEntry($this->product, $this->warehouse, 5, 50);
 
     expectQueryException(function () use ($movement) {
-        \Illuminate\Support\Facades\DB::table('inventory_movements')
+        DB::table('inventory_movements')
             ->where('id', $movement->id)
             ->update(['quantity_delta' => 9999]);
     });
@@ -227,7 +228,7 @@ it('kardex es inmutable: DELETE bloqueado por trigger BD', function () {
     $movement = $this->service->recordEntry($this->product, $this->warehouse, 5, 50);
 
     expectQueryException(function () use ($movement) {
-        \Illuminate\Support\Facades\DB::table('inventory_movements')
+        DB::table('inventory_movements')
             ->where('id', $movement->id)
             ->delete();
     });

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashMovement;
 use App\Domain\Cash\Models\CashRegister;
 use App\Domain\Cash\Services\CashService;
@@ -11,6 +12,7 @@ use App\Domain\Catalog\Models\Unit;
 use App\Domain\Catalog\Services\CatalogProvisioner;
 use App\Domain\Customer\Models\Customer;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Exceptions\InsufficientStockException;
 use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
@@ -24,6 +26,7 @@ use App\Domain\Sales\Services\SalesService;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Support\Str;
 
 /*
 |--------------------------------------------------------------------------
@@ -172,7 +175,7 @@ it('checkout con tax_exclusive calcula correctamente', function () {
     // Producto con IVA exclusive (precio neto + IVA encima).
     // Caso espejo del default: probar la otra rama del calculator.
     $iva16Exc = Tax::query()->create([
-        'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        'uuid' => (string) Str::uuid(),
         'company_id' => $this->tenant->id,
         'code' => 'IVA-16-EXC',
         'name' => 'IVA 16% exclusive',
@@ -353,7 +356,7 @@ it('checkout con stock insuficiente lanza InsufficientStockException', function 
     );
 
     expect(fn () => $this->service->checkout($req, $this->user))
-        ->toThrow(\App\Domain\Inventory\Exceptions\InsufficientStockException::class);
+        ->toThrow(InsufficientStockException::class);
 
     // Verificar que TODA la transacción se revirtió: no hay sale, no hay stock movement
     expect(Sale::query()->count())->toBe(0);
@@ -370,7 +373,7 @@ it('checkout con sesión cerrada lanza CashSessionNotOpenException', function ()
     );
 
     expect(fn () => $this->service->checkout($req, $this->user))
-        ->toThrow(\App\Domain\Cash\Exceptions\CashSessionNotOpenException::class);
+        ->toThrow(CashSessionNotOpenException::class);
 });
 
 // ========================================================================

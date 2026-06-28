@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1\Sync;
 
 use App\Domain\Sync\Dto\SyncBatchItem;
@@ -31,7 +33,7 @@ final class SyncBatchController extends Controller
 
         return response()->json([
             'batch_uuid' => $request->validated('batch_uuid'),
-            'results'    => $results,
+            'results' => $results,
         ]);
     }
 }

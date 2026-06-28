@@ -13,6 +13,7 @@ use App\Http\Resources\TaxResource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Calcula los cambios del catalogo desde un timestamp dado (pull).
@@ -38,18 +39,18 @@ final class SyncChangesService
      */
     private const ENTITY_CONFIG = [
         'products' => [
-            'model'    => Product::class,
-            'with'     => ['category', 'unit', 'tax'],
+            'model' => Product::class,
+            'with' => ['category', 'unit', 'tax'],
             'resource' => ProductResource::class,
         ],
         'taxes' => [
-            'model'    => Tax::class,
-            'with'     => [],
+            'model' => Tax::class,
+            'with' => [],
             'resource' => TaxResource::class,
         ],
         'customers' => [
-            'model'    => Customer::class,
-            'with'     => [],
+            'model' => Customer::class,
+            'with' => [],
             'resource' => CustomerResource::class,
         ],
     ];
@@ -78,7 +79,7 @@ final class SyncChangesService
                 'snapshot_timestamp' => $snapshot,
                 // Fase 2: sin paginacion por pagina (catalogo acotado).
                 // El snapshot inicial paginado vive en sec. 38.6 (otro endpoint).
-                'has_more'    => false,
+                'has_more' => false,
                 'next_cursor' => null,
             ],
         ];
@@ -91,8 +92,8 @@ final class SyncChangesService
     private function changesForEntity(array $config, ?Carbon $since): array
     {
         $modelClass = $config['model'];
-        $with       = $config['with'];
-        $resource   = $config['resource'];
+        $with = $config['with'];
+        $resource = $config['resource'];
 
         // Sin since => snapshot completo: todo es created.
         if ($since === null) {
@@ -133,7 +134,7 @@ final class SyncChangesService
      * Serializa una coleccion de modelos con su Resource, devolviendo el
      * mismo shape que el endpoint REST (simetria de contrato cliente-servidor).
      *
-     * @param  \Illuminate\Support\Collection<int, Model>  $models
+     * @param  Collection<int, Model>  $models
      * @param  class-string<JsonResource>  $resource
      * @return array<int, mixed>
      */

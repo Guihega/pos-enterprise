@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1\Sales;
 
 use App\Domain\Cash\Models\CashRegister;
@@ -26,9 +28,9 @@ final class FolioRangesController extends Controller
 
         $result = $this->service->reserve(
             register: $register,
-            series:   $request->validated('series', 'A'),
+            series: $request->validated('series', 'A'),
             deviceId: $request->validated('device_id'),
-            size:     (int) $request->validated('size', 50),
+            size: (int) $request->validated('size', 50),
         );
 
         return response()->json($result, 201);

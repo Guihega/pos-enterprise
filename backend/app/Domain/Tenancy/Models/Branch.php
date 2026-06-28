@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Tenancy\Models;
 
+use App\Domain\Inventory\Models\Warehouse;
 use App\Models\TenantScopedModel;
 use Database\Factories\BranchFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Domain\Inventory\Models\Warehouse;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
