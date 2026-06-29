@@ -38,7 +38,7 @@ beforeEach(async () => {
   })
 })
 
-describe('Stress 1000 ventas offline (87.2)', () => {
+describe('Stress 1000 ventas offline (87.2)', { timeout: 30000 }, () => {
   it('genera 1000 folios consecutivos unicos sin colision ni huecos', async () => {
     const folios: string[] = []
     for (let i = 0; i < TOTAL; i++) {

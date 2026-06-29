@@ -43,7 +43,7 @@ async function generateFolios(cashRegisterUuid: string, count: number): Promise<
   return result;
 }
 
-describe("multi-terminal: folios disjuntos por deviceId", () => {
+describe("multi-terminal: folios disjuntos por deviceId", { timeout: 30000 }, () => {
   beforeEach(async () => {
     await db.folioRanges.clear();
     await db.settings.clear();

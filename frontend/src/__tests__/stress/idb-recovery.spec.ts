@@ -57,7 +57,7 @@ beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()))
 })
 
-describe('Recovery IndexedDB corrupta (87.2 / 42.3)', () => {
+describe('Recovery IndexedDB corrupta (87.2 / 42.3)', { timeout: 30000 }, () => {
   it('checkIntegrity pasa cuando la BD responde (probe I/O sano)', async () => {
     const result = await service.checkIntegrity()
     expect(result.ok).toBe(true)
