@@ -120,7 +120,7 @@ class AuthController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $user->load('defaultBranch', 'branches', 'roles');
+        $user->load('defaultBranch.defaultWarehouse', 'branches', 'roles');
 
         return response()->json([
             'data' => new UserResource($user),

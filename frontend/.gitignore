@@ -37,3 +37,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Hey API: cliente y tipos generados desde openapi.yaml (regenerar con npm run generate:api)
+/src/lib/api/generated/

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Services;
 
+use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashMovement;
 use App\Domain\Cash\Models\CashSession;
 use App\Domain\Cash\Services\CashService;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Customer\Models\Customer;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Sales\Dto\CheckoutPayment;
@@ -64,7 +66,7 @@ final class SalesService
                 ->firstOrFail();
 
             if (! $session->isOpen()) {
-                throw new \App\Domain\Cash\Exceptions\CashSessionNotOpenException(
+                throw new CashSessionNotOpenException(
                     "La sesión {$session->id} no está abierta (status: {$session->status})"
                 );
             }
@@ -194,7 +196,7 @@ final class SalesService
                         product: $product,
                         warehouse: $warehouse,
                         quantity: $calc['quantity'],
-                        type: \App\Domain\Inventory\Models\InventoryMovement::TYPE_EXIT,
+                        type: InventoryMovement::TYPE_EXIT,
                         reason: "Venta {$sale->number}",
                         reference: $sale->number,
                         source: $sale,
@@ -319,7 +321,7 @@ final class SalesService
                         warehouse: $warehouse,
                         quantity: (float) $item->quantity,
                         unitCost: (float) $item->unit_cost,
-                        type: \App\Domain\Inventory\Models\InventoryMovement::TYPE_RETURN_CUSTOMER,
+                        type: InventoryMovement::TYPE_RETURN_CUSTOMER,
                         reason: "Cancelación venta {$locked->number}: {$reason}",
                         reference: $locked->number,
                         source: $locked,

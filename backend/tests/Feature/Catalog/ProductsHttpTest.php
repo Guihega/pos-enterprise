@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
-use App\Domain\Catalog\Models\Brand;
-use App\Domain\Catalog\Models\Category;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Catalog\Models\Unit;
@@ -215,6 +213,54 @@ it('POST /products con admin crea producto y devuelve 201', function () {
     $this->assertDatabaseHas('products', [
         'sku' => 'NEW-001',
         'company_id' => $this->tenant->id,
+    ]);
+});
+
+it('POST /products sin cost no queda null (default 0 en BD)', function () {
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson(
+        '/api/v1/products',
+        [
+            'sku' => 'NO-COST-001',
+            'name' => 'Producto sin costo',
+            'unit_uuid' => $this->unit->uuid,
+            'price' => 10,
+            // 'cost' deliberadamente ausente.
+        ],
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertCreated();
+
+    $this->assertDatabaseHas('products', [
+        'sku' => 'NO-COST-001',
+        'company_id' => $this->tenant->id,
+        'cost' => 0,
+    ]);
+});
+
+it('POST /products con cost null no queda null (default 0 en BD)', function () {
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson(
+        '/api/v1/products',
+        [
+            'sku' => 'NULL-COST-001',
+            'name' => 'Producto cost null',
+            'unit_uuid' => $this->unit->uuid,
+            'price' => 10,
+            'cost' => null,
+        ],
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertCreated();
+
+    $this->assertDatabaseHas('products', [
+        'sku' => 'NULL-COST-001',
+        'company_id' => $this->tenant->id,
+        'cost' => 0,
     ]);
 });
 

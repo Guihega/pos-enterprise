@@ -27,9 +27,13 @@ class Tax extends TenantScopedModel
     use HasFactory;
 
     public const TYPE_VAT = 'vat';
+
     public const TYPE_SALES_TAX = 'sales_tax';
+
     public const TYPE_EXCISE = 'excise';
+
     public const TYPE_WITHHOLDING = 'withholding';
+
     public const TYPE_OTHER = 'other';
 
     protected $table = 'taxes';

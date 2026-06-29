@@ -8,6 +8,7 @@ use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
 use App\Domain\Catalog\Services\CatalogProvisioner;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
@@ -60,7 +61,7 @@ class DatabaseSeeder extends Seeder
             ]);
 
             // Almacén default de la sucursal centro
-            \App\Domain\Inventory\Models\Warehouse::factory()
+            Warehouse::factory()
                 ->default()->ofBranch($branchCenter)->create([
                     'code' => 'CTR-MAIN',
                     'name' => 'Piso de venta Centro',
@@ -75,7 +76,7 @@ class DatabaseSeeder extends Seeder
                 'state' => 'CDMX',
                 'postal_code' => '02000',
             ]);
-            \App\Domain\Inventory\Models\Warehouse::factory()
+            Warehouse::factory()
                 ->default()->ofBranch($branchNorte)->create([
                     'code' => 'NRT-MAIN',
                     'name' => 'Piso de venta Plaza Norte',
@@ -133,7 +134,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Sucursal Principal',
             ]);
 
-            \App\Domain\Inventory\Models\Warehouse::factory()
+            Warehouse::factory()
                 ->default()->ofBranch($otherBranch)->create([
                     'code' => 'PRC-MAIN',
                     'name' => 'Piso de venta Principal',
@@ -152,6 +153,14 @@ class DatabaseSeeder extends Seeder
             $otherAdmin->assignRole(Roles::ADMIN);
         } finally {
             TenantContext::forget();
+        }
+
+        // ==============================================
+        //  Datos de desarrollo: catalogo de productos
+        //  para el tenant `demo`. Solo en entornos no-prod.
+        // ==============================================
+        if (! app()->environment('production')) {
+            $this->call(DevDataSeeder::class);
         }
     }
 }

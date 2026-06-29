@@ -57,6 +57,35 @@ class ProductFactory extends Factory
         return $this->state(fn () => ['status' => Product::STATUS_ACTIVE]);
     }
 
+    /**
+     * Asigna un nombre realista de producto de retail (abarrotes, bebidas,
+     * limpieza, cuidado personal) en lugar del lorem ipsum por defecto.
+     * Usa faker unique para evitar repeticiones dentro de una misma corrida.
+     */
+    public function realisticName(): self
+    {
+        $nombres = [
+            'Coca-Cola 600ml', 'Sabritas Original 45g', 'Galletas Marias Gamesa',
+            'Leche Lala Entera 1L', 'Pan Bimbo Blanco Grande', 'Huevo Blanco 18 piezas',
+            'Aceite Capullo 1L', 'Arroz Verde Valle 1kg', 'Frijol Negro La Costena 1kg',
+            'Azucar Estandar 1kg', 'Cafe Nescafe Clasico 200g', 'Atun Dolores en Agua',
+            'Detergente Ariel 1kg', 'Jabon Zote Rosa', 'Papel Higienico Petalo 4 rollos',
+            'Shampoo Head & Shoulders 375ml', 'Pasta Colgate Triple Accion',
+            'Agua Bonafont 1.5L', 'Jugo Del Valle Naranja 1L', 'Cerveza Corona 355ml',
+            'Tortillas de Maiz 1kg', 'Salsa Valentina 370ml', 'Mayonesa McCormick 390g',
+            'Cloro Cloralex 950ml', 'Servilletas Petalo 100 piezas', 'Yogurt Danone Fresa',
+            'Cereal Zucaritas 500g', 'Chocolate Carlos V', 'Refresco Sprite 600ml',
+            'Sopa Maruchan Camaron', 'Mantequilla Lala 90g', 'Queso Oaxaca 400g',
+            'Jamon FUD 250g', 'Crema Lala 450ml', 'Harina de Trigo Selecta 1kg',
+            'Sal La Fina 1kg', 'Caldo de Pollo Knorr', 'Chiles Jalapenos La Costena',
+            'Desodorante Rexona', 'Suavizante Suavitel 850ml',
+        ];
+
+        return $this->state(fn () => [
+            'name' => $this->faker->unique()->randomElement($nombres),
+        ]);
+    }
+
     public function draft(): self
     {
         return $this->state(fn () => ['status' => Product::STATUS_DRAFT, 'published_at' => null]);

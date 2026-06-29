@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Inventory;
 
-use App\Domain\Catalog\Models\Tax;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Tenancy\Services\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;

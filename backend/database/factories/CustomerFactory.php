@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Domain\Customer\Models\Customer;
 use App\Domain\Tenancy\Models\Company;
+use App\Domain\Tenancy\Services\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -23,8 +24,8 @@ class CustomerFactory extends Factory
             // Si hay TenantContext, lo usamos; si no, creamos un Company nuevo.
             // Esto evita el bug de "Company::factory() crea tenant nuevo" cuando
             // el test ya tiene un tenant en contexto.
-            'company_id' => \App\Domain\Tenancy\Services\TenantContext::has()
-                ? \App\Domain\Tenancy\Services\TenantContext::id()
+            'company_id' => TenantContext::has()
+                ? TenantContext::id()
                 : Company::factory(),
             'code' => null,
             'type' => Customer::TYPE_INDIVIDUAL,

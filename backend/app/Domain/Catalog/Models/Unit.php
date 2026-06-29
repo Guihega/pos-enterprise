@@ -27,9 +27,13 @@ class Unit extends TenantScopedModel
     use HasFactory;
 
     public const CATEGORY_COUNT = 'count';
+
     public const CATEGORY_WEIGHT = 'weight';
+
     public const CATEGORY_VOLUME = 'volume';
+
     public const CATEGORY_LENGTH = 'length';
+
     public const CATEGORY_OTHER = 'other';
 
     protected $table = 'units';

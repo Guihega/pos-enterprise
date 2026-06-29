@@ -132,7 +132,7 @@ it('scope search encuentra por name, email, phone, tax_id', function () {
 });
 
 it('schema sentinel: customers tiene índices únicos parciales', function () {
-    $idx = \DB::select("
+    $idx = DB::select("
         SELECT indexname FROM pg_indexes
         WHERE tablename = 'customers' AND indexname LIKE 'customers_%_unique'
     ");

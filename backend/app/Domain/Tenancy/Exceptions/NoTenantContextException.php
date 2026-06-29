@@ -11,6 +11,4 @@ use RuntimeException;
  * Es un error de programación, no de usuario; debe explotar fuerte y
  * temprano.
  */
-final class NoTenantContextException extends RuntimeException
-{
-}
+final class NoTenantContextException extends RuntimeException {}

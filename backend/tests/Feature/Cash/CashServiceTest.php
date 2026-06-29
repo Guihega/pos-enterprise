@@ -12,6 +12,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->tenant = Company::factory()->create();
@@ -207,7 +208,7 @@ it('cash_movements es inmutable: UPDATE bloqueado por trigger BD', function () {
     );
 
     expectQueryException(function () use ($m) {
-        \Illuminate\Support\Facades\DB::table('cash_movements')
+        DB::table('cash_movements')
             ->where('id', $m->id)
             ->update(['amount' => 9999]);
     });
@@ -221,7 +222,7 @@ it('cash_movements es inmutable: DELETE bloqueado por trigger BD', function () {
     );
 
     expectQueryException(function () use ($m) {
-        \Illuminate\Support\Facades\DB::table('cash_movements')
+        DB::table('cash_movements')
             ->where('id', $m->id)
             ->delete();
     });

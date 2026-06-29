@@ -19,7 +19,23 @@ use Illuminate\Support\Facades\DB;
  *  1. Middleware HTTP (EnsureTenantContext) llama set() al inicio del request
  *     y forget() al final.
  *  2. Jobs en cola que necesiten contexto tenant llaman set() al iniciar y
- *     forget() al terminar (ver TenantAwareJob trait).
+ *     forget() al terminar.
+ *
+ *     TODO(deuda-9): extraer este patron set()/forget() a un trait
+ *     TenantAwareJob (o middleware de job) cuando exista el primer job
+ *     en cola que cruce el boundary de tenant. Hoy no hay jobs en el
+ *     proyecto, por lo que crear el trait ahora seria infra especulativa
+ *     sin consumidor. El criterio de activacion es: al implementar el
+ *     primer ShouldQueue que dependa del TenantContext.
+ *
+ *     TODO(deuda-10): bajo Laravel Octane el proceso PHP se reutiliza
+ *     entre requests, por lo que el estado estatico ($current,
+ *     $superAdminMode) NO se limpia solo y podria filtrarse de un
+ *     tenant a otro (leakage cross-tenant). Al instalar Octane hay que
+ *     registrar un listener de RequestReceived (o RequestTerminated)
+ *     que llame TenantContext::forget(). Hoy corremos php-fpm (proceso
+ *     por request, estado limpio automaticamente), asi que no aplica.
+ *     Criterio de activacion: al instalar laravel/octane.
  *  3. Tests llaman set() en setUp y forget() en tearDown, o usan
  *     `actingAsTenant($company)` del helper de tests.
  *
@@ -118,7 +134,7 @@ final class TenantContext
      * restaurando el contexto previo al terminar.
      *
      * @template T
-     * @param  Company  $company
+     *
      * @param  callable(): T  $callback
      * @return T
      */

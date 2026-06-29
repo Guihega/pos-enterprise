@@ -8,6 +8,7 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Identity\Models\User;
 use App\Domain\Tenancy\Models\Branch;
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Database\Factories\InventoryMovementFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -40,7 +41,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $reference
  * @property int|null $user_id
  * @property array<string, mixed> $metadata
- * @property \Carbon\Carbon $movement_at
+ * @property Carbon $movement_at
  */
 class InventoryMovement extends Model
 {
@@ -48,14 +49,23 @@ class InventoryMovement extends Model
     use HasFactory;
 
     public const TYPE_ENTRY = 'entry';
+
     public const TYPE_EXIT = 'exit';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
+
     public const TYPE_TRANSFER_OUT = 'transfer_out';
+
     public const TYPE_TRANSFER_IN = 'transfer_in';
+
     public const TYPE_RETURN_CUSTOMER = 'return_customer';
+
     public const TYPE_RETURN_SUPPLIER = 'return_supplier';
+
     public const TYPE_PRODUCTION_IN = 'production_in';
+
     public const TYPE_PRODUCTION_OUT = 'production_out';
+
     public const TYPE_OPENING = 'opening';
 
     protected $table = 'inventory_movements';

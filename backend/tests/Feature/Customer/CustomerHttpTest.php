@@ -81,6 +81,57 @@ it('POST /customers con admin crea cliente', function () {
         ->assertJsonPath('data.type', 'individual');
 });
 
+it('POST /customers sin credit_limit no queda null (default 0 en BD)', function () {
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson(
+        '/api/v1/customers',
+        [
+            'type' => 'individual',
+            'name' => 'Cliente sin credito',
+            // 'credit_limit', 'is_active', 'is_blocked' deliberadamente ausentes.
+        ],
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertCreated();
+
+    $this->assertDatabaseHas('customers', [
+        'name' => 'Cliente sin credito',
+        'company_id' => $this->tenant->id,
+        'credit_limit' => 0,
+        'credit_balance' => 0,
+        'is_active' => true,
+        'is_blocked' => false,
+    ]);
+});
+
+it('POST /customers con credit_limit null no queda null (default 0 en BD)', function () {
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson(
+        '/api/v1/customers',
+        [
+            'type' => 'individual',
+            'name' => 'Cliente credito null',
+            'credit_limit' => null,
+            'is_active' => null,
+            'is_blocked' => null,
+        ],
+        ['X-Tenant' => 'mi-tenant']
+    );
+
+    $response->assertCreated();
+
+    $this->assertDatabaseHas('customers', [
+        'name' => 'Cliente credito null',
+        'company_id' => $this->tenant->id,
+        'credit_limit' => 0,
+        'is_active' => true,
+        'is_blocked' => false,
+    ]);
+});
+
 it('POST /customers con cajero crea cliente (tiene CUSTOMER_CREATE)', function () {
     Sanctum::actingAs($this->cashier);
     $response = $this->postJson(

@@ -61,13 +61,13 @@ return new class extends Migration
         TenantTable::enableRls('taxes');
 
         // Solo UN tax default por tenant (parcial unique con WHERE)
-        \DB::statement('CREATE UNIQUE INDEX taxes_one_default_per_company
+        DB::statement('CREATE UNIQUE INDEX taxes_one_default_per_company
             ON taxes (company_id) WHERE is_default = true AND deleted_at IS NULL');
     }
 
     public function down(): void
     {
-        \DB::statement('DROP INDEX IF EXISTS taxes_one_default_per_company');
+        DB::statement('DROP INDEX IF EXISTS taxes_one_default_per_company');
         TenantTable::disableRls('taxes');
         Schema::dropIfExists('taxes');
     }

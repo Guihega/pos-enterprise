@@ -11,12 +11,24 @@ use App\Domain\Sales\Exceptions\PaymentMismatchException;
 use App\Domain\Sales\Exceptions\SaleNotCancellableException;
 use App\Domain\Tenancy\Middleware\EnsureTenantContext;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Middleware\Authorize;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
+use Illuminate\Contracts\Session\Middleware\AuthenticatesSessions;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -29,6 +41,27 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'tenant' => EnsureTenantContext::class,
+        ]);
+
+        // El route-model-binding (SubstituteBindings) consulta modelos
+        // tenant-scoped. El TenantScope aplica WHERE FALSE si no hay contexto,
+        // devolviendo 404 en bindings {x:uuid}. Por eso EnsureTenantContext
+        // DEBE correr antes de SubstituteBindings. Declaramos la prioridad
+        // completa con nuestro middleware insertado en la posicion correcta.
+        $middleware->priority([
+            EnsureFrontendRequestsAreStateful::class,
+            HandlePrecognitiveRequests::class,
+            EncryptCookies::class,
+            AddQueuedCookiesToResponse::class,
+            StartSession::class,
+            ShareErrorsFromSession::class,
+            AuthenticatesRequests::class,
+            ThrottleRequests::class,
+            ThrottleRequestsWithRedis::class,
+            AuthenticatesSessions::class,
+            EnsureTenantContext::class,
+            SubstituteBindings::class,
+            Authorize::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -88,10 +121,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 $e instanceof SaleNotCancellableException => [409, 'SALE_NOT_CANCELLABLE', []],
 
                 // ----- Cash (por nombre de clase, sin acoplar import) -----
-                is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionNotOpenException')
-                    => [409, 'SESSION_NOT_OPEN', []],
-                is_a($e, 'App\\Domain\\Cash\\Exceptions\\SessionAlreadyOpenException')
-                    => [409, 'SESSION_ALREADY_OPEN', []],
+                is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionNotOpenException') => [409, 'SESSION_NOT_OPEN', []],
+                is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionAlreadyOpenException') => [409, 'SESSION_ALREADY_OPEN', []],
 
                 // ----- Argumentos invalidos de dominio -----
                 $e instanceof InvalidArgumentException => [422, 'INVALID_ARGUMENT', []],

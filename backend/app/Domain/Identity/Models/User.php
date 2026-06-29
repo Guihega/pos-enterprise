@@ -8,7 +8,6 @@ use App\Domain\Tenancy\Models\Branch;
 use App\Models\Concerns\BelongsToTenant;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -119,7 +118,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * Existe porque user_branches.company_id es NOT NULL (RLS) y sync() de
      * Eloquent no completa columnas extra automáticamente.
      *
-     * @param  iterable<int>|iterable<\App\Domain\Tenancy\Models\Branch>  $branches
+     * @param  iterable<int>|iterable<Branch>  $branches
      */
     public function syncBranches(iterable $branches): array
     {

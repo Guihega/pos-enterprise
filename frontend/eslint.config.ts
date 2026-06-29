@@ -16,7 +16,7 @@ export default defineConfigWithVueTs(
     files: ['**/*.{vue,ts,mts,tsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**', '**/src/lib/api/generated/**']),
 
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
@@ -27,6 +27,14 @@ export default defineConfigWithVueTs(
   },
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
+
+  // Permitir 'any' en tests: los mocks y spies requieren tipos flexibles
+  {
+    files: ['src/**/__tests__/**/*'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 
   skipFormatting,
 )

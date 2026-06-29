@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Tenancy\Models;
 
 use Database\Factories\CompanyFactory;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -71,15 +70,22 @@ class Company extends Model
 
     /** Estados de ciclo de vida del tenant. */
     public const STATUS_TRIAL = 'trial';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_SUSPENDED = 'suspended';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_DELETED = 'deleted';
 
     /** Planes disponibles. */
     public const PLAN_FREE = 'free';
+
     public const PLAN_STARTER = 'starter';
+
     public const PLAN_BUSINESS = 'business';
+
     public const PLAN_ENTERPRISE = 'enterprise';
 
     /**
@@ -89,7 +95,7 @@ class Company extends Model
     {
         static::creating(function (self $company): void {
             if (empty($company->uuid)) {
-                $company->uuid = (string) \Illuminate\Support\Str::uuid();
+                $company->uuid = (string) Str::uuid();
             }
         });
     }

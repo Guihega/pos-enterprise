@@ -42,6 +42,7 @@ class Customer extends TenantScopedModel
     use HasFactory;
 
     public const TYPE_INDIVIDUAL = 'individual';
+
     public const TYPE_BUSINESS = 'business';
 
     protected $table = 'customers';

@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Warehouse;
+use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
 
@@ -25,6 +28,75 @@ it('GET /auth/me devuelve el usuario autenticado', function () {
     $response->assertOk()
         ->assertJsonPath('data.email', 'me@mi-tenant.local')
         ->assertJsonPath('data.uuid', $this->user->uuid);
+});
+
+it('GET /auth/me incluye default_warehouse_uuid del branch default cuando existe', function () {
+    // Crear branch default + warehouse default asociado al mismo branch.
+    $branch = Branch::factory()
+        ->for($this->tenant, 'company')
+        ->state(['is_default' => true])
+        ->create();
+
+    $warehouse = Warehouse::factory()
+        ->ofBranch($branch)
+        ->default()
+        ->create();
+
+    // Asociar al user como su default_branch.
+    $this->user->update(['branch_id' => $branch->id]);
+
+    Sanctum::actingAs($this->user);
+    $response = $this->getJson('/api/v1/auth/me', ['X-Tenant' => 'mi-tenant']);
+
+    $response->assertOk()
+        ->assertJsonPath('data.default_branch.uuid', $branch->uuid)
+        ->assertJsonPath('data.default_branch.default_warehouse_uuid', $warehouse->uuid);
+});
+
+it('GET /auth/me default_warehouse_uuid es null cuando el branch no tiene warehouse default', function () {
+    $branch = Branch::factory()
+        ->for($this->tenant, 'company')
+        ->state(['is_default' => true])
+        ->create();
+    // Sin warehouse asociado.
+
+    $this->user->update(['branch_id' => $branch->id]);
+
+    Sanctum::actingAs($this->user);
+    $response = $this->getJson('/api/v1/auth/me', ['X-Tenant' => 'mi-tenant']);
+
+    $response->assertOk()
+        ->assertJsonPath('data.default_branch.uuid', $branch->uuid)
+        ->assertJsonPath('data.default_branch.default_warehouse_uuid', null);
+});
+
+it('POST /auth/login devuelve default_warehouse_uuid del branch default', function () {
+    $branch = Branch::factory()
+        ->for($this->tenant, 'company')
+        ->state(['is_default' => true])
+        ->create();
+
+    $warehouse = Warehouse::factory()
+        ->ofBranch($branch)
+        ->default()
+        ->create();
+
+    // Asociar al user su branch default. Tambien necesita password
+    // conocido porque login lo verifica.
+    $this->user->update([
+        'branch_id' => $branch->id,
+        'password' => Hash::make('secret123'),
+    ]);
+
+    $response = $this->postJson(
+        '/api/v1/auth/login',
+        ['email' => $this->user->email, 'password' => 'secret123'],
+        ['X-Tenant' => 'mi-tenant'],
+    );
+
+    $response->assertOk()
+        ->assertJsonPath('data.user.default_branch.uuid', $branch->uuid)
+        ->assertJsonPath('data.user.default_branch.default_warehouse_uuid', $warehouse->uuid);
 });
 
 it('GET /auth/me sin token devuelve 401', function () {
@@ -90,7 +162,7 @@ it('un token de tenant A no funciona con header X-Tenant: B', function () {
 
     // Buscar el token (esa tabla NO tiene tenant scope, los tokens son
     // globales y se ligan al user vía tokenable_id)
-    $accessToken = \Laravel\Sanctum\PersonalAccessToken::where('token', $tokenHash)->first();
+    $accessToken = PersonalAccessToken::where('token', $tokenHash)->first();
     expect($accessToken)->not->toBeNull();
 
     // Intentar hidratar el user a través de la relación: bajo el contexto

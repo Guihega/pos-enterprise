@@ -179,8 +179,10 @@ final class CashService
     /**
      * Calcula el delta total de movimientos que afectan al efectivo físico
      * de una sesión (sum de delta_signed de tipos cash-affecting).
+     *
+     * Publico: tambien lo usa CashSessionReportService para el corte X/Z.
      */
-    private function cashAffectingDelta(int $sessionId): float
+    public function cashAffectingDelta(int $sessionId): float
     {
         return (float) CashMovement::query()
             ->where('cash_session_id', $sessionId)

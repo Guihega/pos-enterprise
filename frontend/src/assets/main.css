@@ -1,35 +1,40 @@
 @import './base.css';
 
+/*
+ * Design tokens del POS Enterprise.
+ *
+ * Vars semanticas que envuelven los colores neutros de base.css y
+ * agregan los del producto. Cualquier componente del POS debe usar
+ * estas variables, no HSL hardcodeado.
+ */
+:root {
+  --pos-accent: hsl(160, 100%, 37%);
+  --pos-accent-hover: hsl(160, 100%, 32%);
+  --pos-accent-text: hsl(0, 0%, 100%);
+
+  --pos-danger: hsl(0, 70%, 55%);
+  --pos-danger-hover: hsl(0, 70%, 48%);
+
+  --pos-radius-sm: 4px;
+  --pos-radius-md: 6px;
+  --pos-radius-lg: 8px;
+
+  --pos-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  --pos-space-xs: 0.25rem;
+  --pos-space-sm: 0.5rem;
+  --pos-space-md: 1rem;
+  --pos-space-lg: 1.5rem;
+  --pos-space-xl: 2rem;
+}
+
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+  min-height: 100vh;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  caret-color: var(--color-text-primary);
 }

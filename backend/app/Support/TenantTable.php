@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -40,7 +41,7 @@ final class TenantTable
      * Agrega la columna `company_id` con FK e índice estándar.
      * Debe llamarse dentro del closure de Schema::create / Schema::table.
      */
-    public static function companyColumn(\Illuminate\Database\Schema\Blueprint $table): void
+    public static function companyColumn(Blueprint $table): void
     {
         $table->unsignedBigInteger('company_id');
         $table->foreign('company_id')

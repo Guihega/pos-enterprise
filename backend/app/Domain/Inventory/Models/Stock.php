@@ -6,6 +6,7 @@ namespace App\Domain\Inventory\Models;
 
 use App\Domain\Catalog\Models\Product;
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Database\Factories\StockFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -29,8 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float|null $stock_min
  * @property float|null $stock_max
  * @property float $average_cost
- * @property \Carbon\Carbon|null $last_movement_at
- *
+ * @property Carbon|null $last_movement_at
  * @property-read float $quantity_available
  */
 class Stock extends Model

@@ -176,7 +176,7 @@ it('schema sentinel: sales tiene status enum con draft/completed/voided/refunded
         WHERE t.relname = 'sales' AND c.contype = 'c'
           AND pg_get_constraintdef(c.oid) ILIKE '%status%'
     ";
-    $rows = \DB::select($sql);
+    $rows = DB::select($sql);
     $combined = implode(' ', array_map(fn ($r) => $r->def, $rows));
 
     expect($combined)->toContain('draft')

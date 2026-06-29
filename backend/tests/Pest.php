@@ -52,7 +52,7 @@ if (! function_exists('expectQueryException')) {
      *
      * Marca el test como NO-risky agregando una expectation explícita.
      */
-    function expectQueryException(\Closure $callback): void
+    function expectQueryException(Closure $callback): void
     {
         $thrown = false;
         try {

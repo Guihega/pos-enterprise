@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Domain\Identity\Models\User;
+use App\Domain\Tenancy\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,11 +31,22 @@ class UserResource extends JsonResource
             'locale' => $this->locale,
             'timezone' => $this->timezone,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
-            'default_branch' => $this->whenLoaded('defaultBranch', fn () => [
-                'uuid' => $this->defaultBranch->uuid,
-                'code' => $this->defaultBranch->code,
-                'name' => $this->defaultBranch->name,
-            ]),
+            'default_branch' => $this->whenLoaded('defaultBranch', function () {
+                /** @var Branch $branch */
+                $branch = $this->defaultBranch;
+
+                return [
+                    'uuid' => $branch->uuid,
+                    'code' => $branch->code,
+                    'name' => $branch->name,
+                    // Acceso directo al atributo: Laravel devuelve la
+                    // relacion cacheada si fue eager-loaded por el caller,
+                    // o lazy-loadea sino. Asi el response del login y el
+                    // de /auth/me son siempre consistentes sin depender de
+                    // que el caller haya llamado $user->load(...).
+                    'default_warehouse_uuid' => $branch->defaultWarehouse?->uuid,
+                ];
+            }),
             'branches' => $this->whenLoaded('branches', fn () => $this->branches->map(fn ($b) => [
                 'uuid' => $b->uuid,
                 'code' => $b->code,

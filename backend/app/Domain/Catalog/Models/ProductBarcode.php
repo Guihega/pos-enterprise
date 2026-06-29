@@ -33,12 +33,19 @@ class ProductBarcode extends Model
     use HasFactory;
 
     public const TYPE_EAN_13 = 'ean-13';
+
     public const TYPE_EAN_8 = 'ean-8';
+
     public const TYPE_UPC_A = 'upc-a';
+
     public const TYPE_UPC_E = 'upc-e';
+
     public const TYPE_CODE_128 = 'code-128';
+
     public const TYPE_CODE_39 = 'code-39';
+
     public const TYPE_QR = 'qr';
+
     public const TYPE_CUSTOM = 'custom';
 
     protected $table = 'product_barcodes';
