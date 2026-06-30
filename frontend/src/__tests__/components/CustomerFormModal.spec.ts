@@ -1,16 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { reactive } from 'vue'
 import type { VueWrapper } from '@vue/test-utils'
 import CustomerFormModal from '@/components/CustomerFormModal.vue'
 import type { Customer } from '@/lib/api/generated'
 
-const store = vi.hoisted(() => {
-  const { reactive } = require('vue')
-  return reactive({
-    saving: false,
-    create: vi.fn(async () => ({ ok: true, customer: { uuid: 'new-1' } })),
-    update: vi.fn(async () => ({ ok: true, customer: { uuid: 'upd-1' } })),
-  })
+const store = reactive({
+  saving: false,
+  create: vi.fn(async () => ({ ok: true, customer: { uuid: 'new-1' } })),
+  update: vi.fn(async () => ({ ok: true, customer: { uuid: 'upd-1' } })),
 })
 
 vi.mock('@/stores/customers', () => ({ useCustomersStore: () => store }))

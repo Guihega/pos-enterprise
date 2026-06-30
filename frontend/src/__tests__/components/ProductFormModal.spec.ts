@@ -1,29 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { reactive, ref as r } from 'vue'
 import type { VueWrapper } from '@vue/test-utils'
 import ProductFormModal from '@/components/ProductFormModal.vue'
 import type { Product } from '@/lib/api/generated'
 
-const store = vi.hoisted(() => {
-  const { reactive } = require('vue')
-  return reactive({
-    saving: false,
-    create: vi.fn(async () => ({ ok: true, product: { uuid: 'new-1' } })),
-    update: vi.fn(async () => ({ ok: true, product: { uuid: 'upd-1' } })),
-  })
+const store = reactive({
+  saving: false,
+  create: vi.fn(async () => ({ ok: true, product: { uuid: 'new-1' } })),
+  update: vi.fn(async () => ({ ok: true, product: { uuid: 'upd-1' } })),
 })
 
-const opts = vi.hoisted(() => {
-  const { ref: r } = require('vue')
-  return {
-    init: vi.fn(async () => {}),
-    units: r([{ uuid: 'u1', name: 'Pieza', code: 'PZA' }]),
-    taxes: r([{ uuid: 't1', name: 'IVA', rate_percent: 16 }]),
-    categories: r([{ uuid: 'c1', name: 'Bebidas' }]),
-    brands: r([{ uuid: 'b1', name: 'Marca' }]),
-    errorMessage: r<string | null>(null),
-  }
-})
+const opts = {
+  init: vi.fn(async () => {}),
+  units: r([{ uuid: 'u1', name: 'Pieza', code: 'PZA' }]),
+  taxes: r([{ uuid: 't1', name: 'IVA', rate_percent: 16 }]),
+  categories: r([{ uuid: 'c1', name: 'Bebidas' }]),
+  brands: r([{ uuid: 'b1', name: 'Marca' }]),
+  errorMessage: r<string | null>(null),
+}
 
 vi.mock('@/stores/products', () => ({ useProductsStore: () => store }))
 vi.mock('@/composables/useCatalogOptions', () => ({ useCatalogOptions: () => opts }))

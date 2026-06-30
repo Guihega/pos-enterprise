@@ -1,23 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import type { VueWrapper } from '@vue/test-utils'
 import KardexModal from '@/components/KardexModal.vue'
 import type { Stock } from '@/lib/api/generated'
 
-const kardex = vi.hoisted(() => {
-  const { ref } = require('vue')
-  return {
-    init: vi.fn(async () => {}),
-    items: ref<unknown[]>([]),
-    loading: ref(false),
-    loadingMore: ref(false),
-    errorMessage: ref<string | null>(null),
-    hasMore: ref(false),
-    total: ref(0),
-    loadMore: vi.fn(async () => {}),
-    retry: vi.fn(async () => {}),
-  }
-})
+const kardex = {
+  init: vi.fn(async () => {}),
+  items: ref<unknown[]>([]),
+  loading: ref(false),
+  loadingMore: ref(false),
+  errorMessage: ref<string | null>(null),
+  hasMore: ref(false),
+  total: ref(0),
+  loadMore: vi.fn(async () => {}),
+  retry: vi.fn(async () => {}),
+}
 
 vi.mock('@/composables/useKardex', () => ({ useKardex: () => kardex }))
 

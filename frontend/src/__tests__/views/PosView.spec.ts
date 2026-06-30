@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { reactive, ref } from 'vue'
 import type { VueWrapper } from '@vue/test-utils'
 import PosView from '@/views/PosView.vue'
 
@@ -9,9 +10,7 @@ import PosView from '@/views/PosView.vue'
  * los hijos, mostrar/ocultar modales y banners segun estado), no la
  * implementacion de los hijos ni de los stores, que se mockean.
  */
-const mocks = vi.hoisted(() => {
-  const { reactive, ref } = require('vue')
-  return {
+const mocks = {
     cart: reactive({
       add: vi.fn(),
       clear: vi.fn(),
@@ -42,8 +41,7 @@ const mocks = vi.hoisted(() => {
       load: vi.fn(async () => {}),
       clear: vi.fn(),
     },
-  }
-})
+}
 
 vi.mock('@/stores/cart', () => ({ useCartStore: () => mocks.cart }))
 vi.mock('@/stores/cashSession', () => ({ useCashSessionStore: () => mocks.cash }))

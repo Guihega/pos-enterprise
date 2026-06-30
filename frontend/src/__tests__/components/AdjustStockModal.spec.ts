@@ -1,15 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { reactive } from 'vue'
 import type { VueWrapper } from '@vue/test-utils'
 import AdjustStockModal from '@/components/AdjustStockModal.vue'
 import type { Stock } from '@/lib/api/generated'
 
-const store = vi.hoisted(() => {
-  const { reactive } = require('vue')
-  return reactive({
-    adjusting: false,
-    adjust: vi.fn(async () => ({ ok: true, movement: { uuid: 'mov-1' } })),
-  })
+const store = reactive({
+  adjusting: false,
+  adjust: vi.fn(async () => ({ ok: true, movement: { uuid: 'mov-1' } })),
 })
 
 vi.mock('@/stores/inventory', () => ({ useInventoryStore: () => store }))
