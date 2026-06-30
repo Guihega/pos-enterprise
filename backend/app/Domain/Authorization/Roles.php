@@ -45,6 +45,7 @@ final class Roles
                 ...self::tenantWideManagement(),
                 ...self::operations(),
                 ...self::reports(),
+                $P::INVENTORY_VIEW_CROSS_BRANCH,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -53,6 +54,7 @@ final class Roles
                 ...self::reports(),
                 $P::USER_VIEW,
                 $P::BRANCH_VIEW,
+                $P::INVENTORY_VIEW_CROSS_BRANCH,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -87,6 +89,7 @@ final class Roles
             self::AUDITOR => [
                 $P::PRODUCT_VIEW,
                 $P::INVENTORY_VIEW,
+                $P::INVENTORY_VIEW_CROSS_BRANCH,
                 $P::TRANSFERS_VIEW,
                 $P::CASH_VIEW,
                 $P::SALE_VIEW,

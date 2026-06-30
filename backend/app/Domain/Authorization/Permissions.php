@@ -31,6 +31,8 @@ final class Permissions
     // Inventario
     public const INVENTORY_VIEW = 'inventory.view';
 
+    public const INVENTORY_VIEW_CROSS_BRANCH = 'inventory.view.cross-branch';
+
     public const INVENTORY_ADJUST = 'inventory.adjust';
 
     public const INVENTORY_TRANSFER = 'inventory.transfer';
@@ -128,6 +130,7 @@ final class Permissions
             self::PRODUCT_VIEW, self::PRODUCT_CREATE, self::PRODUCT_UPDATE, self::PRODUCT_DELETE,
             // Inventario
             self::INVENTORY_VIEW, self::INVENTORY_ADJUST, self::INVENTORY_TRANSFER, self::INVENTORY_COUNT,
+            self::INVENTORY_VIEW_CROSS_BRANCH,
             // Transferencias inter-sucursal
             self::TRANSFERS_VIEW, self::TRANSFERS_CREATE, self::TRANSFERS_SEND,
             self::TRANSFERS_RECEIVE, self::TRANSFERS_CANCEL,
