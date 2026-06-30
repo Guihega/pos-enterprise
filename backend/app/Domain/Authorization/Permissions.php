@@ -37,6 +37,16 @@ final class Permissions
 
     public const INVENTORY_COUNT = 'inventory.count';
 
+    public const TRANSFERS_VIEW = 'transfers.view';
+
+    public const TRANSFERS_CREATE = 'transfers.create';
+
+    public const TRANSFERS_SEND = 'transfers.send';
+
+    public const TRANSFERS_RECEIVE = 'transfers.receive';
+
+    public const TRANSFERS_CANCEL = 'transfers.cancel';
+
     // Caja
     public const CASH_OPEN = 'cash.open';
 
@@ -118,6 +128,9 @@ final class Permissions
             self::PRODUCT_VIEW, self::PRODUCT_CREATE, self::PRODUCT_UPDATE, self::PRODUCT_DELETE,
             // Inventario
             self::INVENTORY_VIEW, self::INVENTORY_ADJUST, self::INVENTORY_TRANSFER, self::INVENTORY_COUNT,
+            // Transferencias inter-sucursal
+            self::TRANSFERS_VIEW, self::TRANSFERS_CREATE, self::TRANSFERS_SEND,
+            self::TRANSFERS_RECEIVE, self::TRANSFERS_CANCEL,
             // Caja
             self::CASH_OPEN, self::CASH_CLOSE, self::CASH_MOVEMENT, self::CASH_VIEW,
             // Ventas
