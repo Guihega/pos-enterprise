@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\Sales\SalesController;
 use App\Http\Controllers\Api\V1\Sync\SyncBatchController;
 use App\Http\Controllers\Api\V1\Sync\SyncChangesController;
 use App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController;
+use App\Http\Controllers\Api\V1\Tenancy\BranchesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -123,6 +124,13 @@ Route::prefix('v1')->group(function (): void {
             Route::get('warehouses', [WarehousesController::class, 'index']);
             Route::get('warehouses/{warehouse:uuid}', [WarehousesController::class, 'show']);
             Route::post('warehouses', [WarehousesController::class, 'store']);
+
+            // ----- Sucursales (multi-sucursal) -----
+            Route::get('branches', [BranchesController::class, 'index']);
+            Route::get('branches/{branch:uuid}', [BranchesController::class, 'show']);
+            Route::post('branches', [BranchesController::class, 'store']);
+            Route::patch('branches/{branch:uuid}', [BranchesController::class, 'update']);
+            Route::post('branches/{branch:uuid}/deactivate', [BranchesController::class, 'deactivate']);
 
             Route::prefix('inventory')->group(function (): void {
                 Route::get('stocks', [InventoryController::class, 'stocks']);
