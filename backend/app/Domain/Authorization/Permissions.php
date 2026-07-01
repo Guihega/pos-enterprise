@@ -87,6 +87,8 @@ final class Permissions
 
     public const REPORT_AUDIT = 'report.audit';
 
+    public const REPORT_CONSOLIDATED = 'report.consolidated';
+
     // Administración (gestión de usuarios, roles, sucursales)
     public const USER_VIEW = 'user.view';
 
@@ -142,6 +144,7 @@ final class Permissions
             self::CUSTOMER_VIEW, self::CUSTOMER_CREATE, self::CUSTOMER_UPDATE, self::CUSTOMER_DELETE,
             // Reportes
             self::REPORT_SALES, self::REPORT_INVENTORY, self::REPORT_FINANCE, self::REPORT_AUDIT,
+            self::REPORT_CONSOLIDATED,
             // Admin
             self::USER_VIEW, self::USER_CREATE, self::USER_UPDATE, self::USER_DELETE, self::USER_ROLE_ASSIGN,
             self::ROLE_VIEW, self::ROLE_CREATE, self::ROLE_UPDATE, self::ROLE_DELETE,

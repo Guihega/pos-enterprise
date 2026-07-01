@@ -195,6 +195,16 @@ Route::prefix('v1')->group(function (): void {
             Route::prefix('reports')->group(function (): void {
                 Route::get('sales-summary', [ReportsController::class, 'salesSummary'])
                     ->name('reports.sales-summary');
+
+                // Reportes consolidados cross-sucursal (doc maestro 46.6).
+                Route::prefix('consolidated')->group(function (): void {
+                    Route::get('sales-daily', [ReportsController::class, 'consolidatedSalesDaily'])
+                        ->name('reports.consolidated.sales-daily');
+                    Route::get('inventory', [ReportsController::class, 'consolidatedInventory'])
+                        ->name('reports.consolidated.inventory');
+                    Route::get('branch-comparison', [ReportsController::class, 'consolidatedBranchComparison'])
+                        ->name('reports.consolidated.branch-comparison');
+                });
             });
         });
     });

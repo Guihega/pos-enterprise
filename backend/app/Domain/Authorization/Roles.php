@@ -46,6 +46,7 @@ final class Roles
                 ...self::operations(),
                 ...self::reports(),
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
+                $P::REPORT_CONSOLIDATED,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -55,6 +56,7 @@ final class Roles
                 $P::USER_VIEW,
                 $P::BRANCH_VIEW,
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
+                $P::REPORT_CONSOLIDATED,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -96,6 +98,7 @@ final class Roles
                 $P::CUSTOMER_VIEW,
                 $P::USER_VIEW, $P::ROLE_VIEW, $P::BRANCH_VIEW,
                 $P::REPORT_SALES, $P::REPORT_INVENTORY, $P::REPORT_FINANCE, $P::REPORT_AUDIT,
+                $P::REPORT_CONSOLIDATED,
                 $P::AUDIT_VIEW,
             ],
         ];
