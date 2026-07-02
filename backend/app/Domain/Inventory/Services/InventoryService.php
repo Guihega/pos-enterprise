@@ -9,6 +9,8 @@ use App\Domain\Inventory\Exceptions\InsufficientStockException;
 use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
+use App\Domain\Notifications\Models\Notification;
+use App\Domain\Notifications\Services\NotificationService;
 use App\Domain\Tenancy\Services\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,10 @@ use Illuminate\Support\Str;
  */
 final class InventoryService
 {
+    public function __construct(
+        private readonly NotificationService $notifications,
+    ) {}
+
     /**
      * Registra una entrada (compra, devolución de cliente, ajuste positivo).
      */
@@ -105,9 +111,12 @@ final class InventoryService
             throw new \InvalidArgumentException('Quantity must be positive for exits');
         }
 
-        return DB::transaction(function () use (
+        $crossedLowStock = false;
+
+        $movement = DB::transaction(function () use (
             $product, $warehouse, $quantity, $type,
-            $reason, $reference, $source, $userId, $transferId
+            $reason, $reference, $source, $userId, $transferId,
+            &$crossedLowStock
         ) {
             $stock = $this->lockOrCreateStock($product, $warehouse);
 
@@ -125,6 +134,15 @@ final class InventoryService
             $stock->last_movement_at = now();
             $stock->save();
 
+            // RN-058 / RN-190: una salida que deja el stock <= min genera alerta
+            // de reabastecimiento a ALMACEN/GERENTE de la sucursal. Se excluye
+            // TYPE_TRANSFER_OUT porque el envio a transito no es reabastecimiento
+            // (el inventario global no baja, solo cambia de sucursal); el maestro
+            // trata transfer_out como categoria propia. El disparo se captura aqui
+            // (stock ya descontado) y se despacha tras el commit.
+            $crossedLowStock = $type !== InventoryMovement::TYPE_TRANSFER_OUT
+                && $stock->isLowStock();
+
             return $this->writeMovement(
                 product: $product,
                 warehouse: $warehouse,
@@ -141,6 +159,12 @@ final class InventoryService
                 transferId: $transferId,
             );
         });
+
+        if ($crossedLowStock) {
+            $this->notifyLowStock($product, $warehouse, (float) $movement->quantity_after);
+        }
+
+        return $movement;
     }
 
     /**
@@ -275,5 +299,36 @@ final class InventoryService
             'user_id' => $userId,
             'movement_at' => now(),
         ]);
+    }
+
+    /**
+     * RN-190: notifica stock bajo a usuarios ALMACEN/GERENTE asignados a la
+     * sucursal del almacen. Efecto secundario fuera de la transaccion de
+     * inventario: si la notificacion fallara no debe revertir el movimiento.
+     */
+    private function notifyLowStock(Product $product, Warehouse $warehouse, float $onHand): void
+    {
+        $branch = $warehouse->branch;
+
+        if ($branch === null) {
+            return;
+        }
+
+        $recipients = $this->notifications->warehouseAndManagerUsersForBranch($branch);
+
+        foreach ($recipients as $recipient) {
+            $this->notifications->notify(
+                recipient: $recipient,
+                type: 'stock.low',
+                data: [
+                    'product_id' => $product->id,
+                    'product_uuid' => $product->uuid,
+                    'warehouse_id' => $warehouse->id,
+                    'branch_id' => $branch->id,
+                    'quantity_on_hand' => $onHand,
+                ],
+                severity: Notification::SEVERITY_WARNING,
+            );
+        }
     }
 }

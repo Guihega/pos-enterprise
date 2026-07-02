@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\Catalog\UnitsController;
 use App\Http\Controllers\Api\V1\Customer\CustomersController;
 use App\Http\Controllers\Api\V1\Inventory\InventoryController;
 use App\Http\Controllers\Api\V1\Inventory\TransferController;
+use App\Http\Controllers\Api\V1\Notifications\NotificationController;
 use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
 use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
@@ -147,6 +148,11 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('{transfer:uuid}/send', [TransferController::class, 'send']);
                 Route::post('{transfer:uuid}/receive', [TransferController::class, 'receive']);
                 Route::post('{transfer:uuid}/cancel', [TransferController::class, 'cancel']);
+            });
+
+            Route::prefix('notifications')->group(function (): void {
+                Route::get('/', [NotificationController::class, 'index']);
+                Route::post('{notification:uuid}/read', [NotificationController::class, 'read']);
             });
 
             // ----- Caja -----
