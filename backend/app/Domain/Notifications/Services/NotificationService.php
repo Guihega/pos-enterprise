@@ -60,17 +60,41 @@ final class NotificationService
     }
 
     /**
-     * Destinatarios de RN-190: usuarios con rol ALMACEN o GERENTE asignados
-     * a la sucursal del stock (via user_branches). Stock es por sucursal, por
-     * eso se filtra por la sucursal concreta.
+     * Usuarios con alguno de los roles dados, ASIGNADOS a una sucursal
+     * (via user_branches). Base de las reglas de notificacion por sucursal
+     * (RN-190 almacen/gerente, RN-191 gerente, RN-195 almacen).
+     *
+     * @param  list<string>  $roles
+     * @return Collection<int, User>
+     */
+    public function usersWithRolesForBranch(array $roles, Branch $branch): Collection
+    {
+        return User::query()
+            ->role($roles)
+            ->whereHas('branches', fn (BuilderContract $q) => $q->where('branches.id', $branch->id))
+            ->get();
+    }
+
+    /**
+     * Usuarios con alguno de los roles dados en todo el tenant (sin filtro de
+     * sucursal). Base de las reglas globales (RN-193/194/196 admin, RN-197
+     * auditor, RN-198 cobranza).
+     *
+     * @param  list<string>  $roles
+     * @return Collection<int, User>
+     */
+    public function usersWithRoles(array $roles): Collection
+    {
+        return User::query()->role($roles)->get();
+    }
+
+    /**
+     * Destinatarios de RN-190: ALMACEN y GERENTE de la sucursal del stock.
      *
      * @return Collection<int, User>
      */
     public function warehouseAndManagerUsersForBranch(Branch $branch): Collection
     {
-        return User::query()
-            ->role([Roles::ALMACEN, Roles::GERENTE])
-            ->whereHas('branches', fn (BuilderContract $q) => $q->where('branches.id', $branch->id))
-            ->get();
+        return $this->usersWithRolesForBranch([Roles::ALMACEN, Roles::GERENTE], $branch);
     }
 }
