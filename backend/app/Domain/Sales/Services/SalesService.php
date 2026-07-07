@@ -56,6 +56,14 @@ final class SalesService
      */
     public const MASS_CANCELLATION_THRESHOLD = 10;
 
+    /**
+     * RN-196: una venta cuyo total supera este monto genera alerta de fraude
+     * al admin. El maestro lo enuncia como "venta >X" configurable; se toma
+     * como umbral configurable (punto de configuracion unico hasta que exista
+     * settings de tenant).
+     */
+    public const LARGE_SALE_THRESHOLD = 50000.0;
+
     public function __construct(
         private readonly SaleNumberGenerator $numberGenerator,
         private readonly SaleTotalsCalculator $calculator,
@@ -69,7 +77,7 @@ final class SalesService
      */
     public function checkout(CheckoutRequest $request, User $user): Sale
     {
-        return DB::transaction(function () use ($request, $user) {
+        $sale = DB::transaction(function () use ($request, $user) {
             // 1. Resolver la sesión de caja, validar que esté abierta
             /** @var CashSession $session */
             $session = CashSession::query()
@@ -298,6 +306,43 @@ final class SalesService
 
             return $sale->fresh(['items', 'payments', 'taxes', 'customer']);
         });
+
+        // RN-196: si el total de la venta supera el umbral, alertar al admin
+        // (fraude). Efecto secundario fuera de la transaccion: no debe revertir
+        // la venta ya registrada.
+        $this->maybeNotifyLargeSale($sale);
+
+        return $sale;
+    }
+
+    /**
+     * RN-196: notifica al admin cuando una venta supera el umbral de monto.
+     * Cada venta grande es un evento independiente (sin guard de repeticion).
+     */
+    private function maybeNotifyLargeSale(Sale $sale): void
+    {
+        if ((float) $sale->total_amount <= self::LARGE_SALE_THRESHOLD) {
+            return;
+        }
+
+        $admins = $this->notifications->usersWithRoles([Roles::ADMIN]);
+
+        foreach ($admins as $admin) {
+            $this->notifications->notify(
+                recipient: $admin,
+                type: 'sales.large_sale',
+                data: [
+                    'sale_id' => $sale->id,
+                    'sale_uuid' => $sale->uuid,
+                    'sale_number' => $sale->number,
+                    'branch_id' => $sale->branch_id,
+                    'total_amount' => (float) $sale->total_amount,
+                    'threshold' => self::LARGE_SALE_THRESHOLD,
+                    'cashier_id' => $sale->user_id,
+                ],
+                severity: Notification::SEVERITY_CRITICAL,
+            );
+        }
     }
 
     /**
