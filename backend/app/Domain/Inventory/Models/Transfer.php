@@ -51,9 +51,13 @@ class Transfer extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_SENT = 'sent';
+
     public const STATUS_RECEIVED = 'received';
+
     public const STATUS_RETURNED_TO_ORIGIN = 'returned_to_origin';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     /**
@@ -80,6 +84,7 @@ class Transfer extends Model
         'sent_by_user_id', 'received_by_user_id',
         'sent_at', 'received_at',
         'cancelled_at', 'cancelled_by', 'cancellation_reason',
+        'lost_alerted_at',
         'transport_method', 'transport_reference',
         'notes', 'total_cost',
     ];
@@ -88,6 +93,7 @@ class Transfer extends Model
         'sent_at' => 'datetime',
         'received_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'lost_alerted_at' => 'datetime',
         'total_cost' => 'decimal:2',
     ];
 
