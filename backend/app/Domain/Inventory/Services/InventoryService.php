@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Inventory\Services;
 
 use App\Domain\Catalog\Models\Product;
+use App\Domain\Inventory\Exceptions\ExpiredBatchException;
 use App\Domain\Inventory\Exceptions\InsufficientStockException;
 use App\Domain\Inventory\Models\Batch;
 use App\Domain\Inventory\Models\InventoryMovement;
@@ -119,6 +120,7 @@ final class InventoryService
         ?Model $source = null,
         ?int $userId = null,
         ?string $transferId = null,
+        ?array &$batchConsumption = null,
     ): InventoryMovement {
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Quantity must be positive for exits');
@@ -129,7 +131,7 @@ final class InventoryService
         $movement = DB::transaction(function () use (
             $product, $warehouse, $quantity, $type,
             $reason, $reference, $source, $userId, $transferId,
-            &$crossedLowStock
+            &$crossedLowStock, &$batchConsumption
         ) {
             $stock = $this->lockOrCreateStock($product, $warehouse);
 
@@ -146,6 +148,17 @@ final class InventoryService
             $stock->quantity_on_hand = $currentQty - $quantity;
             $stock->last_movement_at = now();
             $stock->save();
+
+            if ($product->tracks_lots) {
+                // EX-041: solo la VENTA bloquea lote vencido; merma/ajuste
+                // (TYPE_ADJUSTMENT) puede sacar producto caducado (EX-049).
+                $batchConsumption = $this->consumeBatchesFefo(
+                    $product,
+                    $warehouse,
+                    $quantity,
+                    blockExpired: $type === InventoryMovement::TYPE_EXIT,
+                );
+            }
 
             // RN-058 / RN-190: una salida que deja el stock <= min genera alerta
             // de reabastecimiento a ALMACEN/GERENTE de la sucursal. Se excluye
@@ -251,6 +264,66 @@ final class InventoryService
 
             return ['out' => $out, 'in' => $in, 'transfer_id' => $transferId];
         });
+    }
+
+    /**
+     * Consume lotes FEFO (RN-045): caducidad mas proxima primero, sin
+     * caducidad al final. Con blockExpired (venta) el primer lote vencido
+     * en la cola detiene la operacion (EX-041); sin el (merma/ajuste) los
+     * vencidos se consumen igual (EX-049).
+     *
+     * Lock pesimista por lote: el orden FEFO es determinista, lo que evita
+     * interbloqueos entre salidas concurrentes del mismo producto.
+     *
+     * @return list<array{batch_id: int, quantity: float, unit_cost: float}>
+     */
+    private function consumeBatchesFefo(
+        Product $product,
+        Warehouse $warehouse,
+        float $quantity,
+        bool $blockExpired,
+    ): array {
+        $remaining = $quantity;
+        $consumed = [];
+
+        $batches = Batch::query()
+            ->where('product_id', $product->id)
+            ->where('branch_id', $warehouse->branch_id)
+            ->available()
+            ->fefo()
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            if ($blockExpired && $batch->isExpired()) {
+                throw ExpiredBatchException::forProduct(
+                    $product->id,
+                    $batch->expiration_date->toDateString(),
+                );
+            }
+
+            $take = min($remaining, (float) $batch->quantity);
+            $batch->quantity = (float) $batch->quantity - $take;
+            $batch->save();
+
+            $consumed[] = [
+                'batch_id' => $batch->id,
+                'quantity' => $take,
+                'unit_cost' => (float) $batch->cost,
+            ];
+
+            $remaining = round($remaining - $take, 3);
+        }
+
+        // Si los lotes no cubren la salida (stock previo a lotes, o
+        // desalineacion), el excedente sale sin lote: el stock global ya
+        // valido la existencia y es la fuente de verdad (EX-042 vigila
+        // desalineaciones del otro sentido).
+        return $consumed;
     }
 
     /**
