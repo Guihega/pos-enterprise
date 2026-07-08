@@ -45,6 +45,8 @@ final class Roles
                 ...self::tenantWideManagement(),
                 ...self::operations(),
                 ...self::reports(),
+                $P::INVENTORY_VIEW_CROSS_BRANCH,
+                $P::REPORT_CONSOLIDATED,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -53,6 +55,8 @@ final class Roles
                 ...self::reports(),
                 $P::USER_VIEW,
                 $P::BRANCH_VIEW,
+                $P::INVENTORY_VIEW_CROSS_BRANCH,
+                $P::REPORT_CONSOLIDATED,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -63,6 +67,7 @@ final class Roles
                 $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE,
                 $P::PRODUCT_VIEW,
                 $P::INVENTORY_VIEW,
+                $P::TRANSFERS_VIEW,
                 $P::REPORT_SALES,
             ],
 
@@ -78,6 +83,7 @@ final class Roles
             self::ALMACEN => [
                 $P::PRODUCT_VIEW,
                 $P::INVENTORY_VIEW, $P::INVENTORY_ADJUST, $P::INVENTORY_TRANSFER, $P::INVENTORY_COUNT,
+                ...self::transfers(),
                 $P::REPORT_INVENTORY,
             ],
 
@@ -85,11 +91,15 @@ final class Roles
             self::AUDITOR => [
                 $P::PRODUCT_VIEW,
                 $P::INVENTORY_VIEW,
+                $P::INVENTORY_VIEW_CROSS_BRANCH,
+                $P::TRANSFERS_VIEW,
+                $P::TRANSFER_REQUESTS_VIEW,
                 $P::CASH_VIEW,
                 $P::SALE_VIEW,
                 $P::CUSTOMER_VIEW,
                 $P::USER_VIEW, $P::ROLE_VIEW, $P::BRANCH_VIEW,
                 $P::REPORT_SALES, $P::REPORT_INVENTORY, $P::REPORT_FINANCE, $P::REPORT_AUDIT,
+                $P::REPORT_CONSOLIDATED,
                 $P::AUDIT_VIEW,
             ],
         ];
@@ -120,6 +130,29 @@ final class Roles
             $P::CASH_OPEN, $P::CASH_CLOSE, $P::CASH_MOVEMENT, $P::CASH_VIEW,
             $P::SALE_CREATE, $P::SALE_VIEW, $P::SALE_VOID, $P::SALE_REFUND, $P::SALE_DISCOUNT_AUTHORIZE,
             $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE, $P::CUSTOMER_DELETE,
+            ...self::transfers(),
+            ...self::transferRequests(),
+        ];
+    }
+
+    /** @return list<string> */
+    private static function transfers(): array
+    {
+        $P = Permissions::class;
+
+        return [
+            $P::TRANSFERS_VIEW, $P::TRANSFERS_CREATE, $P::TRANSFERS_SEND,
+            $P::TRANSFERS_RECEIVE, $P::TRANSFERS_CANCEL,
+        ];
+    }
+
+    /** @return list<string> */
+    private static function transferRequests(): array
+    {
+        $P = Permissions::class;
+
+        return [
+            $P::TRANSFER_REQUESTS_VIEW, $P::TRANSFER_REQUESTS_CREATE, $P::TRANSFER_REQUESTS_APPROVE,
         ];
     }
 

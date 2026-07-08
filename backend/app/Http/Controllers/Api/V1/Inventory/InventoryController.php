@@ -40,6 +40,17 @@ class InventoryController extends Controller
 
         $query = Stock::query()->with(['product', 'warehouse']);
 
+        // RN-233 / doc maestro 46.4: por defecto la terminal solo ve el stock
+        // de su(s) sucursal(es). Solo con inventory.view.cross-branch puede ver
+        // el de otras (caso gerente: sugerencias de transferencia).
+        $user = $request->user();
+        if (! $user->can(Permissions::INVENTORY_VIEW_CROSS_BRANCH)) {
+            $branchIds = $user->branches()->pluck('branches.id')->all();
+            $query->whereHas('warehouse', function ($q) use ($branchIds): void {
+                $q->whereIn('branch_id', $branchIds);
+            });
+        }
+
         if ($warehouseUuid = $request->query('warehouse')) {
             $whId = Warehouse::query()->where('uuid', $warehouseUuid)->value('id');
             $query->where('warehouse_id', $whId);

@@ -31,11 +31,29 @@ final class Permissions
     // Inventario
     public const INVENTORY_VIEW = 'inventory.view';
 
+    public const INVENTORY_VIEW_CROSS_BRANCH = 'inventory.view.cross-branch';
+
     public const INVENTORY_ADJUST = 'inventory.adjust';
 
     public const INVENTORY_TRANSFER = 'inventory.transfer';
 
     public const INVENTORY_COUNT = 'inventory.count';
+
+    public const TRANSFERS_VIEW = 'transfers.view';
+
+    public const TRANSFERS_CREATE = 'transfers.create';
+
+    public const TRANSFERS_SEND = 'transfers.send';
+
+    public const TRANSFERS_RECEIVE = 'transfers.receive';
+
+    public const TRANSFERS_CANCEL = 'transfers.cancel';
+
+    public const TRANSFER_REQUESTS_VIEW = 'transfer-requests.view';
+
+    public const TRANSFER_REQUESTS_CREATE = 'transfer-requests.create';
+
+    public const TRANSFER_REQUESTS_APPROVE = 'transfer-requests.approve';
 
     // Caja
     public const CASH_OPEN = 'cash.open';
@@ -74,6 +92,8 @@ final class Permissions
     public const REPORT_FINANCE = 'report.finance';
 
     public const REPORT_AUDIT = 'report.audit';
+
+    public const REPORT_CONSOLIDATED = 'report.consolidated';
 
     // Administración (gestión de usuarios, roles, sucursales)
     public const USER_VIEW = 'user.view';
@@ -118,6 +138,12 @@ final class Permissions
             self::PRODUCT_VIEW, self::PRODUCT_CREATE, self::PRODUCT_UPDATE, self::PRODUCT_DELETE,
             // Inventario
             self::INVENTORY_VIEW, self::INVENTORY_ADJUST, self::INVENTORY_TRANSFER, self::INVENTORY_COUNT,
+            self::INVENTORY_VIEW_CROSS_BRANCH,
+            // Transferencias inter-sucursal
+            self::TRANSFERS_VIEW, self::TRANSFERS_CREATE, self::TRANSFERS_SEND,
+            self::TRANSFERS_RECEIVE, self::TRANSFERS_CANCEL,
+            // Solicitudes de transferencia (CU-GER-003)
+            self::TRANSFER_REQUESTS_VIEW, self::TRANSFER_REQUESTS_CREATE, self::TRANSFER_REQUESTS_APPROVE,
             // Caja
             self::CASH_OPEN, self::CASH_CLOSE, self::CASH_MOVEMENT, self::CASH_VIEW,
             // Ventas
@@ -126,6 +152,7 @@ final class Permissions
             self::CUSTOMER_VIEW, self::CUSTOMER_CREATE, self::CUSTOMER_UPDATE, self::CUSTOMER_DELETE,
             // Reportes
             self::REPORT_SALES, self::REPORT_INVENTORY, self::REPORT_FINANCE, self::REPORT_AUDIT,
+            self::REPORT_CONSOLIDATED,
             // Admin
             self::USER_VIEW, self::USER_CREATE, self::USER_UPDATE, self::USER_DELETE, self::USER_ROLE_ASSIGN,
             self::ROLE_VIEW, self::ROLE_CREATE, self::ROLE_UPDATE, self::ROLE_DELETE,

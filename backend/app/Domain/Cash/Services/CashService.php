@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Cash\Services;
 
+use App\Domain\Authorization\Roles;
 use App\Domain\Cash\Exceptions\CashSessionAlreadyOpenException;
 use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashMovement;
 use App\Domain\Cash\Models\CashRegister;
 use App\Domain\Cash\Models\CashSession;
 use App\Domain\Identity\Models\User;
+use App\Domain\Notifications\Models\Notification;
+use App\Domain\Notifications\Services\NotificationService;
 use App\Domain\Tenancy\Services\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +32,18 @@ use Illuminate\Support\Str;
  */
 final class CashService
 {
+    /**
+     * RN-115 / RN-191: una diferencia de caja se considera significativa
+     * cuando |difference| supera este porcentaje del monto esperado. El
+     * maestro lo define configurable por tenant; hasta que exista settings
+     * de tenant se usa este default (punto de configuracion unico).
+     */
+    public const SIGNIFICANT_DIFFERENCE_PCT = 2.0;
+
+    public function __construct(
+        private readonly NotificationService $notifications,
+    ) {}
+
     /**
      * Abre una sesión nueva.
      */
@@ -67,7 +82,7 @@ final class CashService
         float $countedAmount,
         ?string $notes = null,
     ): CashSession {
-        return DB::transaction(function () use ($session, $user, $countedAmount, $notes) {
+        $closed = DB::transaction(function () use ($session, $user, $countedAmount, $notes) {
             // Lock pesimista para evitar doble cierre
             /** @var CashSession $locked */
             $locked = CashSession::query()
@@ -95,6 +110,68 @@ final class CashService
 
             return $locked;
         });
+
+        // RN-115 / RN-191: si la diferencia es significativa, notificar al
+        // GERENTE de la sucursal. Efecto secundario fuera de la transaccion:
+        // si la notificacion fallara no debe revertir el cierre.
+        if ($this->isDifferenceSignificant($closed)) {
+            $this->notifyCashDifference($closed);
+        }
+
+        return $closed;
+    }
+
+    /**
+     * RN-115: |difference| > X% del esperado. Si el esperado es 0 (fondo 0,
+     * permitido por RN-112), cualquier diferencia distinta de cero es
+     * significativa.
+     */
+    private function isDifferenceSignificant(CashSession $session): bool
+    {
+        $difference = abs((float) $session->difference);
+
+        if ($difference === 0.0) {
+            return false;
+        }
+
+        $expected = abs((float) $session->expected_amount);
+
+        if ($expected === 0.0) {
+            return true;
+        }
+
+        return ($difference / $expected) * 100 > self::SIGNIFICANT_DIFFERENCE_PCT;
+    }
+
+    /**
+     * RN-191: notifica la diferencia de caja al GERENTE de la sucursal de la
+     * sesion. Reutiliza el resolver por sucursal del NotificationService.
+     */
+    private function notifyCashDifference(CashSession $session): void
+    {
+        $branch = $session->branch;
+
+        if ($branch === null) {
+            return;
+        }
+
+        $recipients = $this->notifications->usersWithRolesForBranch([Roles::GERENTE], $branch);
+
+        foreach ($recipients as $recipient) {
+            $this->notifications->notify(
+                recipient: $recipient,
+                type: 'cash.difference',
+                data: [
+                    'cash_session_id' => $session->id,
+                    'cash_session_uuid' => $session->uuid,
+                    'branch_id' => $branch->id,
+                    'expected_amount' => (float) $session->expected_amount,
+                    'counted_amount' => (float) $session->counted_amount,
+                    'difference' => (float) $session->difference,
+                ],
+                severity: Notification::SEVERITY_WARNING,
+            );
+        }
     }
 
     /**

@@ -14,13 +14,17 @@ use App\Http\Controllers\Api\V1\Catalog\TaxesController;
 use App\Http\Controllers\Api\V1\Catalog\UnitsController;
 use App\Http\Controllers\Api\V1\Customer\CustomersController;
 use App\Http\Controllers\Api\V1\Inventory\InventoryController;
+use App\Http\Controllers\Api\V1\Inventory\TransferController;
+use App\Http\Controllers\Api\V1\Inventory\TransferRequestController;
 use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
+use App\Http\Controllers\Api\V1\Notifications\NotificationController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
 use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
 use App\Http\Controllers\Api\V1\Sales\SalesController;
 use App\Http\Controllers\Api\V1\Sync\SyncBatchController;
 use App\Http\Controllers\Api\V1\Sync\SyncChangesController;
 use App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController;
+use App\Http\Controllers\Api\V1\Tenancy\BranchesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -123,11 +127,43 @@ Route::prefix('v1')->group(function (): void {
             Route::get('warehouses/{warehouse:uuid}', [WarehousesController::class, 'show']);
             Route::post('warehouses', [WarehousesController::class, 'store']);
 
+            // ----- Sucursales (multi-sucursal) -----
+            Route::get('branches', [BranchesController::class, 'index']);
+            Route::get('branches/{branch:uuid}', [BranchesController::class, 'show']);
+            Route::post('branches', [BranchesController::class, 'store']);
+            Route::patch('branches/{branch:uuid}', [BranchesController::class, 'update']);
+            Route::post('branches/{branch:uuid}/deactivate', [BranchesController::class, 'deactivate']);
+
             Route::prefix('inventory')->group(function (): void {
                 Route::get('stocks', [InventoryController::class, 'stocks']);
                 Route::get('movements', [InventoryController::class, 'movements']);
                 Route::post('adjust', [InventoryController::class, 'adjust']);
                 Route::post('transfer', [InventoryController::class, 'transfer']);
+            });
+
+            // ----- Transferencias inter-sucursal -----
+            Route::prefix('transfers')->group(function (): void {
+                Route::get('/', [TransferController::class, 'index']);
+                Route::get('{transfer:uuid}', [TransferController::class, 'show']);
+                Route::post('/', [TransferController::class, 'store']);
+                Route::post('{transfer:uuid}/send', [TransferController::class, 'send']);
+                Route::post('{transfer:uuid}/receive', [TransferController::class, 'receive']);
+                Route::post('{transfer:uuid}/cancel', [TransferController::class, 'cancel']);
+            });
+
+            // ----- Solicitudes de transferencia (CU-GER-003) -----
+            Route::prefix('transfer-requests')->group(function (): void {
+                Route::get('/', [TransferRequestController::class, 'index']);
+                Route::get('{transferRequest:uuid}', [TransferRequestController::class, 'show']);
+                Route::post('/', [TransferRequestController::class, 'store']);
+                Route::post('{transferRequest:uuid}/approve', [TransferRequestController::class, 'approve']);
+                Route::post('{transferRequest:uuid}/reject', [TransferRequestController::class, 'reject']);
+                Route::post('{transferRequest:uuid}/cancel', [TransferRequestController::class, 'cancel']);
+            });
+
+            Route::prefix('notifications')->group(function (): void {
+                Route::get('/', [NotificationController::class, 'index']);
+                Route::post('{notification:uuid}/read', [NotificationController::class, 'read']);
             });
 
             // ----- Caja -----
@@ -184,6 +220,16 @@ Route::prefix('v1')->group(function (): void {
             Route::prefix('reports')->group(function (): void {
                 Route::get('sales-summary', [ReportsController::class, 'salesSummary'])
                     ->name('reports.sales-summary');
+
+                // Reportes consolidados cross-sucursal (doc maestro 46.6).
+                Route::prefix('consolidated')->group(function (): void {
+                    Route::get('sales-daily', [ReportsController::class, 'consolidatedSalesDaily'])
+                        ->name('reports.consolidated.sales-daily');
+                    Route::get('inventory', [ReportsController::class, 'consolidatedInventory'])
+                        ->name('reports.consolidated.inventory');
+                    Route::get('branch-comparison', [ReportsController::class, 'consolidatedBranchComparison'])
+                        ->name('reports.consolidated.branch-comparison');
+                });
             });
         });
     });

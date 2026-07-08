@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Services;
 
+use App\Domain\Authorization\Roles;
 use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashMovement;
 use App\Domain\Cash\Models\CashSession;
@@ -14,6 +15,8 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
+use App\Domain\Notifications\Models\Notification;
+use App\Domain\Notifications\Services\NotificationService;
 use App\Domain\Sales\Dto\CheckoutPayment;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
@@ -45,11 +48,28 @@ use Illuminate\Support\Str;
  */
 final class SalesService
 {
+    /**
+     * EX-079 / RN-197: numero de cancelaciones (voided) del mismo cajero en el
+     * dia que dispara la alerta de fraude al auditor. El maestro lo enuncia
+     * como "10 ventas seguidas"; se toma como umbral configurable (punto de
+     * configuracion unico hasta que exista settings de tenant).
+     */
+    public const MASS_CANCELLATION_THRESHOLD = 10;
+
+    /**
+     * RN-196: una venta cuyo total supera este monto genera alerta de fraude
+     * al admin. El maestro lo enuncia como "venta >X" configurable; se toma
+     * como umbral configurable (punto de configuracion unico hasta que exista
+     * settings de tenant).
+     */
+    public const LARGE_SALE_THRESHOLD = 50000.0;
+
     public function __construct(
         private readonly SaleNumberGenerator $numberGenerator,
         private readonly SaleTotalsCalculator $calculator,
         private readonly InventoryService $inventory,
         private readonly CashService $cash,
+        private readonly NotificationService $notifications,
     ) {}
 
     /**
@@ -57,7 +77,7 @@ final class SalesService
      */
     public function checkout(CheckoutRequest $request, User $user): Sale
     {
-        return DB::transaction(function () use ($request, $user) {
+        $sale = DB::transaction(function () use ($request, $user) {
             // 1. Resolver la sesión de caja, validar que esté abierta
             /** @var CashSession $session */
             $session = CashSession::query()
@@ -286,6 +306,43 @@ final class SalesService
 
             return $sale->fresh(['items', 'payments', 'taxes', 'customer']);
         });
+
+        // RN-196: si el total de la venta supera el umbral, alertar al admin
+        // (fraude). Efecto secundario fuera de la transaccion: no debe revertir
+        // la venta ya registrada.
+        $this->maybeNotifyLargeSale($sale);
+
+        return $sale;
+    }
+
+    /**
+     * RN-196: notifica al admin cuando una venta supera el umbral de monto.
+     * Cada venta grande es un evento independiente (sin guard de repeticion).
+     */
+    private function maybeNotifyLargeSale(Sale $sale): void
+    {
+        if ((float) $sale->total_amount <= self::LARGE_SALE_THRESHOLD) {
+            return;
+        }
+
+        $admins = $this->notifications->usersWithRoles([Roles::ADMIN]);
+
+        foreach ($admins as $admin) {
+            $this->notifications->notify(
+                recipient: $admin,
+                type: 'sales.large_sale',
+                data: [
+                    'sale_id' => $sale->id,
+                    'sale_uuid' => $sale->uuid,
+                    'sale_number' => $sale->number,
+                    'branch_id' => $sale->branch_id,
+                    'total_amount' => (float) $sale->total_amount,
+                    'threshold' => self::LARGE_SALE_THRESHOLD,
+                    'cashier_id' => $sale->user_id,
+                ],
+                severity: Notification::SEVERITY_CRITICAL,
+            );
+        }
     }
 
     /**
@@ -294,7 +351,7 @@ final class SalesService
      */
     public function cancel(Sale $sale, User $user, string $reason): Sale
     {
-        return DB::transaction(function () use ($sale, $user, $reason) {
+        $cancelled = DB::transaction(function () use ($sale, $user, $reason) {
             // Reload con lock
             /** @var Sale $locked */
             $locked = Sale::query()->where('id', $sale->id)->lockForUpdate()->firstOrFail();
@@ -371,6 +428,47 @@ final class SalesService
 
             return $locked->fresh(['items', 'payments', 'taxes']);
         });
+
+        // EX-079 / RN-197: si el cajero acumula el umbral de cancelaciones en
+        // el dia, alertar al auditor (fraude). Efecto secundario fuera de la
+        // transaccion: no debe revertir la cancelacion ya realizada.
+        $this->maybeNotifyMassCancellation($user);
+
+        return $cancelled;
+    }
+
+    /**
+     * Cuenta las cancelaciones del cajero en el dia y, si al cruzar el umbral
+     * exacto, notifica al auditor. Se dispara solo en el cruce (=== umbral)
+     * para no repetir la alerta en cada cancelacion posterior.
+     */
+    private function maybeNotifyMassCancellation(User $user): void
+    {
+        $todayVoided = Sale::query()
+            ->where('voided_by', $user->id)
+            ->where('status', Sale::STATUS_VOIDED)
+            ->whereBetween('voided_at', [now()->startOfDay(), now()->endOfDay()])
+            ->count();
+
+        if ($todayVoided !== self::MASS_CANCELLATION_THRESHOLD) {
+            return;
+        }
+
+        $auditors = $this->notifications->usersWithRoles([Roles::AUDITOR]);
+
+        foreach ($auditors as $auditor) {
+            $this->notifications->notify(
+                recipient: $auditor,
+                type: 'sales.mass_cancellation',
+                data: [
+                    'cashier_id' => $user->id,
+                    'cashier_uuid' => $user->uuid,
+                    'voided_count' => $todayVoided,
+                    'threshold' => self::MASS_CANCELLATION_THRESHOLD,
+                ],
+                severity: Notification::SEVERITY_CRITICAL,
+            );
+        }
     }
 
     // -------------------- Helpers privados --------------------

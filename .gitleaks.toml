@@ -37,6 +37,7 @@ paths = [
     '''.env.example''',
     '''docs/POS_MAESTRO_v3\.md''',  # contiene ejemplos de keys
     '''CHANGELOG\.md''',
+    '''backend/phpunit\.xml''',  # APP_KEY fija de testing, no secreto de produccion
 ]
 
 regexes = [
