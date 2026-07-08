@@ -15,8 +15,9 @@ use App\Http\Controllers\Api\V1\Catalog\UnitsController;
 use App\Http\Controllers\Api\V1\Customer\CustomersController;
 use App\Http\Controllers\Api\V1\Inventory\InventoryController;
 use App\Http\Controllers\Api\V1\Inventory\TransferController;
-use App\Http\Controllers\Api\V1\Notifications\NotificationController;
+use App\Http\Controllers\Api\V1\Inventory\TransferRequestController;
 use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
+use App\Http\Controllers\Api\V1\Notifications\NotificationController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
 use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
 use App\Http\Controllers\Api\V1\Sales\SalesController;
@@ -148,6 +149,16 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('{transfer:uuid}/send', [TransferController::class, 'send']);
                 Route::post('{transfer:uuid}/receive', [TransferController::class, 'receive']);
                 Route::post('{transfer:uuid}/cancel', [TransferController::class, 'cancel']);
+            });
+
+            // ----- Solicitudes de transferencia (CU-GER-003) -----
+            Route::prefix('transfer-requests')->group(function (): void {
+                Route::get('/', [TransferRequestController::class, 'index']);
+                Route::get('{transferRequest:uuid}', [TransferRequestController::class, 'show']);
+                Route::post('/', [TransferRequestController::class, 'store']);
+                Route::post('{transferRequest:uuid}/approve', [TransferRequestController::class, 'approve']);
+                Route::post('{transferRequest:uuid}/reject', [TransferRequestController::class, 'reject']);
+                Route::post('{transferRequest:uuid}/cancel', [TransferRequestController::class, 'cancel']);
             });
 
             Route::prefix('notifications')->group(function (): void {

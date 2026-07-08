@@ -93,6 +93,7 @@ final class Roles
                 $P::INVENTORY_VIEW,
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
                 $P::TRANSFERS_VIEW,
+                $P::TRANSFER_REQUESTS_VIEW,
                 $P::CASH_VIEW,
                 $P::SALE_VIEW,
                 $P::CUSTOMER_VIEW,
@@ -130,6 +131,7 @@ final class Roles
             $P::SALE_CREATE, $P::SALE_VIEW, $P::SALE_VOID, $P::SALE_REFUND, $P::SALE_DISCOUNT_AUTHORIZE,
             $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE, $P::CUSTOMER_DELETE,
             ...self::transfers(),
+            ...self::transferRequests(),
         ];
     }
 
@@ -141,6 +143,16 @@ final class Roles
         return [
             $P::TRANSFERS_VIEW, $P::TRANSFERS_CREATE, $P::TRANSFERS_SEND,
             $P::TRANSFERS_RECEIVE, $P::TRANSFERS_CANCEL,
+        ];
+    }
+
+    /** @return list<string> */
+    private static function transferRequests(): array
+    {
+        $P = Permissions::class;
+
+        return [
+            $P::TRANSFER_REQUESTS_VIEW, $P::TRANSFER_REQUESTS_CREATE, $P::TRANSFER_REQUESTS_APPROVE,
         ];
     }
 

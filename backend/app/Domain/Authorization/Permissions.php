@@ -49,6 +49,12 @@ final class Permissions
 
     public const TRANSFERS_CANCEL = 'transfers.cancel';
 
+    public const TRANSFER_REQUESTS_VIEW = 'transfer-requests.view';
+
+    public const TRANSFER_REQUESTS_CREATE = 'transfer-requests.create';
+
+    public const TRANSFER_REQUESTS_APPROVE = 'transfer-requests.approve';
+
     // Caja
     public const CASH_OPEN = 'cash.open';
 
@@ -136,6 +142,8 @@ final class Permissions
             // Transferencias inter-sucursal
             self::TRANSFERS_VIEW, self::TRANSFERS_CREATE, self::TRANSFERS_SEND,
             self::TRANSFERS_RECEIVE, self::TRANSFERS_CANCEL,
+            // Solicitudes de transferencia (CU-GER-003)
+            self::TRANSFER_REQUESTS_VIEW, self::TRANSFER_REQUESTS_CREATE, self::TRANSFER_REQUESTS_APPROVE,
             // Caja
             self::CASH_OPEN, self::CASH_CLOSE, self::CASH_MOVEMENT, self::CASH_VIEW,
             // Ventas
