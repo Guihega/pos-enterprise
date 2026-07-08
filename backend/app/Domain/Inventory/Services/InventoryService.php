@@ -6,6 +6,7 @@ namespace App\Domain\Inventory\Services;
 
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Inventory\Exceptions\InsufficientStockException;
+use App\Domain\Inventory\Models\Batch;
 use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
@@ -49,14 +50,22 @@ final class InventoryService
         ?Model $source = null,
         ?int $userId = null,
         ?string $transferId = null,
+        ?array $batch = null,
     ): InventoryMovement {
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Quantity must be positive for entries');
         }
 
+        // RN-034 (estricta): capturar caducidad exige tracks_lots=true.
+        if (($batch['expiration_date'] ?? null) !== null && ! $product->tracks_lots) {
+            throw new \InvalidArgumentException(
+                'El producto no maneja lotes (tracks_lots=false); no se puede capturar caducidad.'
+            );
+        }
+
         return DB::transaction(function () use (
             $product, $warehouse, $quantity, $unitCost, $type,
-            $reason, $reference, $source, $userId, $transferId
+            $reason, $reference, $source, $userId, $transferId, $batch
         ) {
             $stock = $this->lockOrCreateStock($product, $warehouse);
 
@@ -74,6 +83,10 @@ final class InventoryService
             $stock->average_cost = $newAvg;
             $stock->last_movement_at = now();
             $stock->save();
+
+            if ($product->tracks_lots && $batch !== null) {
+                $this->createBatchForEntry($product, $warehouse, $quantity, $unitCost, $batch);
+            }
 
             return $this->writeMovement(
                 product: $product,
@@ -238,6 +251,36 @@ final class InventoryService
 
             return ['out' => $out, 'in' => $in, 'transfer_id' => $transferId];
         });
+    }
+
+    /**
+     * Crea el lote de una entrada (doc maestro product_batches, RN-046).
+     * lot_number y expiration_date opcionales; quantity arranca igual a
+     * received_quantity y se consume con FEFO (RN-045) en las salidas.
+     *
+     * @param  array{lot_number?: string|null, expiration_date?: string|null, notes?: string|null}  $batch
+     */
+    private function createBatchForEntry(
+        Product $product,
+        Warehouse $warehouse,
+        float $quantity,
+        float $unitCost,
+        array $batch,
+    ): Batch {
+        return Batch::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'company_id' => TenantContext::id(),
+            'product_id' => $product->id,
+            'branch_id' => $warehouse->branch_id,
+            'warehouse_id' => $warehouse->id,
+            'lot_number' => $batch['lot_number'] ?? null,
+            'expiration_date' => $batch['expiration_date'] ?? null,
+            'received_date' => now()->toDateString(),
+            'received_quantity' => $quantity,
+            'quantity' => $quantity,
+            'cost' => $unitCost,
+            'notes' => $batch['notes'] ?? null,
+        ]);
     }
 
     /**
