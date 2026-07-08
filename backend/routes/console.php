@@ -15,3 +15,4 @@ Artisan::command('inspire', function (): void {
 // alerta al admin. Diario 06:00, alineado con las alertas de notifications
 // del maestro (seccion de scheduler).
 Schedule::command('transfers:detect-lost')->dailyAt('06:00');
+Schedule::command('stock:check-consistency')->dailyAt('06:05');
