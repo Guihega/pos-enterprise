@@ -54,6 +54,7 @@ class Batch extends Model
         'lot_number', 'expiration_date',
         'received_date', 'received_quantity', 'quantity', 'cost',
         'status',
+        'expiring_alerted_at', 'expired_alerted_at',
         'notes',
     ];
 
@@ -63,6 +64,8 @@ class Batch extends Model
         'received_quantity' => 'decimal:3',
         'quantity' => 'decimal:3',
         'cost' => 'decimal:4',
+        'expiring_alerted_at' => 'datetime',
+        'expired_alerted_at' => 'datetime',
     ];
 
     public function getRouteKeyName(): string
