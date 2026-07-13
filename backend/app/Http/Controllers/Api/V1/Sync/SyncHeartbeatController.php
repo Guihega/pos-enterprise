@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Sync;
 
+use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Tenancy\Services\TenantContext;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +29,17 @@ final class SyncHeartbeatController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $tenant = TenantContext::current();
+
+        // RN-194: si el cliente se identifica (?device_id=), persistir
+        // last_seen_at y limpiar la marca de alerta (patron EX-042: la
+        // caida revierte al volver el dispositivo). Sin device_id el
+        // heartbeat conserva su contrato stateless original.
+        if ($deviceId = $request->query('device_id')) {
+            SyncDevice::query()->where('device_id', $deviceId)->update([
+                'last_seen_at' => now(),
+                'stale_alerted_at' => null,
+            ]);
+        }
 
         return response()->json([
             'server_time' => Carbon::now()->toIso8601ZuluString(),

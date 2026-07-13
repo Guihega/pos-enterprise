@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Sales\SalesController;
 use App\Http\Controllers\Api\V1\Sync\SyncBatchController;
 use App\Http\Controllers\Api\V1\Sync\SyncChangesController;
 use App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController;
+use App\Http\Controllers\Api\V1\Sync\SyncRegistrationController;
 use App\Http\Controllers\Api\V1\Tenancy\BranchesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -206,6 +207,8 @@ Route::prefix('v1')->group(function (): void {
                     ->name('sync.changes');
                 Route::get('/heartbeat', SyncHeartbeatController::class)
                     ->name('sync.heartbeat');
+                Route::post('/registration', SyncRegistrationController::class)
+                    ->name('sync.registration');
             });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {
