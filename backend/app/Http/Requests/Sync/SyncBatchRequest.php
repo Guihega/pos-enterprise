@@ -18,6 +18,7 @@ class SyncBatchRequest extends FormRequest
     {
         return [
             'batch_uuid' => ['required', 'uuid'],
+            'device_id' => ['sometimes', 'nullable', 'string', 'max:100'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.client_uuid' => ['required', 'uuid'],
             'items.*.entity_type' => ['required', 'string', 'in:sale'],
