@@ -16,3 +16,7 @@ Artisan::command('inspire', function (): void {
 // del maestro (seccion de scheduler).
 Schedule::command('transfers:detect-lost')->dailyAt('06:00');
 Schedule::command('stock:check-consistency')->dailyAt('06:05');
+
+// RN-195: lotes por caducar (30 dias default) y caducados notifican a
+// almacen de la sucursal del lote. Diario 06:10, serie de alertas matutinas.
+Schedule::command('batches:detect-expiring')->dailyAt('06:10');

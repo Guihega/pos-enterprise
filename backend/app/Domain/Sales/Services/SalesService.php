@@ -24,6 +24,7 @@ use App\Domain\Sales\Exceptions\PaymentMismatchException;
 use App\Domain\Sales\Exceptions\SaleNotCancellableException;
 use App\Domain\Sales\Models\Sale;
 use App\Domain\Sales\Models\SaleItem;
+use App\Domain\Sales\Models\SaleItemBatch;
 use App\Domain\Sales\Models\SalePayment;
 use App\Domain\Sales\Models\SaleTax;
 use App\Domain\Tenancy\Services\TenantContext;
@@ -187,7 +188,7 @@ final class SalesService
                 $product = $line['product'];
                 $calc = $line['calc'];
 
-                SaleItem::create([
+                $saleItem = SaleItem::create([
                     'uuid' => (string) Str::uuid(),
                     'company_id' => TenantContext::id(),
                     'sale_id' => $sale->id,
@@ -212,6 +213,8 @@ final class SalesService
 
                 // Descontar stock SOLO si el producto rastrea inventario
                 if ($calc['track_inventory']) {
+                    $batchConsumption = null;
+
                     $this->inventory->recordExit(
                         product: $product,
                         warehouse: $warehouse,
@@ -221,7 +224,19 @@ final class SalesService
                         reference: $sale->number,
                         source: $sale,
                         userId: $user->id,
+                        batchConsumption: $batchConsumption,
                     );
+
+                    // Checkout 9c: detalle de lotes consumidos FEFO (RN-045).
+                    foreach ($batchConsumption ?? [] as $consumed) {
+                        SaleItemBatch::create([
+                            'company_id' => TenantContext::id(),
+                            'sale_item_id' => $saleItem->id,
+                            'batch_id' => $consumed['batch_id'],
+                            'quantity' => $consumed['quantity'],
+                            'unit_cost' => $consumed['unit_cost'],
+                        ]);
+                    }
                 }
             }
 
