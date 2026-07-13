@@ -20,3 +20,8 @@ Schedule::command('stock:check-consistency')->dailyAt('06:05');
 // RN-195: lotes por caducar (30 dias default) y caducados notifican a
 // almacen de la sucursal del lote. Diario 06:10, serie de alertas matutinas.
 Schedule::command('batches:detect-expiring')->dailyAt('06:10');
+
+// RN-194: dispositivos con sync caida >2h notifican a admin. Cada hora
+// (no diario: una caida de 2h detectada al dia siguiente seria tardia);
+// el filtro whereNull(stale_alerted_at) + limpieza en heartbeat evita spam.
+Schedule::command('sync:detect-stale')->hourly();
