@@ -42,6 +42,10 @@ class Batch extends Model
     use BelongsToTenant;
     use HasFactory;
 
+    public const STATUS_AVAILABLE = 'available';
+
+    public const STATUS_QUARANTINED = 'quarantined';
+
     protected $table = 'product_batches';
 
     protected $fillable = [
@@ -49,6 +53,7 @@ class Batch extends Model
         'product_id', 'branch_id', 'warehouse_id',
         'lot_number', 'expiration_date',
         'received_date', 'received_quantity', 'quantity', 'cost',
+        'status',
         'notes',
     ];
 
@@ -84,10 +89,14 @@ class Batch extends Model
 
     // -------------------- Scopes --------------------
 
-    /** Lotes con remanente (alineado al indice parcial FEFO). */
+    /**
+     * Lotes con remanente y fuera de cuarentena (alineado al indice
+     * parcial FEFO). Un lote quarantined esta fuera de circulacion.
+     */
     public function scopeAvailable(Builder $query): Builder
     {
-        return $query->where('quantity', '>', 0);
+        return $query->where('quantity', '>', 0)
+            ->where('status', self::STATUS_AVAILABLE);
     }
 
     /** Orden FEFO (RN-045): caducidad mas proxima primero; sin caducidad al final. */
@@ -97,6 +106,11 @@ class Batch extends Model
     }
 
     // -------------------- Helpers --------------------
+
+    public function isQuarantined(): bool
+    {
+        return $this->status === self::STATUS_QUARANTINED;
+    }
 
     public function isExpired(): bool
     {

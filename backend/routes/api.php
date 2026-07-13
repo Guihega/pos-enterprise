@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\Catalog\ProductsController;
 use App\Http\Controllers\Api\V1\Catalog\TaxesController;
 use App\Http\Controllers\Api\V1\Catalog\UnitsController;
 use App\Http\Controllers\Api\V1\Customer\CustomersController;
+use App\Http\Controllers\Api\V1\Inventory\BatchController;
 use App\Http\Controllers\Api\V1\Inventory\InventoryController;
 use App\Http\Controllers\Api\V1\Inventory\TransferController;
 use App\Http\Controllers\Api\V1\Inventory\TransferRequestController;
@@ -139,6 +140,13 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('movements', [InventoryController::class, 'movements']);
                 Route::post('adjust', [InventoryController::class, 'adjust']);
                 Route::post('transfer', [InventoryController::class, 'transfer']);
+
+                // ----- Lotes (doc maestro 29.6) -----
+                Route::get('batches', [BatchController::class, 'index']);
+                Route::get('batches/{batch:uuid}', [BatchController::class, 'show']);
+                Route::post('batches/{batch:uuid}/quarantine', [BatchController::class, 'quarantine']);
+                Route::post('batches/{batch:uuid}/release', [BatchController::class, 'release']);
+                Route::get('expirations', [BatchController::class, 'expirations']);
             });
 
             // ----- Transferencias inter-sucursal -----
