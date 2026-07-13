@@ -10,6 +10,9 @@ use App\Domain\Sales\Exceptions\InsufficientCreditException;
 use App\Domain\Sales\Exceptions\PaymentMismatchException;
 use App\Domain\Sales\Services\SalesService;
 use App\Domain\Sync\Dto\SyncBatchItem;
+use App\Domain\Sync\Models\SyncBatch;
+use App\Domain\Sync\Models\SyncDevice;
+use App\Domain\Sync\Models\SyncOperation;
 use Throwable;
 
 /**
@@ -31,8 +34,34 @@ final class SyncBatchService
      * @param  SyncBatchItem[]  $items
      * @return array<int, array{client_uuid: string, status: string, data?: mixed, error?: string}>
      */
-    public function process(array $items, User $user): array
+    public function process(array $items, User $user, string $batchUuid, ?string $deviceId = null): array
     {
+        // Idempotencia real por batch_uuid (contrato 38.3, salda el TODO
+        // del controller): un replay devuelve la respuesta ya calculada
+        // sin reprocesar (las ventas no se duplican).
+        $existing = SyncBatch::query()->where('uuid', $batchUuid)->first();
+        if ($existing !== null && $existing->status === SyncBatch::STATUS_COMPLETED) {
+            return $existing->response_payload ?? [];
+        }
+
+        $batch = $existing ?? SyncBatch::query()->create([
+            'uuid' => $batchUuid,
+            'device_id' => $deviceId,
+            'operations_count' => count($items),
+            'status' => SyncBatch::STATUS_PROCESSING,
+            'request_payload' => array_map(
+                fn (SyncBatchItem $i): array => [
+                    'client_uuid' => $i->clientUuid,
+                    'entity_type' => $i->entityType,
+                    'entity_uuid' => $i->entityUuid,
+                    'operation' => $i->operation,
+                    'payload' => $i->payload,
+                    'client_timestamp' => $i->clientTimestamp,
+                ],
+                $items,
+            ),
+        ]);
+
         $results = [];
 
         foreach ($items as $item) {
@@ -44,6 +73,43 @@ final class SyncBatchService
                     'error' => "Tipo de operacion no soportado: {$item->entityType}.{$item->operation}",
                 ],
             };
+        }
+
+        $counts = ['success' => 0, 'conflict' => 0, 'error' => 0];
+
+        foreach ($items as $i => $item) {
+            $result = $results[$i];
+            $counts[$result['status']] = ($counts[$result['status']] ?? 0) + 1;
+
+            SyncOperation::query()->create([
+                'batch_id' => $batch->id,
+                'client_uuid' => $item->clientUuid,
+                'entity_type' => $item->entityType,
+                'entity_uuid' => $item->entityUuid,
+                'operation' => $item->operation,
+                'client_timestamp' => $item->clientTimestamp,
+                'payload' => $item->payload,
+                'status' => $result['status'],
+                'server_uuid' => $result['data']['uuid'] ?? null,
+                'response' => $result,
+                'error_message' => $result['error'] ?? null,
+            ]);
+        }
+
+        $batch->update([
+            'success_count' => $counts['success'] ?? 0,
+            'conflict_count' => $counts['conflict'] ?? 0,
+            'error_count' => $counts['error'] ?? 0,
+            'status' => SyncBatch::STATUS_COMPLETED,
+            'completed_at' => now(),
+            'response_payload' => $results,
+        ]);
+
+        if ($deviceId !== null) {
+            SyncDevice::query()->where('device_id', $deviceId)->update([
+                'last_sync_at' => now(),
+                'last_seen_at' => now(),
+            ]);
         }
 
         return $results;

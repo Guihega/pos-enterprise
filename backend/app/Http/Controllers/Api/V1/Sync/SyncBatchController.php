@@ -29,7 +29,12 @@ final class SyncBatchController extends Controller
             $request->validated('items'),
         );
 
-        $results = $this->service->process($items, $request->user());
+        $results = $this->service->process(
+            $items,
+            $request->user(),
+            $request->validated('batch_uuid'),
+            $request->validated('device_id'),
+        );
 
         return response()->json([
             'batch_uuid' => $request->validated('batch_uuid'),
