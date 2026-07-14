@@ -327,6 +327,10 @@ final class SalesService
         // la venta ya registrada.
         $this->maybeNotifyLargeSale($sale);
 
+        // RN-198: si la venta a credito deja al cliente en o sobre su limite,
+        // notificar a cobranza. Mismo caracter post-transaccion que RN-196.
+        $this->maybeNotifyCreditLimitExceeded($sale);
+
         return $sale;
     }
 
@@ -356,6 +360,61 @@ final class SalesService
                     'cashier_id' => $sale->user_id,
                 ],
                 severity: Notification::SEVERITY_CRITICAL,
+            );
+        }
+    }
+
+    /**
+     * RN-198: notifica a cobranza cuando, tras una venta a credito, el
+     * cliente queda en o sobre su limite de credito (maestro linea 1887,
+     * tipo customer.credit_limit_exceeded catalogado en linea 6285).
+     * RN-094 impide exceder el limite en checkout, asi que el caso tipico
+     * es quedar AL limite (balance == limit); balance > limit solo ocurre
+     * si un admin redujo el limite bajo el balance previamente. Clientes
+     * sin linea de credito (limit <= 0) no disparan. Sin guard de
+     * repeticion: cada venta que deja al cliente al limite es un evento
+     * independiente (patron RN-196). Efecto secundario fuera de la
+     * transaccion: si la notificacion fallara no debe revertir la venta.
+     */
+    private function maybeNotifyCreditLimitExceeded(Sale $sale): void
+    {
+        $hasCreditPayment = $sale->payments->contains(
+            fn (SalePayment $p) => $p->method === SalePayment::METHOD_CREDIT
+        );
+
+        if (! $hasCreditPayment) {
+            return;
+        }
+
+        $customer = $sale->customer;
+
+        if ($customer === null) {
+            return;
+        }
+
+        $limit = (float) $customer->credit_limit;
+        $balance = (float) $customer->credit_balance;
+
+        if ($limit <= 0.0 || $balance < $limit) {
+            return;
+        }
+
+        $recipients = $this->notifications->usersWithRoles([Roles::COBRANZA]);
+
+        foreach ($recipients as $recipient) {
+            $this->notifications->notify(
+                recipient: $recipient,
+                type: 'customer.credit_limit_exceeded',
+                data: [
+                    'customer_id' => $customer->id,
+                    'customer_uuid' => $customer->uuid,
+                    'credit_limit' => $limit,
+                    'credit_balance' => $balance,
+                    'sale_id' => $sale->id,
+                    'sale_uuid' => $sale->uuid,
+                    'sale_number' => $sale->number,
+                ],
+                severity: Notification::SEVERITY_WARNING,
             );
         }
     }
