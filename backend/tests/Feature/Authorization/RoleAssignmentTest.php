@@ -25,13 +25,13 @@ beforeEach(function () {
     $this->provisioner = app(RoleProvisioner::class);
 });
 
-it('provisiona los 6 roles default + permisos para un tenant nuevo', function () {
+it('provisiona los 7 roles default + permisos para un tenant nuevo', function () {
     $tenant = Company::factory()->create();
     $this->provisioner->provisionDefaultRoles($tenant);
 
     TenantContext::set($tenant);
 
-    expect(Role::query()->count())->toBe(6)
+    expect(Role::query()->count())->toBe(7)
         ->and(Role::query()->where('name', Roles::ADMIN)->exists())->toBeTrue()
         ->and(Role::query()->where('name', Roles::CAJERO)->exists())->toBeTrue()
         ->and(Permission::query()->count())->toBe(count(Perms::all()));
@@ -132,6 +132,24 @@ it('un auditor solo tiene permisos de vista', function () {
         ->and($auditor->can(Perms::CASH_OPEN))->toBeFalse();
 });
 
+it('un usuario de cobranza ve clientes y ventas pero no opera caja ni inventario', function () {
+    $tenant = Company::factory()->create();
+    $this->provisioner->provisionDefaultRoles($tenant);
+    TenantContext::set($tenant);
+
+    $cobranza = User::factory()->create(['company_id' => $tenant->id]);
+    $cobranza->assignRole(Roles::COBRANZA);
+
+    expect($cobranza->can(Perms::CUSTOMER_VIEW))->toBeTrue()
+        ->and($cobranza->can(Perms::CUSTOMER_UPDATE))->toBeTrue()
+        ->and($cobranza->can(Perms::SALE_VIEW))->toBeTrue()
+        ->and($cobranza->can(Perms::REPORT_FINANCE))->toBeTrue()
+        ->and($cobranza->can(Perms::SALE_CREATE))->toBeFalse()
+        ->and($cobranza->can(Perms::CASH_OPEN))->toBeFalse()
+        ->and($cobranza->can(Perms::INVENTORY_VIEW))->toBeFalse()
+        ->and($cobranza->can(Perms::CUSTOMER_DELETE))->toBeFalse();
+});
+
 it('provisionar dos veces es idempotente (no duplica roles)', function () {
     $tenant = Company::factory()->create();
 
@@ -139,7 +157,7 @@ it('provisionar dos veces es idempotente (no duplica roles)', function () {
     $this->provisioner->provisionDefaultRoles($tenant);
 
     TenantContext::set($tenant);
-    expect(Role::query()->count())->toBe(6);
+    expect(Role::query()->count())->toBe(7);
 });
 
 it('provisionar el admin tiene todos los permisos del catálogo de admin', function () {

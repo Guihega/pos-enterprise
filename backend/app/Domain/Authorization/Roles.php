@@ -30,6 +30,8 @@ final class Roles
 
     public const AUDITOR = 'auditor';
 
+    public const COBRANZA = 'cobranza';
+
     /**
      * Mapping rol → permisos. Define el "menú base".
      *
@@ -85,6 +87,16 @@ final class Roles
                 $P::INVENTORY_VIEW, $P::INVENTORY_ADJUST, $P::INVENTORY_TRANSFER, $P::INVENTORY_COUNT,
                 ...self::transfers(),
                 $P::REPORT_INVENTORY,
+            ],
+
+            // Cobranza: gestion de cartera CxC (RN-198). Minimo defendible:
+            // ve clientes y sus saldos, actualiza datos de contacto para gestion
+            // de cobro, ve ventas origen del adeudo y reporte financiero.
+            // Sin caja, sin inventario, sin crear ventas.
+            self::COBRANZA => [
+                $P::CUSTOMER_VIEW, $P::CUSTOMER_UPDATE,
+                $P::SALE_VIEW,
+                $P::REPORT_FINANCE,
             ],
 
             // Auditor: read-only de TODO
