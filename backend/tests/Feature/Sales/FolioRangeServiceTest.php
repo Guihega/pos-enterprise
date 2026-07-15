@@ -70,3 +70,52 @@ test('size maximo no supera 500', function () {
     $result = $this->service->reserve($this->register, 'A', 'device-001', 9999);
     expect($result['range_end'] - $result['range_start'] + 1)->toBe(500);
 });
+
+test('consume acepta un folio dentro del rango activo sin agotarlo', function () {
+    $this->service->reserve($this->register, 'A', 'device-001', 50);
+
+    $ok = $this->service->consume($this->register, 'A', 'device-001', 10);
+
+    expect($ok)->toBeTrue();
+    $range = SaleNumberRange::query()
+        ->where('device_id', 'device-001')->first();
+    expect($range->exhausted_at)->toBeNull();
+});
+
+test('consume del range_end marca el rango como agotado y reserve entrega uno nuevo', function () {
+    $r1 = $this->service->reserve($this->register, 'A', 'device-001', 50);
+
+    $ok = $this->service->consume($this->register, 'A', 'device-001', $r1['range_end']);
+
+    expect($ok)->toBeTrue();
+    $range = SaleNumberRange::query()
+        ->where('device_id', 'device-001')->first();
+    expect($range->exhausted_at)->not->toBeNull();
+
+    // El siguiente reserve del mismo device ya no devuelve el agotado.
+    $r2 = $this->service->reserve($this->register, 'A', 'device-001', 50);
+    expect($r2['range_start'])->toBe($r1['range_end'] + 1);
+});
+
+test('consume rechaza un folio fuera del rango del dispositivo', function () {
+    $r1 = $this->service->reserve($this->register, 'A', 'device-001', 50);
+
+    expect($this->service->consume($this->register, 'A', 'device-001', $r1['range_end'] + 1))->toBeFalse();
+    expect($this->service->consume($this->register, 'A', 'device-001', 0))->toBeFalse();
+});
+
+test('consume retorna false si el dispositivo no tiene rango activo', function () {
+    expect($this->service->consume($this->register, 'A', 'device-sin-rango', 5))->toBeFalse();
+});
+
+test('consume no permite usar el rango de otro dispositivo', function () {
+    $r1 = $this->service->reserve($this->register, 'A', 'device-001', 50);
+
+    // device-002 intenta consumir un folio del rango de device-001.
+    expect($this->service->consume($this->register, 'A', 'device-002', $r1['range_start']))->toBeFalse();
+
+    // El rango de device-001 sigue activo e intacto.
+    $range = SaleNumberRange::query()
+        ->where('device_id', 'device-001')->first();
+    expect($range->exhausted_at)->toBeNull();
+});

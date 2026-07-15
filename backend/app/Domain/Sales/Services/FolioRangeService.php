@@ -99,4 +99,52 @@ final class FolioRangeService
             ];
         });
     }
+
+    /**
+     * Valida y consume un folio del rango activo del dispositivo (ADR-0009
+     * paso 3). Retorna false si no hay rango activo o el folio cae fuera de
+     * [range_start, range_end]: folio invalido no es excepcional (EX-118),
+     * es la senal para que el caller haga fallback al generador central.
+     *
+     * Paso 4 del ADR adaptado: la migracion no incluye next_value (el
+     * cliente lo consume localmente, ver docblock de la migracion), por lo
+     * que el rango se marca exhausted_at cuando se consume range_end, no
+     * por comparacion contra next_value.
+     *
+     * "Folio ya usado dentro del rango" no se valida aqui: el unique
+     * (company_id, number) de sales lo garantiza en BD (el insert fallaria
+     * y el caller trata la venta como error, sin duplicado posible).
+     *
+     * DEBE llamarse dentro de la transaccion que crea la Sale (mismo
+     * requisito que SaleNumberGenerator::next).
+     */
+    public function consume(
+        CashRegister $register,
+        string $series,
+        string $deviceId,
+        int $numberValue,
+    ): bool {
+        /** @var SaleNumberRange|null $range */
+        $range = SaleNumberRange::query()
+            ->where('cash_register_id', $register->id)
+            ->where('series', $series)
+            ->where('device_id', $deviceId)
+            ->whereNull('exhausted_at')
+            ->lockForUpdate()
+            ->first();
+
+        if ($range === null) {
+            return false;
+        }
+
+        if ($numberValue < $range->range_start || $numberValue > $range->range_end) {
+            return false;
+        }
+
+        if ($numberValue === (int) $range->range_end) {
+            $range->update(['exhausted_at' => now()]);
+        }
+
+        return true;
+    }
 }
