@@ -128,7 +128,12 @@ final class SyncBatchService
                 'status' => 'success',
                 'data' => [
                     'uuid' => $sale->uuid,
-                    'folio' => $sale->folio,
+                    // Contrato 38.3 linea 7062: el cliente espera folio_server para
+                    // actualizar su entidad local. Sale no tiene atributo folio
+                    // (sus campos son number/series/number_value); $sale->folio
+                    // devolvia null desde el epic Sync sin que ningun test lo
+                    // asertara. Se conserva la clave 'folio' del contrato.
+                    'folio' => $sale->number,
                 ],
             ];
         } catch (PaymentMismatchException $e) {
