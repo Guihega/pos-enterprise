@@ -71,6 +71,7 @@ final class SalesService
         private readonly InventoryService $inventory,
         private readonly CashService $cash,
         private readonly NotificationService $notifications,
+        private readonly FolioRangeService $folioRanges,
     ) {}
 
     /**
@@ -147,12 +148,41 @@ final class SalesService
             // 8. Si hay pago con method=credit, validar crédito disponible
             $this->validateCreditPayment($request->payments, $customer, $totals['total_amount']);
 
-            // 9. Generar folio único (lock pesimista interno)
-            $folioData = $this->numberGenerator->next(
-                $warehouse->branch,
-                $session->register,
-                $request->series
-            );
+            // 9. Folio unico. ADR-0009 paso 3: si el cliente PWA trae un
+            // folio de su rango reservado (number_value + device_id, solo en
+            // ventas via sync), validarlo y consumirlo del rango. Invalido o
+            // fuera de rango => fallback al generador central (EX-118: la
+            // "reasignacion" es implicita, el folio del servidor viaja en la
+            // respuesta de sync y el cliente actualiza su entidad local,
+            // contrato 38.3 linea 7062). Checkout online: generador central.
+            $folioData = null;
+            if ($request->numberValue !== null && $request->deviceId !== null) {
+                $accepted = $this->folioRanges->consume(
+                    $session->register,
+                    $request->series,
+                    $request->deviceId,
+                    $request->numberValue,
+                );
+                if ($accepted) {
+                    $folioData = [
+                        'number' => sprintf(
+                            '%s-%s-%s-%06d',
+                            $warehouse->branch->code,
+                            $session->register->code,
+                            $request->series,
+                            $request->numberValue
+                        ),
+                        'value' => $request->numberValue,
+                    ];
+                }
+            }
+            if ($folioData === null) {
+                $folioData = $this->numberGenerator->next(
+                    $warehouse->branch,
+                    $session->register,
+                    $request->series
+                );
+            }
 
             // 10. Crear el encabezado de la venta
             $sale = Sale::create([

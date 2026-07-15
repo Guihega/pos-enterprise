@@ -11,6 +11,7 @@ use App\Domain\Catalog\Models\Unit;
 use App\Domain\Identity\Models\User;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
+use App\Domain\Sales\Models\Sale;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
@@ -127,12 +128,20 @@ test('POST /sync/batch procesa una venta exitosamente', function () {
         ],
     ];
 
-    $this->withHeaders(['X-Tenant' => 'sync-test'])
+    $response = $this->withHeaders(['X-Tenant' => 'sync-test'])
         ->postJson('/api/v1/sync/batch', [
             'batch_uuid' => (string) Str::uuid(),
             'items' => [$item],
-        ])
-        ->assertStatus(200)
+        ]);
+
+    $response->assertStatus(200)
         ->assertJsonPath('results.0.status', 'success')
         ->assertJsonStructure(['batch_uuid', 'results' => [['client_uuid', 'status', 'data']]]);
+
+    // Contrato 38.3 linea 7062: el cliente actualiza su entidad local
+    // con el folio del servidor. Sale.number es el folio real (Sale no
+    // tiene atributo folio; antes del fix este campo llegaba null).
+    // Re-setear TenantContext: el checkout dentro del request lo pierde.
+    TenantContext::set($this->tenant);
+    $response->assertJsonPath('results.0.data.folio', Sale::query()->firstOrFail()->number);
 });
