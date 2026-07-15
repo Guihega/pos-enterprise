@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Sync;
 
+use App\Domain\Sync\Exceptions\DeviceRevokedException;
 use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Tenancy\Models\Branch;
 use App\Http\Controllers\Controller;
@@ -30,6 +31,19 @@ final class SyncRegistrationController extends Controller
         $validated = $request->validated();
 
         $branch = Branch::query()->where('uuid', $validated['branch_uuid'])->firstOrFail();
+
+        // Un dispositivo desautorizado via DELETE /auth/devices NO se
+        // reactiva por re-registro: la revocacion es accion de admin y
+        // solo el admin la deshace. Antes updateOrCreate reactivaba
+        // silenciosamente (is_active => true); ese comportamiento se
+        // conserva solo para dispositivos activos o nuevos.
+        $revoked = SyncDevice::query()
+            ->where('device_id', $validated['device_id'])
+            ->where('is_active', false)
+            ->exists();
+        if ($revoked) {
+            throw DeviceRevokedException::forDevice($validated['device_id']);
+        }
 
         $device = SyncDevice::query()->updateOrCreate(
             ['device_id' => $validated['device_id']],

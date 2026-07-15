@@ -126,6 +126,10 @@ final class Permissions
 
     public const AUDIT_VIEW = 'audit.view';
 
+    public const DEVICE_VIEW = 'device.view';
+
+    public const DEVICE_REVOKE = 'device.revoke';
+
     /**
      * Devuelve todos los permisos como array plano.
      *
@@ -158,6 +162,8 @@ final class Permissions
             self::ROLE_VIEW, self::ROLE_CREATE, self::ROLE_UPDATE, self::ROLE_DELETE,
             self::BRANCH_VIEW, self::BRANCH_CREATE, self::BRANCH_UPDATE, self::BRANCH_DELETE,
             self::SETTINGS_UPDATE, self::AUDIT_VIEW,
+            // Dispositivos (maestro 29.1: listar/desautorizar)
+            self::DEVICE_VIEW, self::DEVICE_REVOKE,
         ];
     }
 }
