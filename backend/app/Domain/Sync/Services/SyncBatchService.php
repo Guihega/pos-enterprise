@@ -66,7 +66,7 @@ final class SyncBatchService
 
         foreach ($items as $item) {
             $results[] = match (true) {
-                $item->entityType === 'sale' && $item->operation === 'create' => $this->processSaleCreate($item, $user),
+                $item->entityType === 'sale' && $item->operation === 'create' => $this->processSaleCreate($item, $user, $deviceId),
                 default => [
                     'client_uuid' => $item->clientUuid,
                     'status' => 'error',
@@ -116,10 +116,19 @@ final class SyncBatchService
     }
 
     /** @return array{client_uuid: string, status: string, data?: mixed, error?: string} */
-    private function processSaleCreate(SyncBatchItem $item, User $user): array
+    private function processSaleCreate(SyncBatchItem $item, User $user, ?string $deviceId = null): array
     {
         try {
-            $dto = CheckoutRequest::fromArray($item->payload);
+            // ADR-0009 paso 3: el device_id viaja a nivel batch (contrato
+            // 38.3), no por item. Se inyecta al payload para que checkout
+            // valide el number_value del cliente contra el rango reservado
+            // del dispositivo. Sin device_id el checkout usa el generador
+            // central (comportamiento previo intacto).
+            $payload = $item->payload;
+            if ($deviceId !== null && ! isset($payload['device_id'])) {
+                $payload['device_id'] = $deviceId;
+            }
+            $dto = CheckoutRequest::fromArray($payload);
             $sale = $this->sales->checkout($dto, $user);
 
             return [

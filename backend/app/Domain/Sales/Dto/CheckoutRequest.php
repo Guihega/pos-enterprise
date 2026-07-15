@@ -24,6 +24,8 @@ final class CheckoutRequest
         public readonly float $tipAmount = 0,
         public readonly ?string $notes = null,
         public readonly string $series = 'A',
+        public readonly ?int $numberValue = null,
+        public readonly ?string $deviceId = null,
     ) {}
 
     /**
@@ -48,6 +50,8 @@ final class CheckoutRequest
             tipAmount: (float) ($data['tip_amount'] ?? 0),
             notes: $data['notes'] ?? null,
             series: (string) ($data['series'] ?? 'A'),
+            numberValue: isset($data['number_value']) ? (int) $data['number_value'] : null,
+            deviceId: isset($data['device_id']) ? (string) $data['device_id'] : null,
         );
     }
 }
