@@ -115,6 +115,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 // ----- Inventory -----
                 $e instanceof InsufficientStockException => [409, 'INSUFFICIENT_STOCK', []],
 
+                // ----- Sync -----
+                is_a($e, 'App\\Domain\\Sync\\Exceptions\\DeviceRevokedException') => [403, 'SYNC_DEVICE_UNREGISTERED', []],
+
                 // ----- Sales -----
                 $e instanceof PaymentMismatchException => [422, 'PAYMENT_MISMATCH', []],
                 $e instanceof InsufficientCreditException => [402, 'INSUFFICIENT_CREDIT', []],

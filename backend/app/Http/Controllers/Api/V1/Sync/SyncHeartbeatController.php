@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Sync;
 
+use App\Domain\Sync\Exceptions\DeviceRevokedException;
 use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Tenancy\Services\TenantContext;
 use App\Http\Controllers\Controller;
@@ -35,7 +36,15 @@ final class SyncHeartbeatController extends Controller
         // caida revierte al volver el dispositivo). Sin device_id el
         // heartbeat conserva su contrato stateless original.
         if ($deviceId = $request->query('device_id')) {
-            SyncDevice::query()->where('device_id', $deviceId)->update([
+            // Enforcement SYNC_DEVICE_UNREGISTERED solo para REVOCADOS:
+            // un device_id desconocido sigue siendo no-op (cliente a media
+            // instalacion no debe recibir 403); uno desautorizado si se
+            // rechaza para que el cliente pase a modo bloqueado.
+            $device = SyncDevice::query()->where('device_id', $deviceId)->first();
+            if ($device !== null && ! $device->is_active) {
+                throw DeviceRevokedException::forDevice($deviceId);
+            }
+            $device?->update([
                 'last_seen_at' => now(),
                 'stale_alerted_at' => null,
             ]);
