@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\Admin\UsersController;
+use App\Http\Controllers\Api\V1\Auth\DevicesController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Cash\CashMovementsController;
 use App\Http\Controllers\Api\V1\Cash\CashRegistersController;
@@ -90,6 +91,12 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/pin-verify', [AuthController::class, 'pinVerify'])
                     ->middleware('throttle:10,1')
                     ->name('auth.pin_verify');
+
+                // ----- Dispositivos (maestro 29.1) -----
+                Route::get('/devices', [DevicesController::class, 'index'])
+                    ->name('auth.devices.index');
+                Route::delete('/devices/{device}', [DevicesController::class, 'destroy'])
+                    ->name('auth.devices.destroy');
             });
 
             // ----- Admin: gestión de usuarios y roles -----

@@ -49,6 +49,7 @@ final class Roles
                 ...self::reports(),
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
                 $P::REPORT_CONSOLIDATED,
+                $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -59,6 +60,10 @@ final class Roles
                 $P::BRANCH_VIEW,
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
                 $P::REPORT_CONSOLIDATED,
+                // Maestro 29.1: DELETE auth/devices dice "admin"; se otorga
+                // tambien a gerente (gestiona dispositivos de su operacion,
+                // consistente con USER_VIEW/BRANCH_VIEW). Estandar defendible.
+                $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -113,6 +118,7 @@ final class Roles
                 $P::REPORT_SALES, $P::REPORT_INVENTORY, $P::REPORT_FINANCE, $P::REPORT_AUDIT,
                 $P::REPORT_CONSOLIDATED,
                 $P::AUDIT_VIEW,
+                $P::DEVICE_VIEW,
             ],
         ];
     }
