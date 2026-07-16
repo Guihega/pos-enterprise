@@ -47,4 +47,22 @@ final class DevicesController extends Controller
 
         return response()->json(['data' => new SyncDeviceResource($device->fresh())]);
     }
+
+    /**
+     * Reactiva un dispositivo revocado (deshace destroy). Cierra la
+     * deuda documentada en el epic auth-devices: registration NO
+     * reactiva revocados, la revocacion solo la deshace el admin.
+     * Mismo permiso DEVICE_REVOKE: quien puede revocar puede
+     * des-revocar (no amerita permiso nuevo, estandar defendible).
+     * Patron POST de accion sobre recurso (espejo de
+     * branches/{uuid}/deactivate). Idempotente sobre activos.
+     */
+    public function activate(Request $request, SyncDevice $device): JsonResponse
+    {
+        abort_unless((bool) $request->user()?->can(Permissions::DEVICE_REVOKE), 403);
+
+        $device->update(['is_active' => true]);
+
+        return response()->json(['data' => new SyncDeviceResource($device->fresh())]);
+    }
 }

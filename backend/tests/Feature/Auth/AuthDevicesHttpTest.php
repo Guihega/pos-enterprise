@@ -9,6 +9,7 @@ use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -127,4 +128,70 @@ it('dispositivo de otro tenant devuelve 404', function (): void {
     $this->withHeaders(authDevicesHeaders())
         ->deleteJson('/api/v1/auth/devices/'.$foreignDevice->uuid)
         ->assertStatus(404);
+});
+
+it('admin reactiva un dispositivo revocado y vuelve a operar sync', function (): void {
+    Sanctum::actingAs($this->admin);
+
+    // Revocar
+    $this->withHeaders(authDevicesHeaders())
+        ->deleteJson('/api/v1/auth/devices/'.$this->device->uuid)
+        ->assertStatus(200);
+
+    // Revocado: el batch se rechaza (enforcement del epic anterior)
+    $this->withHeaders(authDevicesHeaders())
+        ->postJson('/api/v1/sync/batch', [
+            'batch_uuid' => (string) Str::uuid(),
+            'device_id' => 'device-001',
+            'items' => [[
+                'client_uuid' => (string) Str::uuid(),
+                'entity_type' => 'sale',
+                'entity_uuid' => (string) Str::uuid(),
+                'operation' => 'create',
+                'client_timestamp' => '2026-01-01T10:00:00Z',
+                'payload' => ['fake' => true],
+            ]],
+        ])
+        ->assertStatus(403)
+        ->assertJsonPath('error.code', 'SYNC_DEVICE_UNREGISTERED');
+
+    // Reactivar
+    $this->withHeaders(authDevicesHeaders())
+        ->postJson('/api/v1/auth/devices/'.$this->device->uuid.'/activate')
+        ->assertStatus(200)
+        ->assertJsonPath('data.is_active', true);
+
+    // Reactivado: el batch vuelve a procesar (el item fake falla como
+    // error individual, pero el HTTP es 200: el enforcement ya no aplica)
+    $this->withHeaders(authDevicesHeaders())
+        ->postJson('/api/v1/sync/batch', [
+            'batch_uuid' => (string) Str::uuid(),
+            'device_id' => 'device-001',
+            'items' => [[
+                'client_uuid' => (string) Str::uuid(),
+                'entity_type' => 'sale',
+                'entity_uuid' => (string) Str::uuid(),
+                'operation' => 'create',
+                'client_timestamp' => '2026-01-01T10:00:00Z',
+                'payload' => ['fake' => true],
+            ]],
+        ])
+        ->assertStatus(200);
+});
+
+it('reactivar un dispositivo activo es idempotente', function (): void {
+    Sanctum::actingAs($this->admin);
+
+    $this->withHeaders(authDevicesHeaders())
+        ->postJson('/api/v1/auth/devices/'.$this->device->uuid.'/activate')
+        ->assertStatus(200)
+        ->assertJsonPath('data.is_active', true);
+});
+
+it('cajero recibe 403 al reactivar', function (): void {
+    Sanctum::actingAs($this->cajero);
+
+    $this->withHeaders(authDevicesHeaders())
+        ->postJson('/api/v1/auth/devices/'.$this->device->uuid.'/activate')
+        ->assertStatus(403);
 });
