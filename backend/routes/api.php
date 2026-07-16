@@ -97,6 +97,8 @@ Route::prefix('v1')->group(function (): void {
                     ->name('auth.devices.index');
                 Route::delete('/devices/{device}', [DevicesController::class, 'destroy'])
                     ->name('auth.devices.destroy');
+                Route::post('/devices/{device}/activate', [DevicesController::class, 'activate'])
+                    ->name('auth.devices.activate');
             });
 
             // ----- Admin: gestión de usuarios y roles -----
