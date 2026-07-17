@@ -130,6 +130,10 @@ final class Permissions
 
     public const DEVICE_REVOKE = 'device.revoke';
 
+    public const SYNC_CONFLICT_VIEW = 'sync-conflict.view';
+
+    public const SYNC_CONFLICT_RESOLVE = 'sync-conflict.resolve';
+
     /**
      * Devuelve todos los permisos como array plano.
      *
@@ -164,6 +168,8 @@ final class Permissions
             self::SETTINGS_UPDATE, self::AUDIT_VIEW,
             // Dispositivos (maestro 29.1: listar/desautorizar)
             self::DEVICE_VIEW, self::DEVICE_REVOKE,
+            // Conflictos de sync (maestro 39.3: cola humana)
+            self::SYNC_CONFLICT_VIEW, self::SYNC_CONFLICT_RESOLVE,
         ];
     }
 }

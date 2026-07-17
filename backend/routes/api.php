@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
 use App\Http\Controllers\Api\V1\Sales\SalesController;
 use App\Http\Controllers\Api\V1\Sync\SyncBatchController;
 use App\Http\Controllers\Api\V1\Sync\SyncChangesController;
+use App\Http\Controllers\Api\V1\Sync\SyncConflictsController;
 use App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController;
 use App\Http\Controllers\Api\V1\Sync\SyncRegistrationController;
 use App\Http\Controllers\Api\V1\Sync\SyncStatusController;
@@ -221,6 +222,10 @@ Route::prefix('v1')->group(function (): void {
                     ->name('sync.registration');
                 Route::get('/status/{device}', SyncStatusController::class)
                     ->name('sync.status');
+                Route::get('/conflicts', [SyncConflictsController::class, 'index'])
+                    ->name('sync.conflicts.index');
+                Route::post('/conflicts/{conflict}/resolve', [SyncConflictsController::class, 'resolve'])
+                    ->name('sync.conflicts.resolve');
             });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Sync\Services;
 
+use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
+use App\Domain\Cash\Models\CashSession;
 use App\Domain\Identity\Models\User;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
@@ -11,8 +13,10 @@ use App\Domain\Sales\Exceptions\PaymentMismatchException;
 use App\Domain\Sales\Services\SalesService;
 use App\Domain\Sync\Dto\SyncBatchItem;
 use App\Domain\Sync\Models\SyncBatch;
+use App\Domain\Sync\Models\SyncConflict;
 use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Sync\Models\SyncOperation;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -81,7 +85,7 @@ final class SyncBatchService
             $result = $results[$i];
             $counts[$result['status']] = ($counts[$result['status']] ?? 0) + 1;
 
-            SyncOperation::query()->create([
+            $operation = SyncOperation::query()->create([
                 'batch_id' => $batch->id,
                 'client_uuid' => $item->clientUuid,
                 'entity_type' => $item->entityType,
@@ -94,6 +98,26 @@ final class SyncBatchService
                 'response' => $result,
                 'error_message' => $result['error'] ?? null,
             ]);
+
+            // Sec. 39.3: los conflictos duros (RN-156) van a la cola
+            // humana sync_conflicts. Solo los que traen bloque conflict:
+            // PaymentMismatch/InsufficientCredit son rechazos de payload,
+            // no conflictos de concurrencia resolubles (39.1), no se
+            // persisten (documentado).
+            if (isset($result['conflict'])) {
+                SyncConflict::query()->create([
+                    'uuid' => (string) Str::uuid(),
+                    'company_id' => $batch->company_id,
+                    'branch_id' => $result['conflict']['branch_id'],
+                    'device_id' => $deviceId,
+                    'sync_operation_id' => $operation->id,
+                    'entity_type' => $item->entityType,
+                    'entity_uuid' => $item->entityUuid,
+                    'conflict_type' => $result['conflict']['type'],
+                    'client_data' => $result['conflict']['client_data'],
+                    'server_data' => $result['conflict']['server_data'],
+                ]);
+            }
         }
 
         $batch->update([
@@ -143,6 +167,31 @@ final class SyncBatchService
                     // devolvia null desde el epic Sync sin que ningun test lo
                     // asertara. Se conserva la clave 'folio' del contrato.
                     'folio' => $sale->number,
+                ],
+            ];
+        } catch (CashSessionNotOpenException $e) {
+            // RN-156: sesion de caja cerrada en otro dispositivo es
+            // conflicto DURO que requiere intervencion de gerente (39.1).
+            // Antes caia en catch Throwable => error con retry infinito
+            // del cliente; ahora es conflict persistido en la cola humana.
+            $sessionUuid = (string) ($item->payload['cash_session_uuid'] ?? '');
+            $session = CashSession::query()
+                ->where('uuid', $sessionUuid)
+                ->first();
+
+            return [
+                'client_uuid' => $item->clientUuid,
+                'status' => 'conflict',
+                'error' => $e->getMessage(),
+                'conflict' => [
+                    'type' => SyncConflict::TYPE_CASH_SESSION_CLOSED,
+                    'branch_id' => $session?->branch_id ?? 0,
+                    'client_data' => $item->payload,
+                    'server_data' => [
+                        'cash_session_uuid' => $sessionUuid,
+                        'session_status' => $session?->status,
+                        'closed_at' => $session?->closed_at?->toIso8601String(),
+                    ],
                 ],
             ];
         } catch (PaymentMismatchException $e) {
