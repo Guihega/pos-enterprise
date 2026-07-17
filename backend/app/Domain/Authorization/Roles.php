@@ -50,6 +50,7 @@ final class Roles
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
                 $P::REPORT_CONSOLIDATED,
                 $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
+                $P::SYNC_CONFLICT_VIEW, $P::SYNC_CONFLICT_RESOLVE,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -64,6 +65,8 @@ final class Roles
                 // tambien a gerente (gestiona dispositivos de su operacion,
                 // consistente con USER_VIEW/BRANCH_VIEW). Estandar defendible.
                 $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
+                // Maestro 39.3: "Solo gerente o admin puede resolver".
+                $P::SYNC_CONFLICT_VIEW, $P::SYNC_CONFLICT_RESOLVE,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -119,6 +122,7 @@ final class Roles
                 $P::REPORT_CONSOLIDATED,
                 $P::AUDIT_VIEW,
                 $P::DEVICE_VIEW,
+                $P::SYNC_CONFLICT_VIEW,
             ],
         ];
     }

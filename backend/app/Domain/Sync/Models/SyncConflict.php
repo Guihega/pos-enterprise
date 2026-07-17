@@ -67,6 +67,7 @@ class SyncConflict extends Model
         'client_data' => 'array',
         'server_data' => 'array',
         'resolved_at' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
     public function getRouteKeyName(): string
