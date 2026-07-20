@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\V1\Sync\SyncChangesController;
 use App\Http\Controllers\Api\V1\Sync\SyncConflictsController;
 use App\Http\Controllers\Api\V1\Sync\SyncHeartbeatController;
 use App\Http\Controllers\Api\V1\Sync\SyncRegistrationController;
+use App\Http\Controllers\Api\V1\Sync\SyncSnapshotController;
 use App\Http\Controllers\Api\V1\Sync\SyncStatusController;
 use App\Http\Controllers\Api\V1\Tenancy\BranchesController;
 use Illuminate\Http\Request;
@@ -226,6 +227,13 @@ Route::prefix('v1')->group(function (): void {
                     ->name('sync.conflicts.index');
                 Route::post('/conflicts/{conflict}/resolve', [SyncConflictsController::class, 'resolve'])
                     ->name('sync.conflicts.resolve');
+                // Snapshot inicial (sec. 38.6). Entidades = SyncSnapshotService::ENTITY_CONFIG.
+                Route::post('/snapshot/{entity}', [SyncSnapshotController::class, 'manifest'])
+                    ->whereIn('entity', ['products', 'taxes', 'customers'])
+                    ->name('sync.snapshot.manifest');
+                Route::get('/snapshot/{entity}', [SyncSnapshotController::class, 'page'])
+                    ->whereIn('entity', ['products', 'taxes', 'customers'])
+                    ->name('sync.snapshot.page');
             });
             // ----- Folios (ADR-0009) -----
             Route::prefix('folio-ranges')->group(function (): void {
