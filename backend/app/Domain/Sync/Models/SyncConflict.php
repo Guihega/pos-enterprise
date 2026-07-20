@@ -40,6 +40,8 @@ class SyncConflict extends Model
 
     public const TYPE_CASH_SESSION_CLOSED = 'cash_session_closed';
 
+    public const TYPE_PRICE_MISMATCH = 'price_mismatch';
+
     public const RESOLUTION_ACCEPT_CLIENT = 'accept_client';
 
     public const RESOLUTION_ACCEPT_SERVER = 'accept_server';
