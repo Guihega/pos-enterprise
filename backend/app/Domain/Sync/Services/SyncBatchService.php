@@ -6,6 +6,7 @@ namespace App\Domain\Sync\Services;
 
 use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashSession;
+use App\Domain\Catalog\Models\Product;
 use App\Domain\Identity\Models\User;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
@@ -155,7 +156,7 @@ final class SyncBatchService
             $dto = CheckoutRequest::fromArray($payload);
             $sale = $this->sales->checkout($dto, $user);
 
-            return [
+            $result = [
                 'client_uuid' => $item->clientUuid,
                 'entity_uuid' => $item->entityUuid,
                 'status' => 'success',
@@ -169,6 +170,18 @@ final class SyncBatchService
                     'folio' => $sale->number,
                 ],
             ];
+
+            // 39.1: "precio cambio => acepta precio congelado, registra
+            // PRICE_MISMATCH". La venta ya quedo aceptada con el precio del
+            // cliente (39.2 Sales); el conflicto es INFORMATIVO (status
+            // success + bloque conflict, el loop persistidor lo cuelga de
+            // la operacion sin cambiar el resultado del item).
+            $mismatch = $this->detectPriceMismatch($dto, $sale);
+            if ($mismatch !== null) {
+                $result['conflict'] = $mismatch;
+            }
+
+            return $result;
         } catch (CashSessionNotOpenException $e) {
             // RN-156: sesion de caja cerrada en otro dispositivo es
             // conflicto DURO que requiere intervencion de gerente (39.1).
@@ -201,5 +214,47 @@ final class SyncBatchService
         } catch (Throwable $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'error', 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * 39.1 PRICE_MISMATCH: items cuyo unit_price del cliente (cache
+     * offline, unitPriceOverride) difiere del precio vigente del Product.
+     * Sin override no hay mismatch posible (el checkout uso el precio del
+     * servidor). Tolerancia de medio centavo (estandar defendible: los
+     * precios son decimales a 2 posiciones).
+     *
+     * @return array{type: string, branch_id: int, client_data: array<string, mixed>, server_data: array<string, mixed>}|null
+     */
+    private function detectPriceMismatch(CheckoutRequest $dto, $sale): ?array
+    {
+        $clientItems = [];
+        $serverItems = [];
+
+        foreach ($dto->items as $item) {
+            if ($item->unitPriceOverride === null) {
+                continue;
+            }
+            $product = Product::query()->where('uuid', $item->productUuid)->first();
+            if ($product === null) {
+                continue;
+            }
+            $current = (float) $product->price;
+            if (abs($item->unitPriceOverride - $current) < 0.005) {
+                continue;
+            }
+            $clientItems[] = ['product_uuid' => $item->productUuid, 'unit_price' => $item->unitPriceOverride];
+            $serverItems[] = ['product_uuid' => $item->productUuid, 'unit_price' => $current];
+        }
+
+        if ($clientItems === []) {
+            return null;
+        }
+
+        return [
+            'type' => SyncConflict::TYPE_PRICE_MISMATCH,
+            'branch_id' => $sale->branch_id,
+            'client_data' => ['items' => $clientItems],
+            'server_data' => ['items' => $serverItems],
+        ];
     }
 }
