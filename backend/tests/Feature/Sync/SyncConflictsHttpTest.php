@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Audit\Models\ActivityLog;
 use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
 use App\Domain\Identity\Models\User;
@@ -132,4 +133,22 @@ it('cajero recibe 403 al listar', function (): void {
     $this->withHeaders(chttpHeaders())
         ->getJson('/api/v1/sync/conflicts')
         ->assertStatus(403);
+});
+
+it('resolver deja rastro en activity_log (RN-170)', function () {
+    Sanctum::actingAs($this->gerente);
+
+    $this->postJson("/api/v1/sync/conflicts/{$this->conflict->uuid}/resolve", [
+        'resolution' => SyncConflict::RESOLUTIONS[0],
+    ], ['X-Tenant' => $this->tenant->slug])->assertOk();
+
+    TenantContext::set($this->tenant);
+    $log = ActivityLog::query()
+        ->where('event', 'conflict.resolved')
+        ->where('subject_id', $this->conflict->id)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->causer_id)->toBe($this->gerente->id)
+        ->and($log->properties['resolution'])->toBe(SyncConflict::RESOLUTIONS[0]);
 });
