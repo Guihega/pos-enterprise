@@ -8,6 +8,8 @@ use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashSession;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Stock;
+use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
 use App\Domain\Sales\Exceptions\PaymentMismatchException;
@@ -154,7 +156,9 @@ final class SyncBatchService
                 $payload['device_id'] = $deviceId;
             }
             $dto = CheckoutRequest::fromArray($payload);
-            $sale = $this->sales->checkout($dto, $user);
+            // 39.1/39.2: la venta offline es historica; se acepta aunque
+            // el stock quede negativo (el faltante se detecta abajo).
+            $sale = $this->sales->checkout($dto, $user, allowNegativeStock: true);
 
             $result = [
                 'client_uuid' => $item->clientUuid,
@@ -179,6 +183,20 @@ final class SyncBatchService
             $mismatch = $this->detectPriceMismatch($dto, $sale);
             if ($mismatch !== null) {
                 $result['conflict'] = $mismatch;
+            }
+
+            // 39.1 stock insuficiente: "acepta venta, permite stock
+            // negativo, alerta admin". La alerta de reabastecimiento la
+            // cubre RN-058/RN-190 (cruce de minimo en recordExit, canal
+            // existente ALMACEN/GERENTE; estandar defendible: no duplicar
+            // canales). Aqui se registra el conflicto informativo para la
+            // cola humana 39.3. Nota: un item puede traer PRICE_MISMATCH
+            // y otro NEGATIVE_STOCK; el modelo persiste UN conflicto por
+            // operacion, prevalece NEGATIVE_STOCK (mas accionable);
+            // ampliar a multiples cuando exista evidencia de necesidad.
+            $negative = $this->detectNegativeStock($dto, $sale);
+            if ($negative !== null) {
+                $result['conflict'] = $negative;
             }
 
             return $result;
@@ -255,6 +273,58 @@ final class SyncBatchService
             'branch_id' => $sale->branch_id,
             'client_data' => ['items' => $clientItems],
             'server_data' => ['items' => $serverItems],
+        ];
+    }
+
+    /**
+     * 39.1 stock insuficiente: productos con track_inventory cuyo stock
+     * quedo negativo tras aceptar la venta offline. Consulta el estado
+     * REAL post-checkout (fuente de verdad), no una prediccion.
+     *
+     * @return array{type: string, branch_id: int, client_data: array<string, mixed>, server_data: array<string, mixed>}|null
+     */
+    private function detectNegativeStock(CheckoutRequest $dto, $sale): ?array
+    {
+        $warehouse = Warehouse::query()->where('uuid', $dto->warehouseUuid)->first();
+        if ($warehouse === null) {
+            return null;
+        }
+
+        $negativos = [];
+        foreach ($dto->items as $item) {
+            $product = Product::query()->where('uuid', $item->productUuid)->first();
+            if ($product === null || ! $product->track_inventory) {
+                continue;
+            }
+            $stock = Stock::query()
+                ->where('product_id', $product->id)
+                ->where('warehouse_id', $warehouse->id)
+                ->first();
+            $qty = $stock !== null ? (float) $stock->quantity_on_hand : 0.0;
+            if ($qty < 0) {
+                $negativos[] = [
+                    'product_uuid' => $item->productUuid,
+                    'quantity_on_hand' => $qty,
+                    'quantity_sold' => $item->quantity,
+                ];
+            }
+        }
+
+        if ($negativos === []) {
+            return null;
+        }
+
+        return [
+            'type' => SyncConflict::TYPE_NEGATIVE_STOCK,
+            'branch_id' => $sale->branch_id,
+            'client_data' => ['items' => array_map(
+                fn (array $n) => ['product_uuid' => $n['product_uuid'], 'quantity' => $n['quantity_sold']],
+                $negativos,
+            )],
+            'server_data' => ['items' => array_map(
+                fn (array $n) => ['product_uuid' => $n['product_uuid'], 'quantity_on_hand' => $n['quantity_on_hand']],
+                $negativos,
+            )],
         ];
     }
 }

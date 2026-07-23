@@ -42,6 +42,8 @@ class SyncConflict extends Model
 
     public const TYPE_PRICE_MISMATCH = 'price_mismatch';
 
+    public const TYPE_NEGATIVE_STOCK = 'negative_stock';
+
     public const RESOLUTION_ACCEPT_CLIENT = 'accept_client';
 
     public const RESOLUTION_ACCEPT_SERVER = 'accept_server';

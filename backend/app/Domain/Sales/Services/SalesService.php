@@ -77,9 +77,9 @@ final class SalesService
     /**
      * Checkout: registra una venta completa.
      */
-    public function checkout(CheckoutRequest $request, User $user): Sale
+    public function checkout(CheckoutRequest $request, User $user, bool $allowNegativeStock = false): Sale
     {
-        $sale = DB::transaction(function () use ($request, $user) {
+        $sale = DB::transaction(function () use ($request, $user, $allowNegativeStock) {
             // 1. Resolver la sesión de caja, validar que esté abierta
             /** @var CashSession $session */
             $session = CashSession::query()
@@ -255,6 +255,7 @@ final class SalesService
                         source: $sale,
                         userId: $user->id,
                         batchConsumption: $batchConsumption,
+                        allowNegative: $allowNegativeStock,
                     );
 
                     // Checkout 9c: detalle de lotes consumidos FEFO (RN-045).

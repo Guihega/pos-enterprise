@@ -52,10 +52,20 @@ it('permite stock del mismo producto en almacenes distintos', function () {
     expect(Stock::query()->where('product_id', $this->product->id)->count())->toBe(2);
 });
 
-it('rechaza cantidades negativas (check constraint)', function () {
+it('acepta quantity_on_hand negativo (39.1: venta offline con stock insuficiente)', function () {
+    // Migracion 000042 relajo el CHECK: el faltante por ventas sync es
+    // senal real de inventario, no un error (ver SyncNegativeStockTest).
+    $stock = Stock::factory()->ofProduct($this->product, $this->warehouse)
+        ->withQuantity(-5)
+        ->create();
+
+    expect((float) $stock->refresh()->quantity_on_hand)->toBe(-5.0);
+});
+
+it('rechaza quantity_reserved negativo (check constraint vigente)', function () {
     expectQueryException(function () {
         Stock::factory()->ofProduct($this->product, $this->warehouse)
-            ->withQuantity(-5)
+            ->withQuantity(10, -5)
             ->create();
     });
 });
