@@ -121,6 +121,7 @@ final class InventoryService
         ?int $userId = null,
         ?string $transferId = null,
         ?array &$batchConsumption = null,
+        bool $allowNegative = false,
     ): InventoryMovement {
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Quantity must be positive for exits');
@@ -131,12 +132,16 @@ final class InventoryService
         $movement = DB::transaction(function () use (
             $product, $warehouse, $quantity, $type,
             $reason, $reference, $source, $userId, $transferId,
-            &$crossedLowStock, &$batchConsumption
+            $allowNegative, &$crossedLowStock, &$batchConsumption
         ) {
             $stock = $this->lockOrCreateStock($product, $warehouse);
 
             $currentQty = (float) $stock->quantity_on_hand;
-            if ($currentQty < $quantity) {
+            // 39.1 sync offline: venta historica se acepta aunque deje el
+            // stock negativo (allowNegative). FEFO ya tolera el faltante
+            // (excedente sale sin lote) y RN-058/RN-190 alertan el cruce
+            // de minimo por el canal existente.
+            if (! $allowNegative && $currentQty < $quantity) {
                 throw InsufficientStockException::forProduct(
                     $product->id, $warehouse->id, $quantity, $currentQty
                 );
