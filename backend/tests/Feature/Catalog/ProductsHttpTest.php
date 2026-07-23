@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Audit\Models\ActivityLog;
 use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
 use App\Domain\Catalog\Models\Product;
@@ -453,4 +454,56 @@ it('DELETE /products/{uuid} con cajero devuelve 403', function () {
     );
 
     $response->assertStatus(403);
+});
+
+it('PATCH con cambio de precio deja rastro en activity_log (RN-178)', function () {
+    $product = Product::factory()->create([
+        'company_id' => $this->tenant->id,
+        'unit_id' => $this->unit->id,
+        'price' => 100,
+    ]);
+
+    Sanctum::actingAs($this->admin);
+
+    $this->patchJson(
+        "/api/v1/products/{$product->uuid}",
+        ['price' => 150],
+        ['X-Tenant' => 'mi-tenant']
+    )->assertOk();
+
+    TenantContext::set($this->tenant);
+    $log = ActivityLog::query()
+        ->where('event', 'product.price_changed')
+        ->where('subject_id', $product->id)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->log_name)->toBe('catalog')
+        ->and($log->causer_id)->toBe($this->admin->id)
+        ->and($log->properties['price_before'])->toBe('100.0000')
+        ->and($log->properties['price_after'])->toBe('150.0000');
+});
+
+it('PATCH sin cambio de precio NO genera log de precio (RN-178)', function () {
+    $product = Product::factory()->create([
+        'company_id' => $this->tenant->id,
+        'unit_id' => $this->unit->id,
+        'price' => 100,
+    ]);
+
+    Sanctum::actingAs($this->admin);
+
+    $this->patchJson(
+        "/api/v1/products/{$product->uuid}",
+        ['name' => 'Solo nombre'],
+        ['X-Tenant' => 'mi-tenant']
+    )->assertOk();
+
+    TenantContext::set($this->tenant);
+    $existe = ActivityLog::query()
+        ->where('event', 'product.price_changed')
+        ->where('subject_id', $product->id)
+        ->exists();
+
+    expect($existe)->toBeFalse();
 });
