@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Catalog;
 
+use App\Domain\Audit\Services\ActivityLogger;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Catalog\Models\Brand;
 use App\Domain\Catalog\Models\Category;
@@ -116,14 +117,35 @@ class ProductsController extends Controller
     /**
      * PATCH /api/v1/products/{uuid}
      */
-    public function update(UpdateProductRequest $request, Product $product): JsonResponse
+    public function update(UpdateProductRequest $request, ActivityLogger $logger, Product $product): JsonResponse
     {
         abort_unless((bool) $request->user()?->can(Permissions::PRODUCT_UPDATE), 403);
 
         $validated = $request->validated();
         $data = $this->mapInputToColumns($validated);
 
+        // RN-178: cambio de precio auditado con valor anterior y nuevo.
+        // Solo se registra si el input trae price Y el valor cambio.
+        // Comparacion y properties con el atributo post-cast (decimal:4,
+        // string): ambos lados normalizados, sin perdida en jsonb.
+        // log_name=catalog: evento de negocio, no de seguridad (RN-174
+        // no aplica).
+        $priceBefore = $product->price;
+
         $product->update($data);
+
+        if (array_key_exists('price', $data) && $product->price !== $priceBefore) {
+            $logger->log(
+                logName: 'catalog',
+                event: 'product.price_changed',
+                description: 'Precio de producto modificado',
+                subject: $product,
+                properties: [
+                    'price_before' => $priceBefore,
+                    'price_after' => $product->price,
+                ],
+            );
+        }
         $product->load(['category', 'brand', 'unit', 'tax']);
 
         return response()->json(['data' => new ProductResource($product)]);

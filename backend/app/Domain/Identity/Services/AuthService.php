@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Identity\Services;
 
+use App\Domain\Audit\Services\ActivityLogger;
 use App\Domain\Identity\Exceptions\AccountInactiveException;
 use App\Domain\Identity\Exceptions\AccountLockedException;
 use App\Domain\Identity\Exceptions\InvalidCredentialsException;
@@ -33,6 +34,10 @@ use Illuminate\Support\Facades\Hash;
  */
 final class AuthService
 {
+    public function __construct(
+        private readonly ActivityLogger $logger,
+    ) {}
+
     /**
      * Login por email + password. Devuelve el token recién emitido si OK,
      * lanza excepción específica si no.
@@ -73,6 +78,23 @@ final class AuthService
         // Verificación timing-safe de password
         if (! Hash::check($password, $user->password)) {
             $user->registerFailedLogin();
+
+            // RN-176: login fallido con IP y user agent. RN-174 (logs de
+            // seguridad separados) cumplido via log_name=security sin tabla
+            // aparte. Solo usuarios existentes: el intento contra email
+            // inexistente no se audita (anti-enumeracion: registrar el email
+            // probado seria filtrar su existencia; diferido documentado).
+            $this->logger->log(
+                logName: 'security',
+                event: 'login.failed',
+                description: 'Intento de login fallido',
+                subject: $user,
+                properties: ['reason' => 'invalid_password'],
+                severity: 'warning',
+                deviceId: $context['device_id'] ?? null,
+                ip: $context['ip'] ?? null,
+                userAgent: $context['user_agent'] ?? null,
+            );
 
             // Si este intento fue el que la bloqueó, devolvemos la excepción
             // específica de bloqueo en lugar de invalid-credentials para que

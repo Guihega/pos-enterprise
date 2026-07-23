@@ -37,6 +37,8 @@ final class ActivityLogger
         ?int $branchId = null,
         ?string $deviceId = null,
         ?string $batchUuid = null,
+        ?string $ip = null,
+        ?string $userAgent = null,
     ): ActivityLog {
         $request = request();
         $causer = $request?->user();
@@ -52,10 +54,11 @@ final class ActivityLogger
             'causer_id' => $causer?->getKey(),
             'causer_name' => $causer?->name,
             'event' => $event,
+            'severity' => $severity,
             'properties' => $properties === [] ? null : $properties,
             'batch_uuid' => $batchUuid,
-            'ip_address' => $request?->ip(),
-            'user_agent' => $request?->userAgent(),
+            'ip_address' => $ip ?? $request?->ip(),
+            'user_agent' => $userAgent ?? $request?->userAgent(),
             'device_id' => $deviceId,
             'request_id' => $request?->header('X-Request-Id') ?? $request?->headers->get('X-Request-ID'),
         ]);

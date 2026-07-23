@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Domain\Audit\Services\ActivityLogger;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Identity\Models\User;
 use App\Http\Controllers\Controller;
@@ -52,7 +53,7 @@ class UsersController extends Controller
      *
      * Body: { roles: ["admin", "cajero"] }
      */
-    public function syncRoles(Request $request, string $uuid): JsonResponse
+    public function syncRoles(Request $request, ActivityLogger $logger, string $uuid): JsonResponse
     {
         abort_unless((bool) $request->user()?->can(Permissions::USER_ROLE_ASSIGN), 403);
 
@@ -62,11 +63,26 @@ class UsersController extends Controller
         ]);
 
         $user = User::where('uuid', $uuid)->firstOrFail();
+        $rolesBefore = $user->roles->pluck('name')->values()->all();
 
         // syncRoles del trait HasRoles ya respeta el team_id (company_id)
         // del PermissionsTeamResolver custom.
         $user->syncRoles($validated['roles']);
         $user->load('roles');
+
+        // RN-177: cambio de roles auditado con quien lo hizo (causer
+        // automatico del request) y antes/despues. log_name=security
+        // (RN-174); severity default info: operacion legitima, no fallo.
+        $logger->log(
+            logName: 'security',
+            event: 'role.synced',
+            description: 'Roles de usuario sincronizados',
+            subject: $user,
+            properties: [
+                'roles_before' => $rolesBefore,
+                'roles_after' => $user->roles->pluck('name')->values()->all(),
+            ],
+        );
 
         return response()->json(['data' => new UserResource($user)]);
     }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Audit\Models\ActivityLog;
 use App\Domain\Authorization\Roles;
 use App\Domain\Authorization\Services\RoleProvisioner;
 use App\Domain\Identity\Models\User;
@@ -114,4 +115,30 @@ it('asignar un rol que no existe devuelve 422', function () {
     );
 
     $response->assertStatus(422);
+});
+
+it('asignar roles deja rastro en activity_log con antes y despues (RN-177)', function () {
+    $admin = User::factory()->create(['company_id' => $this->tenant->id]);
+    $admin->assignRole(Roles::ADMIN);
+    $target = User::factory()->create(['company_id' => $this->tenant->id]);
+    Sanctum::actingAs($admin);
+
+    $this->postJson(
+        "/api/v1/admin/users/{$target->uuid}/roles",
+        ['roles' => [Roles::CAJERO]],
+        ['X-Tenant' => 'mi-tenant']
+    )->assertOk();
+
+    TenantContext::set($this->tenant);
+    $log = ActivityLog::query()
+        ->where('event', 'role.synced')
+        ->where('subject_id', $target->id)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->log_name)->toBe('security')
+        ->and($log->causer_id)->toBe($admin->id)
+        ->and($log->causer_name)->toBe($admin->name)
+        ->and($log->properties['roles_before'])->toBe([])
+        ->and($log->properties['roles_after'])->toEqualCanonicalizing([Roles::CAJERO]);
 });

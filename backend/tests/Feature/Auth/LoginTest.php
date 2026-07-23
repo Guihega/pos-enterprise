@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Audit\Models\ActivityLog;
 use App\Domain\Identity\Models\User;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
@@ -195,4 +196,30 @@ it('login exitoso registra last_login_at, last_login_ip y device_id', function (
         ->and($fresh->last_login_ip)->not->toBeNull()
         ->and($fresh->last_login_device_id)->toBe('tablet-cdr-001')
         ->and($fresh->failed_login_attempts)->toBe(0);
+});
+
+it('login fallido deja rastro en activity_log con ip y user agent (RN-176)', function () {
+    $user = User::factory()->create([
+        'company_id' => $this->tenant->id,
+        'email' => 'admin@mi-tenant.local',
+        'password' => Hash::make('secret123'),
+    ]);
+
+    $this->postJson('/api/v1/auth/login', [
+        'email' => 'admin@mi-tenant.local',
+        'password' => 'wrong-password',
+    ], ['X-Tenant' => 'mi-tenant'])->assertStatus(401);
+
+    TenantContext::set($this->tenant);
+    $log = ActivityLog::query()
+        ->where('event', 'login.failed')
+        ->where('subject_id', $user->id)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->log_name)->toBe('security')
+        ->and($log->severity)->toBe('warning')
+        ->and($log->properties['reason'])->toBe('invalid_password')
+        ->and($log->ip_address)->not->toBeNull()
+        ->and($log->causer_id)->toBeNull();
 });
