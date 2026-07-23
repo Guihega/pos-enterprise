@@ -15,8 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Conflicto de sync pendiente de resolucion humana (maestro 26.12,
  * sec. 39.3). resolved_at NULL => pendiente. Valores de resolution
  * catalogados en el DDL: accept_client, accept_server, manual_merge.
- * Solo gerente o admin resuelve (39.3); auditoria via activity_log
- * DIFERIDA (RN-170, tabla inexistente en el proyecto).
+ * Solo gerente o admin resuelve (39.3); la resolucion se audita en
+ * activity_log (RN-170) via ActivityLogger desde el controller.
  *
  * @property int $id
  * @property string $uuid

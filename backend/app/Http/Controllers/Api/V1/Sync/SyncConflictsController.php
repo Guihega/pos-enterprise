@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Sync;
 
+use App\Domain\Audit\Services\ActivityLogger;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Sync\Models\SyncConflict;
 use App\Http\Controllers\Controller;
@@ -22,10 +23,14 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  * acciones de la UI 39.3 como "asignar a otra sesion" o "cancelar
  * venta" no tienen especificacion de backend: DIFERIDAS; la accion
  * correctiva se hace por los endpoints normales del dominio).
- * Auditoria RN-170 DIFERIDA (activity_log inexistente).
+ * Auditoria RN-170: resolve registra en activity_log via ActivityLogger.
  */
 final class SyncConflictsController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogger $logger,
+    ) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         abort_unless((bool) $request->user()?->can(Permissions::SYNC_CONFLICT_VIEW), 403);
@@ -54,6 +59,19 @@ final class SyncConflictsController extends Controller
             'resolved_at' => now(),
             'resolved_by' => $request->user()->id,
         ]);
+
+        $this->logger->log(
+            logName: 'sync',
+            event: 'conflict.resolved',
+            description: sprintf('Conflicto %s resuelto: %s', $conflict->conflict_type, $conflict->resolution),
+            subject: $conflict,
+            properties: [
+                'resolution' => $conflict->resolution,
+                'notes' => $conflict->notes,
+            ],
+            branchId: $conflict->branch_id,
+            deviceId: $conflict->device_id,
+        );
 
         return response()->json(['data' => new SyncConflictResource($conflict->fresh())]);
     }
