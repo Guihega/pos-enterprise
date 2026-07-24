@@ -7,10 +7,13 @@ namespace App\Http\Controllers\Api\V1\Sales;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Models\Sale;
+use App\Domain\Sales\Models\SaleReturn;
+use App\Domain\Sales\Services\SaleReturnService;
 use App\Domain\Sales\Services\SalesService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sale\CancelSaleRequest;
 use App\Http\Requests\Sale\StoreSaleRequest;
+use App\Http\Requests\Sale\StoreSaleReturnRequest;
 use App\Http\Resources\SaleResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -90,6 +93,47 @@ final class SalesController extends Controller
     /**
      * Cancela una venta completada (revierte stock y caja por compensación).
      */
+    /**
+     * Devolucion basica (CU-CAJ-010). Autorizacion supervisor = permiso
+     * SALE_REFUND (RN-083/paso 7 del CU, patron SALE_VOID). RN-086
+     * estricta: siempre referida a la venta por uuid.
+     */
+    public function storeReturn(StoreSaleReturnRequest $request, string $uuid): JsonResponse
+    {
+        Gate::authorize(Permissions::SALE_REFUND);
+
+        $sale = Sale::query()->where('uuid', $uuid)->firstOrFail();
+        $validated = $request->validated();
+
+        $return = app(SaleReturnService::class)->create(
+            $sale,
+            $validated['items'],
+            $request->user(),
+            $validated['reason'],
+        );
+
+        return response()->json(['data' => [
+            'uuid' => $return->uuid,
+            'total_amount' => $return->total_amount,
+            'cash_refunded' => $return->cash_refunded,
+            'sale_status' => $sale->fresh()->status,
+        ]], 201);
+    }
+
+    public function indexReturns(Request $request, string $uuid): JsonResponse
+    {
+        Gate::authorize(Permissions::SALE_VIEW);
+
+        $sale = Sale::query()->where('uuid', $uuid)->firstOrFail();
+        $returns = SaleReturn::query()
+            ->where('sale_id', $sale->id)
+            ->with('items')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['data' => $returns]);
+    }
+
     public function cancel(CancelSaleRequest $request, string $uuid): SaleResource
     {
         Gate::authorize(Permissions::SALE_VOID);

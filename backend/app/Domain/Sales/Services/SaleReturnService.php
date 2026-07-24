@@ -94,7 +94,7 @@ final class SaleReturnService
                     throw SaleNotReturnableException::quantityExceeded($saleItem->product->uuid);
                 }
                 // Monto proporcional al precio real pagado del renglon.
-                $amount = round(((float) $saleItem->total / (float) $saleItem->quantity) * $qty, 4);
+                $amount = round(((float) $saleItem->line_total / (float) $saleItem->quantity) * $qty, 2);
                 $totalAmount += $amount;
                 $lines[] = ['saleItem' => $saleItem, 'qty' => $qty, 'amount' => $amount];
             }
