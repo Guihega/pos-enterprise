@@ -44,6 +44,12 @@ class SyncConflict extends Model
 
     public const TYPE_NEGATIVE_STOCK = 'negative_stock';
 
+    public const TYPE_PRODUCT_NOT_FOUND = 'product_not_found';
+
+    public const TYPE_CUSTOMER_NOT_FOUND = 'customer_not_found';
+
+    public const TYPE_DUPLICATE_FOLIO = 'duplicate_folio';
+
     public const RESOLUTION_ACCEPT_CLIENT = 'accept_client';
 
     public const RESOLUTION_ACCEPT_SERVER = 'accept_server';

@@ -15,6 +15,7 @@ use App\Domain\Sales\Models\Sale;
 use App\Domain\Sales\Models\SaleNumberRange;
 use App\Domain\Sales\Services\FolioRangeService;
 use App\Domain\Sync\Dto\SyncBatchItem;
+use App\Domain\Sync\Models\SyncConflict;
 use App\Domain\Sync\Services\SyncBatchService;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
@@ -156,4 +157,39 @@ it('sin device_id en el batch usa el generador central (contrato previo intacto)
 
     expect($results[0]['status'])->toBe('success');
     expect($results[0]['data']['folio'])->toBe('CTR-CAJA01-A-000001');
+});
+
+it('number_value repetido en dos batches persiste conflicto DUPLICATE_FOLIO', function (): void {
+    app(FolioRangeService::class)->reserve($this->register, 'A', 'device-001', 50);
+
+    // Primer batch consume el folio 7 con exito.
+    $first = $this->service->process(
+        [folioLifecycleItem(7)],
+        $this->cajero,
+        (string) Str::uuid(),
+        'device-001',
+    );
+    TenantContext::set($this->tenant);
+    expect($first[0]['status'])->toBe('success');
+
+    // Segundo batch (crash del cliente, folio local no actualizado)
+    // repite el mismo number_value: consume() lo acepta de nuevo (no
+    // trackea consumidos) y el unique (company_id, number) revienta.
+    $second = $this->service->process(
+        [folioLifecycleItem(7)],
+        $this->cajero,
+        (string) Str::uuid(),
+        'device-001',
+    );
+    TenantContext::set($this->tenant);
+
+    expect($second[0]['status'])->toBe('conflict');
+
+    $conflict = SyncConflict::query()
+        ->where('conflict_type', SyncConflict::TYPE_DUPLICATE_FOLIO)
+        ->firstOrFail();
+    expect($conflict->branch_id)->toBe($this->branch->id)
+        ->and($conflict->resolved_at)->toBeNull()
+        ->and($conflict->server_data['number_value'])->toBe(7)
+        ->and(Sale::query()->count())->toBe(1);  // cero ventas duplicadas
 });
