@@ -43,7 +43,12 @@ it('GET /customers con admin devuelve listado paginado', function () {
 
 it('GET /customers?q=juan filtra por búsqueda', function () {
     Customer::factory()->create(['name' => 'Juan Pérez']);
-    Customer::factory()->count(3)->create();
+    // Nombres deterministas sin "juan": Faker puede generar Juana/Juan
+    // Carlos y romper el conteo exacto (flaky observado en suite con
+    // random order, seed 1784910487).
+    Customer::factory()->create(['name' => 'Cliente Relleno Uno']);
+    Customer::factory()->create(['name' => 'Cliente Relleno Dos']);
+    Customer::factory()->create(['name' => 'Cliente Relleno Tres']);
 
     Sanctum::actingAs($this->admin);
     $response = $this->getJson('/api/v1/customers?q=juan', ['X-Tenant' => 'mi-tenant']);
