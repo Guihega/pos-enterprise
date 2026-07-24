@@ -250,6 +250,10 @@ Route::prefix('v1')->group(function (): void {
                     ->name('sales.store');
                 Route::post('/{uuid}/cancel', [SalesController::class, 'cancel'])
                     ->name('sales.cancel');
+                Route::post('/{uuid}/returns', [SalesController::class, 'storeReturn'])
+                    ->name('sales.returns.store');
+                Route::get('/{uuid}/returns', [SalesController::class, 'indexReturns'])
+                    ->name('sales.returns.index');
             });
 
             // ----- Reportes -----
