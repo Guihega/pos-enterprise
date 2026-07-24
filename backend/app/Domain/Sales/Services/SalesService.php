@@ -22,6 +22,7 @@ use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
 use App\Domain\Sales\Exceptions\PaymentMismatchException;
 use App\Domain\Sales\Exceptions\SaleNotCancellableException;
+use App\Domain\Sales\Exceptions\SaleProductNotFoundException;
 use App\Domain\Sales\Models\Sale;
 use App\Domain\Sales\Models\SaleItem;
 use App\Domain\Sales\Models\SaleItemBatch;
@@ -126,8 +127,8 @@ final class SalesService
             foreach ($request->items as $itemRequest) {
                 $product = $products->get($itemRequest->productUuid);
                 if (! $product) {
-                    throw new \InvalidArgumentException(
-                        "Producto {$itemRequest->productUuid} no encontrado en este tenant"
+                    throw SaleProductNotFoundException::forUuid(
+                        $itemRequest->productUuid
                     );
                 }
                 $linesData[] = [

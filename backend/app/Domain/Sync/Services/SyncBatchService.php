@@ -7,18 +7,21 @@ namespace App\Domain\Sync\Services;
 use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashSession;
 use App\Domain\Catalog\Models\Product;
+use App\Domain\Customer\Models\Customer;
 use App\Domain\Identity\Models\User;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
 use App\Domain\Sales\Exceptions\PaymentMismatchException;
+use App\Domain\Sales\Exceptions\SaleProductNotFoundException;
 use App\Domain\Sales\Services\SalesService;
 use App\Domain\Sync\Dto\SyncBatchItem;
 use App\Domain\Sync\Models\SyncBatch;
 use App\Domain\Sync\Models\SyncConflict;
 use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Sync\Models\SyncOperation;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -229,9 +232,67 @@ final class SyncBatchService
             return ['client_uuid' => $item->clientUuid, 'status' => 'conflict', 'error' => $e->getMessage()];
         } catch (InsufficientCreditException $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'conflict', 'error' => $e->getMessage()];
+        } catch (SaleProductNotFoundException $e) {
+            // 39.1 "producto eliminado": la venta offline referencia un
+            // producto inexistente o soft-borrado. Antes caia en catch
+            // Throwable => error con retry infinito del cliente (mismo
+            // antipatron pagado en RN-156); ahora es conflicto persistido
+            // en la cola humana 39.3.
+            return [
+                'client_uuid' => $item->clientUuid,
+                'status' => 'conflict',
+                'error' => $e->getMessage(),
+                'conflict' => [
+                    'type' => SyncConflict::TYPE_PRODUCT_NOT_FOUND,
+                    'branch_id' => $this->branchIdFromPayload($item),
+                    'client_data' => $item->payload,
+                    'server_data' => [
+                        'product_uuid' => $e->productUuid,
+                    ],
+                ],
+            ];
+        } catch (ModelNotFoundException $e) {
+            // 39.1 "cliente eliminado": solo Customer es conflicto de
+            // concurrencia resoluble. Los otros firstOrFail alcanzables
+            // desde checkout (CashSession ~88, Warehouse ~100) conservan
+            // el comportamiento previo (status=error, documentado).
+            if ($e->getModel() !== Customer::class) {
+                return [
+                    'client_uuid' => $item->clientUuid,
+                    'status' => 'error',
+                    'error' => $e->getMessage(),
+                ];
+            }
+
+            return [
+                'client_uuid' => $item->clientUuid,
+                'status' => 'conflict',
+                'error' => $e->getMessage(),
+                'conflict' => [
+                    'type' => SyncConflict::TYPE_CUSTOMER_NOT_FOUND,
+                    'branch_id' => $this->branchIdFromPayload($item),
+                    'client_data' => $item->payload,
+                    'server_data' => [
+                        'customer_uuid' => $item->payload['customer_uuid'] ?? null,
+                    ],
+                ],
+            ];
         } catch (Throwable $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'error', 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * branch_id para conflictos donde la venta no llego a existir:
+     * se resuelve desde la cash session del payload (patron RN-156).
+     */
+    private function branchIdFromPayload(SyncBatchItem $item): int
+    {
+        $session = CashSession::query()
+            ->where('uuid', (string) ($item->payload['cash_session_uuid'] ?? ''))
+            ->first();
+
+        return $session?->branch_id ?? 0;
     }
 
     /**
