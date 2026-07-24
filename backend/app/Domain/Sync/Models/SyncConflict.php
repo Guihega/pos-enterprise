@@ -48,6 +48,8 @@ class SyncConflict extends Model
 
     public const TYPE_CUSTOMER_NOT_FOUND = 'customer_not_found';
 
+    public const TYPE_DUPLICATE_FOLIO = 'duplicate_folio';
+
     public const RESOLUTION_ACCEPT_CLIENT = 'accept_client';
 
     public const RESOLUTION_ACCEPT_SERVER = 'accept_server';

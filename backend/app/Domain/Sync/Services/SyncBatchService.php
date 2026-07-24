@@ -22,6 +22,7 @@ use App\Domain\Sync\Models\SyncConflict;
 use App\Domain\Sync\Models\SyncDevice;
 use App\Domain\Sync\Models\SyncOperation;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -232,6 +233,34 @@ final class SyncBatchService
             return ['client_uuid' => $item->clientUuid, 'status' => 'conflict', 'error' => $e->getMessage()];
         } catch (InsufficientCreditException $e) {
             return ['client_uuid' => $item->clientUuid, 'status' => 'conflict', 'error' => $e->getMessage()];
+        } catch (UniqueConstraintViolationException $e) {
+            // 39.1 "folio duplicado": consume() valida pertenencia al rango
+            // pero no trackea valores ya consumidos (solo marca exhausted en
+            // range_end); un number_value repetido en dos batches distintos
+            // choca contra el unique (company_id, number). Antes: catch
+            // Throwable => error con retry infinito. Se discrimina por
+            // nombre de constraint para no etiquetar otros uniques.
+            if (! str_contains($e->getMessage(), 'sales_company_number_unique')) {
+                return [
+                    'client_uuid' => $item->clientUuid,
+                    'status' => 'error',
+                    'error' => $e->getMessage(),
+                ];
+            }
+
+            return [
+                'client_uuid' => $item->clientUuid,
+                'status' => 'conflict',
+                'error' => $e->getMessage(),
+                'conflict' => [
+                    'type' => SyncConflict::TYPE_DUPLICATE_FOLIO,
+                    'branch_id' => $this->branchIdFromPayload($item),
+                    'client_data' => $item->payload,
+                    'server_data' => [
+                        'number_value' => $item->payload['number_value'] ?? null,
+                    ],
+                ],
+            ];
         } catch (SaleProductNotFoundException $e) {
             // 39.1 "producto eliminado": la venta offline referencia un
             // producto inexistente o soft-borrado. Antes caia en catch
