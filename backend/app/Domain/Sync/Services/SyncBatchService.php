@@ -34,6 +34,24 @@ use Throwable;
  *
  * Fase 2 inicial: solo soporta entity_type=sale, operation=create.
  * Otros tipos se rechazan con status=error (sin bloquear el batch).
+ *
+ * Estado de detecciones 39.1 (tabla de conflictos):
+ * - Implementadas como conflicto persistido: PRICE_MISMATCH,
+ *   NEGATIVE_STOCK, CASH_SESSION_CLOSED (RN-156), PRODUCT_NOT_FOUND,
+ *   CUSTOMER_NOT_FOUND, DUPLICATE_FOLIO. Idempotencia por batch_uuid.
+ * - Cubierta por middleware (test de evidencia en SyncBatchHttpTest):
+ *   tenant suspendido => 402 TENANT_SUSPENDED antes de tocar este
+ *   service.
+ * - DIFERIDO 39.1 "version obsoleta": el contrato 38.3 no transporta
+ *   version/updated_at de las entidades referenciadas; indetectable
+ *   sin cambio de contrato con el cliente PWA. Reabrir si el contrato
+ *   agrega el campo.
+ * - DIFERIDO 39.1 "cancelacion retrospectiva" y "devolucion sobre
+ *   venta cancelada": requieren operaciones sale.cancel/sale.return
+ *   en el batch, que el contrato no define (este match solo procesa
+ *   sale.create). Implementar la deteccion al implementar dichas
+ *   operaciones; hoy cualquier intento cae en el default con
+ *   status=error explicito, sin efecto en BD.
  */
 final class SyncBatchService
 {
