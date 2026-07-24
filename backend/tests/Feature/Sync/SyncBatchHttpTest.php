@@ -12,6 +12,7 @@ use App\Domain\Identity\Models\User;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Sales\Models\Sale;
+use App\Domain\Sync\Models\SyncBatch;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
@@ -144,4 +145,25 @@ test('POST /sync/batch procesa una venta exitosamente', function () {
     // Re-setear TenantContext: el checkout dentro del request lo pierde.
     TenantContext::set($this->tenant);
     $response->assertJsonPath('results.0.data.folio', Sale::query()->firstOrFail()->number);
+});
+
+test('batch a tenant suspendido devuelve 402 sin persistir nada (39.1 evidencia)', function () {
+    // 39.1 "tenant suspendido": cubierto implicito por EnsureTenantContext,
+    // que corta con 402 TENANT_SUSPENDED antes de tocar el service. Este
+    // test es la evidencia formal: el batch muere en el middleware aunque
+    // el token Sanctum sea valido, y ni el batch ni ventas llegan a BD.
+    // No requiere conflicto en la cola 39.3: el cliente recibe un rechazo
+    // deterministico (no transitorio) y debe detener el sync.
+    $this->tenant->update(['status' => 'suspended']);
+
+    $this->withHeaders(['X-Tenant' => 'sync-test'])
+        ->postJson('/api/v1/sync/batch', [
+            'batch_uuid' => (string) Str::uuid(),
+            'items' => [],
+        ])
+        ->assertStatus(402)
+        ->assertJsonPath('error.code', 'TENANT_SUSPENDED');
+
+    TenantContext::set($this->tenant);
+    expect(SyncBatch::query()->count())->toBe(0);
 });
