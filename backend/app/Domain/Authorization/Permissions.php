@@ -106,6 +106,8 @@ final class Permissions
 
     public const USER_ROLE_ASSIGN = 'user.role.assign';
 
+    public const USER_PASSWORD_RESET = 'user.password.reset';
+
     public const ROLE_VIEW = 'role.view';
 
     public const ROLE_CREATE = 'role.create';
