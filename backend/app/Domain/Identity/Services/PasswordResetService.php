@@ -52,7 +52,7 @@ final class PasswordResetService
 
         $plain = Str::random(48);
         $ttl = (int) ($this->companySetting('auth.reset_ttl_minutes') ?? self::DEFAULT_TTL_MINUTES);
-        $now = Carbon::now();
+        $now = Carbon::now()->utc();
 
         DB::transaction(function () use ($target, $admin, $plain, $ttl, $now): void {
             PasswordResetToken::query()->where('email', $target->email)->delete();
@@ -104,8 +104,12 @@ final class PasswordResetService
             $user->password_changed_at = Carbon::now();
             $user->save();
 
-            $row->used_at = Carbon::now();
-            $row->save();
+            // La tabla tiene PK compuesta (company_id, email) y no columna id:
+            // Eloquent no puede construir el WHERE de un update sobre el modelo,
+            // asi que el consumo se marca por query builder con la clave real.
+            PasswordResetToken::query()
+                ->where('email', $row->email)
+                ->update(['used_at' => Carbon::now()->utc()]);
         });
 
         $this->auth->logoutAll($user);

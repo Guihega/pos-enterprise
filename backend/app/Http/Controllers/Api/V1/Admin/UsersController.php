@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Domain\Audit\Services\ActivityLogger;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Services\PasswordResetService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
@@ -85,5 +86,33 @@ class UsersController extends Controller
         );
 
         return response()->json(['data' => new UserResource($user)]);
+    }
+
+    /**
+     * POST /api/v1/admin/users/{uuid}/reset-password
+     *
+     * Emite un token de un solo uso para que el usuario elija su propia
+     * password. No genera password temporal: el admin nunca conoce la
+     * credencial final (flujo 57.6 del maestro).
+     */
+    public function resetPassword(
+        Request $request,
+        PasswordResetService $passwords,
+        string $uuid,
+    ): JsonResponse {
+        abort_unless((bool) $request->user()?->can(Permissions::USER_PASSWORD_RESET), 403);
+
+        /** @var User $admin */
+        $admin = $request->user();
+        $target = User::where('uuid', $uuid)->firstOrFail();
+
+        $token = $passwords->issueFor($target, $admin);
+
+        return response()->json([
+            'data' => [
+                'user_uuid' => $target->uuid,
+                'token' => $token,
+            ],
+        ], 201);
     }
 }
