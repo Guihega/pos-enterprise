@@ -150,6 +150,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('warehouses', [WarehousesController::class, 'index']);
             Route::get('warehouses/{warehouse:uuid}', [WarehousesController::class, 'show']);
             Route::post('warehouses', [WarehousesController::class, 'store']);
+            Route::patch('warehouses/{warehouse:uuid}', [WarehousesController::class, 'update']);
+            Route::post('warehouses/{warehouse:uuid}/deactivate', [WarehousesController::class, 'deactivate']);
 
             // ----- Sucursales (multi-sucursal) -----
             Route::get('branches', [BranchesController::class, 'index']);
