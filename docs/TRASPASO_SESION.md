@@ -16,13 +16,21 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **a3adfab**, sincronizado con origin, working tree limpio, sin ramas colgando.
-- Suite: **572 passed (1807 assertions)**.
+- `main` = **a5bc8d4**, sincronizado con origin, working tree limpio, sin ramas colgando.
+- Suite: **582 passed (1829 assertions)**.
 - Ultima migracion: **000045**.
-- Historia reciente: a3adfab (#20 reset password) <- e6ed9f8 (#19 docs cierre) <-
+- Historia reciente: a5bc8d4 (#22 warehouses update/deactivate) <- 6d52270 (#21 docs
+  cobertura) <- a3adfab (#20 reset password) <- e6ed9f8 (#19 docs cierre) <-
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
-### PRs de esta sesion
+### PRs de la sesion actual
+
+- **#21** docs de cobertura del alcance original + este traspaso.
+- **#22** hueco 2: `PATCH /warehouses/{uuid}` y `POST /warehouses/{uuid}/deactivate`,
+  `UpdateWarehouseRequest`, `WarehousesHttpTest` (10 tests, el endpoint no tenia
+  cobertura HTTP previa) y correccion de `COBERTURA_ALCANCE.md`. Sin migracion.
+
+### PRs de la sesion anterior
 
 - **#18** devoluciones basicas CU-CAJ-010: migracion 000044, `SaleReturnService`,
   endpoints `POST/GET /sales/{uuid}/returns`, 7 tests.
@@ -32,7 +40,8 @@ detenerse y reconstruir desde el repo real.
 
 ## Sin frente abierto
 
-No hay trabajo en curso. Ver `docs/COBERTURA_ALCANCE.md` para los tres huecos pendientes
+No hay trabajo en curso. El hueco 2 quedo CERRADO en #22. Quedan dos (compras y
+reportes); ver `docs/COBERTURA_ALCANCE.md`
 y el orden sugerido. Ninguno es urgente por decision del usuario.
 
 ## METODO DE TRABAJO (innegociable)
@@ -60,9 +69,11 @@ y el orden sugerido. Ninguno es urgente por decision del usuario.
   y con `&&` corta la cadena. Agregar `echo EXIT:$?` cuando el vacio sea ambiguo.
   Ojo: tras un pipe a `head`, el exit code es el de `head`.
 
-## LECCIONES NUEVAS DE ESTA SESION
+## LECCIONES ACUMULADAS
 
-Cinco bugs, todos por inferir en vez de verificar. Corregir estos habitos:
+Todas nacieron de inferir en vez de verificar. Corregir estos habitos.
+
+### De la sesion anterior (#17-#20)
 
 1. **`pint --test` COMPLETO antes de cada push**, no solo sobre los archivos tocados.
    El CI corre `./vendor/bin/pint --test` sobre los 361 archivos, incluyendo `routes/`,
@@ -81,6 +92,18 @@ Cinco bugs, todos por inferir en vez de verificar. Corregir estos habitos:
    vigencias usar `Carbon::now()->utc()` explicito.
 6. **`TenantContext::get()` NO existe**; el metodo es `current(): ?Company`. El lint no
    detecta llamadas estaticas a metodos inexistentes: solo verificar contra el archivo real.
+
+### De la sesion actual (#21-#22)
+
+7. **La indentacion NO se cuenta a ojo desde un `sed`.** Se creyeron 16 espacios y
+   eran 12: el prefijo `NNN:` del grep y el margen del `sed` desplazan la lectura. El
+   ancla trono con `count == 0`. Lo que funciona: derivar la linea del archivo
+   (`[l for l in src.split(chr(10)) if MARCA in l]`) y usarla integra, tomando la
+   indentacion con `len(l) - len(l.lstrip())`. El assert evito escribir nada.
+8. **`git diff` sin `--no-pager` se traga el heredoc siguiente.** El pager quedo
+   suspendido (`[1]+ Detenido`) y consumio el bloque pegado: el archivo nunca se creo.
+   Sintoma: `ls` dice 'No existe' y `git diff --stat` no cambio. Limpieza con
+   `kill %1 ; jobs`. Usar SIEMPRE `git --no-pager diff`.
 
 ### Diagnostico en tests
 
