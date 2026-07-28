@@ -84,6 +84,12 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:5,1')   // 5 intentos/min por IP
             ->name('auth.login');
 
+        // Reset de password: publico dentro del tenant (flujo 57.6 paso 4).
+        // El token lo emite un admin; aqui solo se canjea.
+        Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
+            ->middleware('throttle:10,1')
+            ->name('auth.reset_password');
+
         // ---- 3. Tenant-aware + autenticadas con Sanctum ----
         Route::middleware('auth:sanctum')->group(function (): void {
 
@@ -91,6 +97,8 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/me', [AuthController::class, 'me'])->name('auth.me');
                 Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
                 Route::post('/logout-all', [AuthController::class, 'logoutAll'])->name('auth.logout_all');
+                Route::post('/change-password', [AuthController::class, 'changePassword'])
+                    ->name('auth.change_password');
                 Route::post('/pin-verify', [AuthController::class, 'pinVerify'])
                     ->middleware('throttle:10,1')
                     ->name('auth.pin_verify');
@@ -112,6 +120,8 @@ Route::prefix('v1')->group(function (): void {
                     ->name('admin.users.show');
                 Route::post('/users/{uuid}/roles', [UsersController::class, 'syncRoles'])
                     ->name('admin.users.sync_roles');
+                Route::post('/users/{uuid}/reset-password', [UsersController::class, 'resetPassword'])
+                    ->name('admin.users.reset_password');
             });
 
             // ----- Catálogo: products -----

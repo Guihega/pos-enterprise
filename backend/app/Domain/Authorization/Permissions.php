@@ -106,6 +106,8 @@ final class Permissions
 
     public const USER_ROLE_ASSIGN = 'user.role.assign';
 
+    public const USER_PASSWORD_RESET = 'user.password.reset';
+
     public const ROLE_VIEW = 'role.view';
 
     public const ROLE_CREATE = 'role.create';
@@ -163,6 +165,7 @@ final class Permissions
             self::REPORT_CONSOLIDATED,
             // Admin
             self::USER_VIEW, self::USER_CREATE, self::USER_UPDATE, self::USER_DELETE, self::USER_ROLE_ASSIGN,
+            self::USER_PASSWORD_RESET,
             self::ROLE_VIEW, self::ROLE_CREATE, self::ROLE_UPDATE, self::ROLE_DELETE,
             self::BRANCH_VIEW, self::BRANCH_CREATE, self::BRANCH_UPDATE, self::BRANCH_DELETE,
             self::SETTINGS_UPDATE, self::AUDIT_VIEW,

@@ -134,6 +134,7 @@ final class Roles
 
         return [
             $P::USER_VIEW, $P::USER_CREATE, $P::USER_UPDATE, $P::USER_DELETE, $P::USER_ROLE_ASSIGN,
+            $P::USER_PASSWORD_RESET,
             $P::ROLE_VIEW, $P::ROLE_CREATE, $P::ROLE_UPDATE, $P::ROLE_DELETE,
             $P::BRANCH_VIEW, $P::BRANCH_CREATE, $P::BRANCH_UPDATE, $P::BRANCH_DELETE,
             $P::SETTINGS_UPDATE,

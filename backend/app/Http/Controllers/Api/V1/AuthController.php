@@ -7,11 +7,15 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Identity\Exceptions\AccountInactiveException;
 use App\Domain\Identity\Exceptions\AccountLockedException;
 use App\Domain\Identity\Exceptions\InvalidCredentialsException;
+use App\Domain\Identity\Exceptions\InvalidResetTokenException;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Services\AuthService;
+use App\Domain\Identity\Services\PasswordResetService;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\PinVerifyRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +24,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly AuthService $auth,
+        private readonly PasswordResetService $passwords,
     ) {}
 
     /**
@@ -155,6 +160,60 @@ class AuthController extends Controller
     /**
      * @param  array<string, mixed>  $details
      */
+    /**
+     * POST /api/v1/auth/change-password
+     *
+     * Body: { current_password, new_password }
+     * Cambio voluntario del propio usuario. Exige la password actual.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        try {
+            $this->passwords->change(
+                $user,
+                (string) $request->validated('current_password'),
+                (string) $request->validated('new_password'),
+            );
+        } catch (InvalidCredentialsException) {
+            return $this->errorResponse(
+                code: 'INVALID_CREDENTIALS',
+                message: 'La contrasena actual no coincide.',
+                status: 401,
+            );
+        }
+
+        return response()->json(['data' => ['changed' => true]]);
+    }
+
+    /**
+     * POST /api/v1/auth/reset-password
+     *
+     * Body: { email, token, password }
+     * Publico dentro del tenant (flujo 57.6 paso 4). Canjea el token de un
+     * solo uso emitido por un admin y revoca todas las sesiones.
+     */
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        try {
+            $this->passwords->redeem(
+                (string) $request->validated('email'),
+                (string) $request->validated('token'),
+                (string) $request->validated('password'),
+            );
+        } catch (InvalidResetTokenException $e) {
+            return $this->errorResponse(
+                code: 'INVALID_RESET_TOKEN',
+                message: $e->getMessage(),
+                status: 422,
+            );
+        }
+
+        return response()->json(['data' => ['reset' => true]]);
+    }
+
     private function errorResponse(
         string $code,
         string $message,
