@@ -84,11 +84,11 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:5,1')   // 5 intentos/min por IP
             ->name('auth.login');
 
-            // Reset de password: publico dentro del tenant (flujo 57.6 paso 4).
-            // El token lo emite un admin; aqui solo se canjea.
-            Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
-                ->middleware('throttle:10,1')
-                ->name('auth.reset_password');
+        // Reset de password: publico dentro del tenant (flujo 57.6 paso 4).
+        // El token lo emite un admin; aqui solo se canjea.
+        Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
+            ->middleware('throttle:10,1')
+            ->name('auth.reset_password');
 
         // ---- 3. Tenant-aware + autenticadas con Sanctum ----
         Route::middleware('auth:sanctum')->group(function (): void {
