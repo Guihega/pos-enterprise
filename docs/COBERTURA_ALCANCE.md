@@ -1,0 +1,112 @@
+# Cobertura del alcance original — julio 2026
+
+Estado del repo al escribir esto: `main` = a3adfab, suite 572 passed (1807 assertions).
+
+## Que mide este documento
+
+`CIERRE_2026-07.md` documenta lo trabajado en las sesiones recientes (PRs #8 al #20).
+**No es un inventario de cobertura del alcance original**: un caso de uso del maestro
+que nunca se toco no aparece ahi ni como implementado ni como diferido.
+
+Este documento cruza la seccion 4 del maestro (ALCANCE FUNCIONAL TOTAL, lineas 356-688)
+contra el codigo real: rutas en `routes/api.php`, servicios en `app/Domain/` y migraciones.
+
+## Como leer el alcance del maestro
+
+El maestro divide el alcance en dos bloques:
+
+- **4.1 Nucleo (Fases 1-9)**: 9 modulos, ~180 capacidades. Es contra esto que se mide
+  si el producto es funcional.
+- **4.2 Avanzado (Fases 10-18)**: facturacion electronica, pagos, movil, e-commerce, CRM,
+  API publica, inteligencia, internacionalizacion, contabilidad. **No es requisito para operar.**
+- **4.3 Transversales**: pendiente de revisar.
+
+Casi todos los diferidos de los ADRs 0010-0013 caen en 4.2 (CFDI y nota de credito en
+4.2.1, PWA en 4.2.3). Eso no es deuda del nucleo: es alcance de fases posteriores.
+
+**Advertencia importante**: la lista del nucleo es un catalogo de ambicion, no un minimo
+operable. En 4.1.1 conviven 'Login con PIN' (indispensable) con 'SSO SAML' y 'Biometria'.
+En 4.1.4 conviven 'Stock en tiempo real' con 'Kardex valorizado PEPS/UEPS/promedio' y
+'Maquila y produccion'. Medir cobertura al 100% contra los ~180 bullets da un porcentaje
+bajo y sin significado. Por eso la matriz de abajo lleva criticidad operativa.
+
+## Criterio de criticidad
+
+| Nivel | Definicion |
+|---|---|
+| BLOQUEANTE | Sin esto no se puede abrir la tienda y vender |
+| OPERATIVO | Se puede vender sin ello, pero duele a diario |
+| DIFERIBLE | Mejora o requisito de cliente grande, no de operacion |
+
+## Veredicto
+
+**El circuito de venta esta completo y operable**: abrir caja, buscar producto, cobrar con
+multiples metodos, devolver, cerrar caja con reporte. Un POS puede operar hoy.
+
+Lo que falta es administracion alrededor de la venta, no la venta.
+
+## Matriz por modulo del nucleo
+
+| Modulo | Estado | Que falta que importe |
+|---|---|---|
+| 4.1.1 Identidad | Operable | Sin MFA, sin SSO, sin biometria (DIFERIBLE). Reset de password resuelto en PR #20 |
+| 4.1.2 Organizacional | Parcial | Sucursales con CRUD; **almacenes sin endpoints** (OPERATIVO) |
+| 4.1.3 Catalogo | Operable | **Unidades e impuestos sin CRUD** (OPERATIVO). Sin variantes, combos, kits, recetas, productos por peso, promociones, cupones, listas de precios, precios programados (DIFERIBLE) |
+| 4.1.4 Inventario | Operable | Stock, lotes, movimientos, transferencias con solicitud. Sin conteos ciclicos, series, ubicaciones fisicas, kardex valorizado, analisis ABC, mermas por categoria (DIFERIBLE) |
+| 4.1.5 **Compras** | **Ausente** | **Dominio inexistente.** Ver hueco 1 |
+| 4.1.6 Ventas | Operable | Checkout, pagos multiples, cancelacion, devoluciones. Sin apartados, cotizaciones, gift cards, vales, propinas, comisiones, multiples carritos, suspension de venta (DIFERIBLE) |
+| 4.1.7 Caja | Operable | Apertura, movimientos, cierre, reporte Z. Sin corte X, sin handover de cajero, sin multi-moneda, sin auto-corte por horario (OPERATIVO/DIFERIBLE) |
+| 4.1.8 Clientes | Basico | CRUD. Sin credito (decision de negocio: diferido), sin datos fiscales RFC, sin direcciones ni telefonos multiples, sin consentimientos GDPR/ARCO (OPERATIVO) |
+| 4.1.9 Reportes | Minimo | 4 endpoints de ~45 que lista el maestro. Ver hueco 3 |
+
+## Los tres huecos que duelen
+
+### 1. Compras (4.1.5) — OPERATIVO
+
+Cero codigo. No existe el dominio, ni proveedores, ni ordenes de compra, ni recepcion,
+ni facturas de proveedor, ni cuentas por pagar.
+
+**Matiz que evita el panico**: el stock SI puede cargarse hoy via
+`InventoryService::recordEntry` con `TYPE_ENTRY`, expuesto en `POST /inventory/adjust`.
+La tienda puede surtirse. Lo que falta es el proceso administrativo alrededor: registrar
+al proveedor, la orden, el costo formal y el pago.
+
+Es el modulo grande pendiente. No bloquea vender.
+
+### 2. CRUD de almacenes, unidades e impuestos — OPERATIVO
+
+Los modelos existen (`Warehouse`, `Unit`, `Tax`) pero no hay endpoints. La hipotesis es
+que se crean en el provisioning del tenant (`CatalogProvisioner`).
+
+**SIN VERIFICAR**: falta confirmar en `CatalogProvisioner` si es asi. Si se confirma,
+significa que un tenant nuevo arranca pero no puede agregar un almacen despues sin
+intervencion tecnica. Es el hueco mas barato de cerrar de los tres.
+
+### 3. Reportes (4.1.9) — OPERATIVO
+
+Existen 4 endpoints: `sales-summary`, y consolidados de `sales-daily`, `inventory` y
+`branch-comparison`. El maestro lista ~45 entre operativos, analiticos y contables.
+
+Los operativos basicos (ventas por producto/cajero/metodo de pago, ticket promedio,
+productos sin venta, diferencias de caja) son los que un dueno pide primero. El bloque
+analitico (RFM, cohorts, LTV, forecast) y el contable (IVA, IEPS, estado de resultados)
+son DIFERIBLE.
+
+## Que NO es un hueco
+
+- Credito a clientes / CxC: **decision de negocio** documentada, no habra creditos
+  operando por ahora (ADR-0012).
+- Nota de credito y CFDI: dependen de un modulo de facturacion que no existe (4.2.1).
+- RN-088 cambios atomicos: se puede hacer hoy en dos pasos (devolucion + venta nueva).
+  Es comodidad, no necesidad, salvo que los cambios sean frecuentes en la operacion.
+- Permisos cross-branch / gerente regional (ADR-0010): no es una feature, es un cambio
+  al modelo de autorizacion. Varios PRs y riesgo de regresion en toda la suite. Merece
+  sesion limpia con diseno discutido antes de tocar codigo.
+
+## Orden sugerido si se retoma
+
+1. Verificar el hueco 2 en `CatalogProvisioner` (barato, puede ser un PR chico).
+2. Reportes operativos basicos (alto valor percibido, bajo riesgo tecnico).
+3. Compras (el modulo grande; conviene sesion dedicada).
+
+Ninguno es urgente por decision del usuario. El sistema opera.
