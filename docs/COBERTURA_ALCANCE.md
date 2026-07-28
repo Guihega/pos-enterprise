@@ -1,6 +1,7 @@
 # Cobertura del alcance original — julio 2026
 
 Estado del repo al escribir esto: `main` = a3adfab, suite 572 passed (1807 assertions).
+Actualizado en PR #22 (hueco 2 cerrado): suite 582 passed (1829 assertions).
 
 ## Que mide este documento
 
@@ -50,8 +51,8 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 | Modulo | Estado | Que falta que importe |
 |---|---|---|
 | 4.1.1 Identidad | Operable | Sin MFA, sin SSO, sin biometria (DIFERIBLE). Reset de password resuelto en PR #20 |
-| 4.1.2 Organizacional | Parcial | Sucursales con CRUD; **almacenes sin endpoints** (OPERATIVO) |
-| 4.1.3 Catalogo | Operable | **Unidades e impuestos sin CRUD** (OPERATIVO). Sin variantes, combos, kits, recetas, productos por peso, promociones, cupones, listas de precios, precios programados (DIFERIBLE) |
+| 4.1.2 Organizacional | Operable | Sucursales y almacenes con CRUD completo (update y deactivate de almacenes cerrados en PR #22) |
+| 4.1.3 Catalogo | Operable | Unidades e impuestos con apiResource completo (ya existia; la matriz lo reportaba mal). Sin variantes, combos, kits, recetas, productos por peso, promociones, cupones, listas de precios, precios programados (DIFERIBLE) |
 | 4.1.4 Inventario | Operable | Stock, lotes, movimientos, transferencias con solicitud. Sin conteos ciclicos, series, ubicaciones fisicas, kardex valorizado, analisis ABC, mermas por categoria (DIFERIBLE) |
 | 4.1.5 **Compras** | **Ausente** | **Dominio inexistente.** Ver hueco 1 |
 | 4.1.6 Ventas | Operable | Checkout, pagos multiples, cancelacion, devoluciones. Sin apartados, cotizaciones, gift cards, vales, propinas, comisiones, multiples carritos, suspension de venta (DIFERIBLE) |
@@ -73,14 +74,25 @@ al proveedor, la orden, el costo formal y el pago.
 
 Es el modulo grande pendiente. No bloquea vender.
 
-### 2. CRUD de almacenes, unidades e impuestos — OPERATIVO
+### 2. CRUD de almacenes, unidades e impuestos — CERRADO
 
-Los modelos existen (`Warehouse`, `Unit`, `Tax`) pero no hay endpoints. La hipotesis es
-que se crean en el provisioning del tenant (`CatalogProvisioner`).
+**VERIFICADO contra el repo (julio 2026). La hipotesis de este documento era falsa.**
 
-**SIN VERIFICAR**: falta confirmar en `CatalogProvisioner` si es asi. Si se confirma,
-significa que un tenant nuevo arranca pero no puede agregar un almacen despues sin
-intervencion tecnica. Es el hueco mas barato de cerrar de los tres.
+Lo que se comprobo, archivo por archivo:
+
+- `CatalogProvisioner` provisiona **solo unidades e impuestos**. No toca `Warehouse`:
+  el modelo vive en el dominio `Inventory`, no en `Catalog`. La hipotesis agrupaba las
+  tres entidades por conveniencia narrativa, no por como esta organizado el codigo.
+- **Unidades e impuestos SI tenian CRUD**: `Route::apiResource('units')` y
+  `apiResource('taxes')` en `routes/api.php`, con las cinco acciones. La afirmacion
+  "sin CRUD" era incorrecta.
+- **Almacenes tenian `index`, `show` y `store`**, no cero endpoints. Faltaban `update`
+  y `deactivate`, cerrados en el PR #22 siguiendo el patron de `BranchesController`
+  (PATCH para editar, POST `/deactivate` para baja logica, nunca DELETE).
+
+Leccion de metodo: la fila estaba marcada SIN VERIFICAR y las tres afirmaciones que
+contenia resultaron falsas. Las filas de esta matriz escritas sin grep del archivo real
+merecen la misma desconfianza.
 
 ### 3. Reportes (4.1.9) — OPERATIVO
 
@@ -105,7 +117,7 @@ son DIFERIBLE.
 
 ## Orden sugerido si se retoma
 
-1. Verificar el hueco 2 en `CatalogProvisioner` (barato, puede ser un PR chico).
+1. ~~Verificar el hueco 2~~ **HECHO en PR #22**: la hipotesis era falsa, ver arriba.
 2. Reportes operativos basicos (alto valor percibido, bajo riesgo tecnico).
 3. Compras (el modulo grande; conviene sesion dedicada).
 
