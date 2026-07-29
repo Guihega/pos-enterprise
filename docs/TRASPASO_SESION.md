@@ -8,15 +8,21 @@ desactualizado en detalles. El repo manda sobre este documento, siempre.**
 El primer paso de cualquier sesion es pedir:
 
 ```
-cd ~/Proyectos/pos-enterprise && git log --oneline -5 ; git status -sb
+cd ~/Proyectos/pos-enterprise && git --no-pager log --oneline -5 ; git status -sb ; git branch
 ```
+
+`git branch` NO es opcional. La afirmacion "sin ramas colgando" vivio en este
+documento sin que nadie la ejecutara jamas; se corrigio el 2026-07-29 tras
+descubrir 48 commits sin fusionar.
 
 No ejecutar ningun plan heredado hasta ver esa salida. Si contradice este documento,
 detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **2eb83c8**, sincronizado con origin, working tree limpio, sin ramas colgando.
+- `main` = **2eb83c8**, sincronizado con origin, working tree limpio.
+- Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
+  No es residuo. NO se borra. Ver "Rama de frontend aparcada".
 - Suite: **591 passed (1873 assertions)**.
 - Ultima migracion: **000045**.
 - Historia reciente: 2eb83c8 (#24 reportes por producto/cajero) <- 4940f17 (#23 docs
@@ -42,12 +48,36 @@ detenerse y reconstruir desde el repo real.
 - **#20** recuperacion y cambio de password (flujo 57.6): migracion 000045,
   `PasswordResetService`, 3 endpoints, permiso `USER_PASSWORD_RESET`, 6 tests.
 
-## Sin frente abierto
+## Frentes: ninguno en curso, uno aparcado
 
 No hay trabajo en curso. Hueco 2 CERRADO (#22). Hueco 3 PARCIAL (#24): faltan
 productos sin venta y diferencias de caja. **Compras es el unico hueco intacto** y
 es el modulo grande; ver `docs/COBERTURA_ALCANCE.md`
 y el orden sugerido. Ninguno es urgente por decision del usuario.
+
+### Rama de frontend aparcada (verificado 2026-07-29)
+
+`feature/etapa3-frontend-cimientos` — local y en origin.
+
+- 48 commits adelante de main, 25 detras. merge-base f93dc4b (2026-05-27, "cierra
+  Etapa 0"). Tip 0f166e3 (2026-06-09). No hay fast-forward posible en ningun sentido.
+- 73 archivos, 50 en `frontend/src`: auth con guards e interceptor 401, cliente HTTP
+  via Hey API generado desde OpenAPI, POS (catalogo, carrito con IVA, responsive con
+  drawer), PaymentModal multi-metodo, apertura y cierre de caja con arqueo a ciegas,
+  anulacion con PIN supervisor, tests de stores y componentes.
+- **DIFERIDA FORMALMENTE por ADR-0013** (aceptado 2026-07-24). Criterio de reapertura:
+  ciclo propio de frontend con su propio plan. NO se fusiona fuera de ese ciclo.
+- Por eso el CI marca Frontend skipped: `main` no tiene frontend propio.
+- Sus fixes de backend YA estan en main por otra via (verificado con grep, no inferido):
+  orden `EnsureTenantContext` -> `SubstituteBindings` en `bootstrap/app.php`, y
+  `docker-compose.yml` sin credenciales hardcodeadas.
+- Residuo real NO aplicado en main: consolidacion de `docs/adr` con `backend/docs/adr`,
+  que hoy coexisten (commit 67ec408 de la rama).
+- Sus mensajes de commit son el UNICO registro de la numeracion [deuda-3]...[deuda-16].
+  No existe archivo de deuda en el repo. **No borrar la rama sin volcar ese inventario.**
+- Pendiente para el ciclo de frontend: ADR-0004 (offline-first) y ADR-0008 (online-only)
+  estan ambos "Accepted" y 0008 declara "Supersedes: —". Se contradicen. Los cimientos
+  de la rama se escribieron bajo una de las dos.
 
 ## METODO DE TRABAJO (innegociable)
 
@@ -121,6 +151,12 @@ de rutas y un cat del service. Cuesta dos comandos.
    Sintoma: `ls` dice 'No existe' y `git diff --stat` no cambio. Limpieza con
    `kill %1 ; jobs`. Usar SIEMPRE `git --no-pager diff`.
 
+9. **Un documento no puede afirmar lo que su protocolo no verifica.** "Sin ramas
+   colgando" era falso y sobrevivio porque la Regla Cero no pedia `git branch`.
+   Tercera vez del mismo patron (los huecos 2 y 3 de la matriz fueron las otras dos).
+   Al escribir una afirmacion de estado: o hay comando que la produce en la Regla
+   Cero, o la afirmacion no se escribe.
+
 ### Diagnostico en tests
 
 - **`storage/logs/laravel.log` NO recibe logs en el entorno de testing.** Insertar
@@ -192,9 +228,10 @@ de rutas y un cat del service. Cuesta dos comandos.
 --body-file /tmp/pr_body.md` -> esperar ~45s -> `gh pr checks N --watch` ->
 `gh pr view N --web` (**insistir en que el usuario mire Files changed**) ->
 `gh pr merge N --squash --subject "Titulo (#N)"` -> limpieza (`checkout main`, `pull`,
-`branch -D`, `push origin --delete`, `log`, `status`).
+`branch -D`, `push origin --delete`, `log`, `status`, `branch`).
 
-CI: Frontend siempre skipped. Si el PR no toca `backend/`, Lint y Tests tambien salen
+CI: Frontend siempre skipped porque `main` no contiene frontend; ese codigo vive en la
+rama aparcada. Si el PR no toca `backend/`, Lint y Tests tambien salen
 skipped por el job `Detect changes`, y eso es correcto.
 
 **Gitleaks**: `.gitleaks.toml` en la raiz con `[allowlist] paths`. Las passwords de prueba
