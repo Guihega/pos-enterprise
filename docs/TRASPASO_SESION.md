@@ -16,19 +16,23 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **a5bc8d4**, sincronizado con origin, working tree limpio, sin ramas colgando.
-- Suite: **582 passed (1829 assertions)**.
+- `main` = **2eb83c8**, sincronizado con origin, working tree limpio, sin ramas colgando.
+- Suite: **591 passed (1873 assertions)**.
 - Ultima migracion: **000045**.
-- Historia reciente: a5bc8d4 (#22 warehouses update/deactivate) <- 6d52270 (#21 docs
+- Historia reciente: 2eb83c8 (#24 reportes por producto/cajero) <- 4940f17 (#23 docs
+  traspaso) <- a5bc8d4 (#22 warehouses update/deactivate) <- 6d52270 (#21 docs
   cobertura) <- a3adfab (#20 reset password) <- e6ed9f8 (#19 docs cierre) <-
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
 ### PRs de la sesion actual
 
-- **#21** docs de cobertura del alcance original + este traspaso.
+- **#24** hueco 3 (parcial): `GET /reports/sales-by-product` y `sales-by-cashier`,
+  `SalesReportService`, `SalesRangeRequest`, 9 tests. Sin migracion.
+- **#23** traspaso al dia tras #22.
 - **#22** hueco 2: `PATCH /warehouses/{uuid}` y `POST /warehouses/{uuid}/deactivate`,
   `UpdateWarehouseRequest`, `WarehousesHttpTest` (10 tests, el endpoint no tenia
   cobertura HTTP previa) y correccion de `COBERTURA_ALCANCE.md`. Sin migracion.
+- **#21** docs de cobertura del alcance original + este traspaso.
 
 ### PRs de la sesion anterior
 
@@ -40,8 +44,9 @@ detenerse y reconstruir desde el repo real.
 
 ## Sin frente abierto
 
-No hay trabajo en curso. El hueco 2 quedo CERRADO en #22. Quedan dos (compras y
-reportes); ver `docs/COBERTURA_ALCANCE.md`
+No hay trabajo en curso. Hueco 2 CERRADO (#22). Hueco 3 PARCIAL (#24): faltan
+productos sin venta y diferencias de caja. **Compras es el unico hueco intacto** y
+es el modulo grande; ver `docs/COBERTURA_ALCANCE.md`
 y el orden sugerido. Ninguno es urgente por decision del usuario.
 
 ## METODO DE TRABAJO (innegociable)
@@ -93,7 +98,18 @@ Todas nacieron de inferir en vez de verificar. Corregir estos habitos.
 6. **`TenantContext::get()` NO existe**; el metodo es `current(): ?Company`. El lint no
    detecta llamadas estaticas a metodos inexistentes: solo verificar contra el archivo real.
 
-### De la sesion actual (#21-#22)
+### De la sesion actual (#21-#24)
+
+**LECCION PRINCIPAL: verificar antes de construir ya evito trabajo duplicado dos
+veces.** No es preferencia de estilo, es ahorro medible:
+
+- Hueco 2: la matriz decia 'tres CRUD faltantes'. El repo tenia dos completos y al
+  tercero le faltaban dos metodos. Se escribieron 2 metodos, no 3 CRUD.
+- Hueco 3: de los operativos listados como faltantes, `average_ticket` y el desglose
+  por metodo de pago YA se servian dentro de `sales-summary`. No se duplicaron.
+
+La regla operativa: antes de implementar lo que un documento declara ausente, un grep
+de rutas y un cat del service. Cuesta dos comandos.
 
 7. **La indentacion NO se cuenta a ojo desde un `sed`.** Se creyeron 16 espacios y
    eran 12: el prefijo `NNN:` del grep y el margen del `sed` desplazan la lectura. El
