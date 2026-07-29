@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Api\V1\Reports;
 
 use App\Domain\Authorization\Permissions;
 use App\Domain\Reports\Services\ConsolidatedReportService;
+use App\Domain\Sales\Services\SalesReportService;
 use App\Domain\Sales\Services\SalesSummaryService;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Report\SalesRangeRequest;
 use App\Http\Requests\Report\SalesSummaryRequest;
 use App\Http\Resources\SalesSummaryResource;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +27,7 @@ final class ReportsController extends Controller
     public function __construct(
         private readonly SalesSummaryService $summary,
         private readonly ConsolidatedReportService $consolidated,
+        private readonly SalesReportService $salesReport,
     ) {}
 
     /**
@@ -82,5 +85,40 @@ final class ReportsController extends Controller
         Gate::authorize(Permissions::REPORT_CONSOLIDATED);
 
         return response()->json(['data' => $this->consolidated->branchComparison()]);
+    }
+
+    /**
+     * GET /reports/sales-by-product
+     *
+     * Ventas agregadas por producto en un rango. A diferencia de top_products
+     * dentro de sales-summary (un dia, top 5), aqui la lista es completa.
+     */
+    public function salesByProduct(SalesRangeRequest $request): JsonResponse
+    {
+        Gate::authorize(Permissions::REPORT_SALES);
+
+        return response()->json(['data' => $this->salesReport->byProduct(
+            $request->from(),
+            $request->to(),
+            $request->branchUuid(),
+            $request->limitValue(),
+        )]);
+    }
+
+    /**
+     * GET /reports/sales-by-cashier
+     *
+     * Ventas agregadas por cajero (sales.user_id) en un rango.
+     */
+    public function salesByCashier(SalesRangeRequest $request): JsonResponse
+    {
+        Gate::authorize(Permissions::REPORT_SALES);
+
+        return response()->json(['data' => $this->salesReport->byCashier(
+            $request->from(),
+            $request->to(),
+            $request->branchUuid(),
+            $request->limitValue(),
+        )]);
     }
 }
