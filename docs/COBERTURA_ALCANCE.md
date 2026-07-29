@@ -58,7 +58,7 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 | 4.1.6 Ventas | Operable | Checkout, pagos multiples, cancelacion, devoluciones. Sin apartados, cotizaciones, gift cards, vales, propinas, comisiones, multiples carritos, suspension de venta (DIFERIBLE) |
 | 4.1.7 Caja | Operable | Apertura, movimientos, cierre, reporte Z. Sin corte X, sin handover de cajero, sin multi-moneda, sin auto-corte por horario (OPERATIVO/DIFERIBLE) |
 | 4.1.8 Clientes | Basico | CRUD. Sin credito (decision de negocio: diferido), sin datos fiscales RFC, sin direcciones ni telefonos multiples, sin consentimientos GDPR/ARCO (OPERATIVO) |
-| 4.1.9 Reportes | Minimo | 4 endpoints de ~45 que lista el maestro. Ver hueco 3 |
+| 4.1.9 Reportes | Parcial | 6 endpoints de ~45. Ventas por producto y por cajero cerrados en PR #24. Ver hueco 3 |
 
 ## Los tres huecos que duelen
 
@@ -94,15 +94,31 @@ Leccion de metodo: la fila estaba marcada SIN VERIFICAR y las tres afirmaciones 
 contenia resultaron falsas. Las filas de esta matriz escritas sin grep del archivo real
 merecen la misma desconfianza.
 
-### 3. Reportes (4.1.9) — OPERATIVO
+### 3. Reportes (4.1.9) — PARCIAL
 
-Existen 4 endpoints: `sales-summary`, y consolidados de `sales-daily`, `inventory` y
-`branch-comparison`. El maestro lista ~45 entre operativos, analiticos y contables.
+**Verificado contra el repo: las 4 rutas que declaraba este documento eran exactas.**
 
-Los operativos basicos (ventas por producto/cajero/metodo de pago, ticket promedio,
-productos sin venta, diferencias de caja) son los que un dueno pide primero. El bloque
-analitico (RFM, cohorts, LTV, forecast) y el contable (IVA, IEPS, estado de resultados)
-son DIFERIBLE.
+Estado tras el PR #24 (6 endpoints bajo `Route::prefix('reports')`):
+
+| Endpoint | Origen |
+|---|---|
+| `sales-summary` | Ya existia. Resumen de UN dia |
+| `consolidated/sales-daily`, `consolidated/inventory`, `consolidated/branch-comparison` | Ya existian (maestro 46.6) |
+| `sales-by-product` | **PR #24**. Rango de fechas, lista completa |
+| `sales-by-cashier` | **PR #24**. Rango de fechas, con ticket promedio |
+
+Hallazgo al verificar: de los operativos basicos que este documento listaba como
+faltantes, **dos ya estaban servidos dentro de `sales-summary`** y nadie lo habia
+notado: `totals.average_ticket` (ticket promedio) y `payments` (desglose por metodo
+de pago). No son huecos.
+
+Quedan del bloque operativo: **productos sin venta** y **diferencias de caja**. El
+bloque analitico (RFM, cohorts, LTV, forecast) y el contable (IVA, IEPS, estado de
+resultados) siguen DIFERIBLE.
+
+Nota de diseno del PR #24: los reportes nuevos usan rango `from`/`to` obligatorio y
+validado (422 si falta o esta malformado), a diferencia de los consolidados, que leen
+`query('from')` sin validar. Si se tocan los consolidados, conviene alinearlos.
 
 ## Que NO es un hueco
 
@@ -118,7 +134,8 @@ son DIFERIBLE.
 ## Orden sugerido si se retoma
 
 1. ~~Verificar el hueco 2~~ **HECHO en PR #22**: la hipotesis era falsa, ver arriba.
-2. Reportes operativos basicos (alto valor percibido, bajo riesgo tecnico).
-3. Compras (el modulo grande; conviene sesion dedicada).
+2. Reportes operativos basicos: **parcial en PR #24** (por producto y por cajero).
+   Quedan productos sin venta y diferencias de caja.
+3. Compras (el modulo grande; conviene sesion dedicada). **El unico hueco intacto.**
 
 Ninguno es urgente por decision del usuario. El sistema opera.

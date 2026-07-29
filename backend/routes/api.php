@@ -273,6 +273,12 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('sales-summary', [ReportsController::class, 'salesSummary'])
                     ->name('reports.sales-summary');
 
+                // Reportes operativos por rango de fechas.
+                Route::get('sales-by-product', [ReportsController::class, 'salesByProduct'])
+                    ->name('reports.sales-by-product');
+                Route::get('sales-by-cashier', [ReportsController::class, 'salesByCashier'])
+                    ->name('reports.sales-by-cashier');
+
                 // Reportes consolidados cross-sucursal (doc maestro 46.6).
                 Route::prefix('consolidated')->group(function (): void {
                     Route::get('sales-daily', [ReportsController::class, 'consolidatedSalesDaily'])
