@@ -11,13 +11,17 @@ use Illuminate\Validation\Rule;
 /**
  * Filtros comunes de los reportes por rango.
  *
+ * Generico a proposito: from/to/branch_uuid/limit no son especificos de
+ * ventas. Renombrado desde SalesRangeRequest al servir tambien al reporte
+ * de diferencias de caja, que no es un reporte de ventas.
+ *
  * from y to son OBLIGATORIOS a proposito: el resumen de un dia ya lo cubre
  * /reports/sales-summary, y un default silencioso haria ambigua la semantica.
  *
  * Divergencia deliberada respecto a los reportes consolidados, que leen
  * query('from') sin validar: aqui una fecha malformada devuelve 422, no 500.
  */
-class SalesRangeRequest extends FormRequest
+class ReportRangeRequest extends FormRequest
 {
     public function authorize(): bool
     {

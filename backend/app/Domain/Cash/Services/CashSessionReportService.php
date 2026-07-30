@@ -8,6 +8,8 @@ use App\Domain\Cash\Models\CashMovement;
 use App\Domain\Cash\Models\CashSession;
 use App\Domain\Sales\Models\Sale;
 use App\Domain\Sales\Models\SalePayment;
+use App\Domain\Tenancy\Models\Branch;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -137,6 +139,83 @@ final class CashSessionReportService
                 ? round((float) $session->counted_amount, 2) : null,
             'difference' => $session->difference !== null
                 ? round((float) $session->difference, 2) : null,
+        ];
+    }
+
+    /**
+     * Diferencias de caja de las sesiones CERRADAS en un rango.
+     *
+     * No recalcula nada: expected_amount, counted_amount y difference ya los
+     * persiste CashService::closeSession(). Aqui solo se agregan por rango.
+     *
+     * Filtra status=closed a proposito: las sesiones open no tienen arqueo y
+     * las voided no contabilizan (ver migracion 000018).
+     *
+     * El rango se aplica sobre closed_at, no opened_at: una sesion que abre el
+     * 30 y cierra el 1 pertenece al arqueo del dia 1.
+     */
+    public function differencesByRange(string $from, string $to, ?string $branchUuid = null, ?int $limit = null): array
+    {
+        $start = CarbonImmutable::parse($from)->startOfDay();
+        $end = CarbonImmutable::parse($to)->endOfDay();
+
+        $branch = $branchUuid !== null
+            ? Branch::query()->where('uuid', $branchUuid)->first()
+            : null;
+
+        $query = CashSession::query()
+            ->join('cash_registers', 'cash_registers.id', '=', 'cash_sessions.cash_register_id')
+            ->leftJoin('users', 'users.id', '=', 'cash_sessions.closed_by')
+            ->where('cash_sessions.status', CashSession::STATUS_CLOSED)
+            ->whereNotNull('cash_sessions.difference')
+            ->whereBetween('cash_sessions.closed_at', [$start, $end]);
+
+        if ($branch !== null) {
+            $query->where('cash_sessions.branch_id', $branch->id);
+        }
+
+        $query->orderBy('cash_sessions.closed_at');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        $rows = $query->get([
+            'cash_sessions.uuid as session_uuid',
+            'cash_sessions.closed_at',
+            'cash_sessions.expected_amount',
+            'cash_sessions.counted_amount',
+            'cash_sessions.difference',
+            'cash_registers.code as register_code',
+            'users.name as closed_by_name',
+        ])->map(fn ($r) => [
+            'session_uuid' => (string) $r->session_uuid,
+            'closed_at' => CarbonImmutable::parse($r->closed_at)->toDateTimeString(),
+            'register_code' => (string) $r->register_code,
+            'closed_by_name' => $r->closed_by_name !== null ? (string) $r->closed_by_name : null,
+            'expected_amount' => round((float) $r->expected_amount, 2),
+            'counted_amount' => round((float) $r->counted_amount, 2),
+            'difference' => round((float) $r->difference, 2),
+        ])->all();
+
+        $diffs = array_column($rows, 'difference');
+
+        return [
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'branch' => $branch !== null ? [
+                'uuid' => $branch->uuid,
+                'code' => $branch->code,
+                'name' => $branch->name,
+            ] : null,
+            'totals' => [
+                'sessions_count' => count($rows),
+                'net_difference' => round(array_sum($diffs), 2),
+                'shortage_amount' => round(array_sum(array_filter($diffs, fn ($d) => $d < 0)), 2),
+                'overage_amount' => round(array_sum(array_filter($diffs, fn ($d) => $d > 0)), 2),
+                'balanced_count' => count(array_filter($diffs, fn ($d) => abs($d) < 0.01)),
+            ],
+            'rows' => $rows,
         ];
     }
 }
