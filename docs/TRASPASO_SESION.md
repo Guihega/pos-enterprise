@@ -20,17 +20,30 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **2eb83c8**, sincronizado con origin, working tree limpio.
+- `main` = **eedc5e0**, sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **591 passed (1873 assertions)**.
+- Suite: **604 passed (1927 assertions)**.
 - Ultima migracion: **000045**.
-- Historia reciente: 2eb83c8 (#24 reportes por producto/cajero) <- 4940f17 (#23 docs
+- Historia reciente: eedc5e0 (#27 reportes operativos restantes) <- c7aeb0b (#26 docs
+  traspaso y rama aparcada) <- 23749fb (#25 docs traspaso) <- 2eb83c8 (#24 reportes por
+  producto/cajero) <- 4940f17 (#23 docs
   traspaso) <- a5bc8d4 (#22 warehouses update/deactivate) <- 6d52270 (#21 docs
   cobertura) <- a3adfab (#20 reset password) <- e6ed9f8 (#19 docs cierre) <-
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
-### PRs de la sesion actual
+### PRs de esta sesion
+
+- **#27** hueco 3 CERRADO: `GET /reports/products-without-sales` (REPORT_SALES) y
+  `GET /reports/cash-differences` (REPORT_FINANCE), 13 tests, sin migracion.
+  `SalesRangeRequest` renombrado a `ReportRangeRequest` (sus reglas nunca fueron
+  especificas de ventas). Las diferencias de caja NO se calcularon: `closeSession()`
+  ya las persiste en `cash_sessions`; el endpoint solo agrega por rango.
+- **#26** corrige la afirmacion falsa "sin ramas colgando" y documenta la rama
+  `feature/etapa3-frontend-cimientos` (diferida por ADR-0013). Agrega `git branch`
+  a la Regla Cero, que era la causa raiz.
+
+### PRs de la sesion anterior
 
 - **#24** hueco 3 (parcial): `GET /reports/sales-by-product` y `sales-by-cashier`,
   `SalesReportService`, `SalesRangeRequest`, 9 tests. Sin migracion.
@@ -50,10 +63,11 @@ detenerse y reconstruir desde el repo real.
 
 ## Frentes: ninguno en curso, uno aparcado
 
-No hay trabajo en curso. Hueco 2 CERRADO (#22). Hueco 3 PARCIAL (#24): faltan
-productos sin venta y diferencias de caja. **Compras es el unico hueco intacto** y
-es el modulo grande; ver `docs/COBERTURA_ALCANCE.md`
-y el orden sugerido. Ninguno es urgente por decision del usuario.
+No hay trabajo en curso. Hueco 2 CERRADO (#22). **Hueco 3 CERRADO (#27)**: 4.1.9 pasa
+a operable; el bloque analitico y el contable siguen DIFERIBLE por decision del
+documento. **Compras (4.1.5) es el UNICO hueco intacto** y es el modulo grande;
+ver `docs/COBERTURA_ALCANCE.md` y el orden sugerido. Ninguno es urgente por
+decision del usuario.
 
 ### Rama de frontend aparcada (verificado 2026-07-29)
 
@@ -156,6 +170,17 @@ de rutas y un cat del service. Cuesta dos comandos.
    Tercera vez del mismo patron (los huecos 2 y 3 de la matriz fueron las otras dos).
    Al escribir una afirmacion de estado: o hay comando que la produce en la Regla
    Cero, o la afirmacion no se escribe.
+
+### De la sesion de reportes (#26-#27)
+
+10. **La descripcion de un `it()` debe ser unica DENTRO del archivo.** Dos `it()` con
+    el mismo texto hacen que Pest tire `TestAlreadyExist` y rechace el fichero entero,
+    no solo el test. Es la misma trampa que "Cannot redeclare" de los helpers, pero
+    por descripcion. Al añadir tests a un archivo existente, revisar sus `it()`.
+11. **`gh pr merge` puede reportar "Deleted remote branch" sin borrarla.** Verificar
+    con `git ls-remote --heads origin`, no con `git branch -a` (que lee la referencia
+    local cacheada) ni fiandose del mensaje. `git remote prune` no la quita si la rama
+    sigue viva en el remoto: eso mismo es la señal.
 
 ### Diagnostico en tests
 
