@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Services;
 
+use App\Domain\Catalog\Models\Product;
 use App\Domain\Sales\Models\Sale;
 use App\Domain\Sales\Models\SaleItem;
 use App\Domain\Tenancy\Models\Branch;
+use App\Domain\Tenancy\Services\TenantContext;
 use Carbon\CarbonImmutable;
 
 /**
@@ -110,6 +112,74 @@ final class SalesReportService
                 'average_ticket' => $count > 0 ? round($amount / $count, 2) : 0.0,
             ];
         })->all();
+
+        return $this->envelope($start, $end, $branch, $rows);
+    }
+
+    /**
+     * Productos activos y vendibles SIN ventas en el rango.
+     *
+     * Antijoin con NOT EXISTS: se listan los productos del catalogo que no
+     * aparecen en ningun sale_item de una venta COMPLETED dentro del rango.
+     *
+     * last_sold_at mira el historico COMPLETO, sin acotar al rango ni a la
+     * sucursal: distingue 'nunca se vendio' (null) de 'no se vendio este mes
+     * pero si en marzo'. Es el dato que hace accionable el reporte.
+     *
+     * El company_id de la subconsulta va EXPLICITO. El global scope de
+     * BelongsToTenant solo alcanza al query base (products); una subconsulta
+     * cruda sobre sales/sale_items no lo hereda. RLS lo cubriria, pero el
+     * filtro explicito no depende de que la variable de sesion este puesta.
+     *
+     * totals.amount del envelope es SIEMPRE 0: por definicion estas filas no
+     * tienen importe vendido. Se reusa el envelope por consistencia de
+     * contrato con los otros reportes por rango.
+     */
+    public function productsWithoutSales(string $from, string $to, ?string $branchUuid = null, ?int $limit = null): array
+    {
+        [$start, $end, $branch] = $this->resolve($from, $to, $branchUuid);
+        $companyId = TenantContext::id();
+
+        $lastSold = \DB::table('sale_items as si')
+            ->join('sales as s', 's.id', '=', 'si.sale_id')
+            ->selectRaw('MAX(s.completed_at)')
+            ->whereColumn('si.product_id', 'products.id')
+            ->where('s.company_id', $companyId)
+            ->where('s.status', Sale::STATUS_COMPLETED);
+
+        $query = Product::query()
+            ->active()
+            ->sellable()
+            ->select(['products.uuid', 'products.sku', 'products.name', 'products.price'])
+            ->selectSub($lastSold, 'last_sold_at')
+            ->whereNotExists(function ($sub) use ($start, $end, $branch, $companyId): void {
+                $sub->select(\DB::raw(1))
+                    ->from('sale_items')
+                    ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+                    ->whereColumn('sale_items.product_id', 'products.id')
+                    ->where('sales.company_id', $companyId)
+                    ->where('sales.status', Sale::STATUS_COMPLETED)
+                    ->whereBetween('sales.completed_at', [$start, $end]);
+
+                if ($branch !== null) {
+                    $sub->where('sales.branch_id', $branch->id);
+                }
+            })
+            ->orderBy('products.sku');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        $rows = $query->get()->map(fn ($p) => [
+            'product_uuid' => (string) $p->uuid,
+            'sku' => (string) $p->sku,
+            'name' => (string) $p->name,
+            'price' => round((float) $p->price, 2),
+            'amount' => 0.0,
+            'last_sold_at' => $p->last_sold_at !== null
+                ? CarbonImmutable::parse($p->last_sold_at)->toDateString() : null,
+        ])->all();
 
         return $this->envelope($start, $end, $branch, $rows);
     }

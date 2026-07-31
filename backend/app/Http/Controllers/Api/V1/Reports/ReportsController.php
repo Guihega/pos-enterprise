@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Reports;
 
 use App\Domain\Authorization\Permissions;
+use App\Domain\Cash\Services\CashSessionReportService;
 use App\Domain\Reports\Services\ConsolidatedReportService;
 use App\Domain\Sales\Services\SalesReportService;
 use App\Domain\Sales\Services\SalesSummaryService;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Report\SalesRangeRequest;
+use App\Http\Requests\Report\ReportRangeRequest;
 use App\Http\Requests\Report\SalesSummaryRequest;
 use App\Http\Resources\SalesSummaryResource;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +29,7 @@ final class ReportsController extends Controller
         private readonly SalesSummaryService $summary,
         private readonly ConsolidatedReportService $consolidated,
         private readonly SalesReportService $salesReport,
+        private readonly CashSessionReportService $cashReport,
     ) {}
 
     /**
@@ -93,7 +95,7 @@ final class ReportsController extends Controller
      * Ventas agregadas por producto en un rango. A diferencia de top_products
      * dentro de sales-summary (un dia, top 5), aqui la lista es completa.
      */
-    public function salesByProduct(SalesRangeRequest $request): JsonResponse
+    public function salesByProduct(ReportRangeRequest $request): JsonResponse
     {
         Gate::authorize(Permissions::REPORT_SALES);
 
@@ -110,11 +112,45 @@ final class ReportsController extends Controller
      *
      * Ventas agregadas por cajero (sales.user_id) en un rango.
      */
-    public function salesByCashier(SalesRangeRequest $request): JsonResponse
+    public function salesByCashier(ReportRangeRequest $request): JsonResponse
     {
         Gate::authorize(Permissions::REPORT_SALES);
 
         return response()->json(['data' => $this->salesReport->byCashier(
+            $request->from(),
+            $request->to(),
+            $request->branchUuid(),
+            $request->limitValue(),
+        )]);
+    }
+
+    /**
+     * GET /reports/products-without-sales
+     *
+     * Productos activos y vendibles sin ventas en el rango.
+     */
+    public function productsWithoutSales(ReportRangeRequest $request): JsonResponse
+    {
+        Gate::authorize(Permissions::REPORT_SALES);
+
+        return response()->json(['data' => $this->salesReport->productsWithoutSales(
+            $request->from(),
+            $request->to(),
+            $request->branchUuid(),
+            $request->limitValue(),
+        )]);
+    }
+
+    /**
+     * GET /reports/cash-differences
+     *
+     * Diferencias de arqueo de las sesiones cerradas en el rango.
+     */
+    public function cashDifferences(ReportRangeRequest $request): JsonResponse
+    {
+        Gate::authorize(Permissions::REPORT_FINANCE);
+
+        return response()->json(['data' => $this->cashReport->differencesByRange(
             $request->from(),
             $request->to(),
             $request->branchUuid(),

@@ -278,6 +278,10 @@ Route::prefix('v1')->group(function (): void {
                     ->name('reports.sales-by-product');
                 Route::get('sales-by-cashier', [ReportsController::class, 'salesByCashier'])
                     ->name('reports.sales-by-cashier');
+                Route::get('products-without-sales', [ReportsController::class, 'productsWithoutSales'])
+                    ->name('reports.products-without-sales');
+                Route::get('cash-differences', [ReportsController::class, 'cashDifferences'])
+                    ->name('reports.cash-differences');
 
                 // Reportes consolidados cross-sucursal (doc maestro 46.6).
                 Route::prefix('consolidated')->group(function (): void {

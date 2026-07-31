@@ -226,3 +226,75 @@ it('to anterior a from devuelve 422', function () {
     $this->getJson('/api/v1/reports/sales-by-cashier?from=2026-06-30&to=2026-06-01', ['X-Tenant' => 'mi-tenant'])
         ->assertStatus(422)->assertJsonValidationErrors(['to']);
 });
+
+// ====================================================================
+//  GET /reports/products-without-sales
+// ====================================================================
+
+it('lista solo los productos sin ventas en el rango', function () {
+    TenantContext::set($this->tenant);
+    makeRangeSale('2026-06-10 10:00:00', 300.00);
+
+    Sanctum::actingAs($this->admin);
+    $response = $this->getJson('/api/v1/reports/products-without-sales?from=2026-06-01&to=2026-06-30', ['X-Tenant' => 'mi-tenant']);
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data.rows')
+        ->assertJsonPath('data.rows.0.sku', 'PROD-RNG-2')
+        ->assertJsonPath('data.rows.0.name', 'Producto Dos')
+        ->assertJsonPath('data.rows.0.price', 500)
+        ->assertJsonPath('data.rows.0.amount', 0)
+        ->assertJsonPath('data.rows.0.last_sold_at', null)
+        ->assertJsonPath('data.totals.rows_count', 1)
+        ->assertJsonPath('data.totals.amount', 0);
+});
+
+it('una venta fuera del rango deja al producto en la lista con last_sold_at', function () {
+    TenantContext::set($this->tenant);
+    makeRangeSale('2026-05-20 10:00:00', 100.00);
+
+    Sanctum::actingAs($this->admin);
+    $response = $this->getJson('/api/v1/reports/products-without-sales?from=2026-06-01&to=2026-06-30', ['X-Tenant' => 'mi-tenant']);
+
+    $response->assertOk()
+        ->assertJsonCount(2, 'data.rows')
+        ->assertJsonPath('data.rows.0.sku', 'PROD-RNG-1')
+        ->assertJsonPath('data.rows.0.last_sold_at', '2026-05-20')
+        ->assertJsonPath('data.rows.1.last_sold_at', null);
+});
+
+it('excluye productos no activos o no vendibles', function () {
+    TenantContext::set($this->tenant);
+    $this->product2->update(['status' => Product::STATUS_ARCHIVED]);
+
+    Sanctum::actingAs($this->admin);
+    $this->getJson('/api/v1/reports/products-without-sales?from=2026-06-01&to=2026-06-30', ['X-Tenant' => 'mi-tenant'])
+        ->assertOk()
+        ->assertJsonCount(1, 'data.rows')
+        ->assertJsonPath('data.rows.0.sku', 'PROD-RNG-1');
+});
+
+it('filtra por branch_uuid: vendido en otra sucursal sigue sin venta aqui', function () {
+    TenantContext::set($this->tenant);
+    $otra = Branch::factory()->create(['company_id' => $this->tenant->id, 'code' => 'NRT-PWS']);
+    makeRangeSale('2026-06-10 10:00:00', 300.00, null, $otra->id);
+
+    Sanctum::actingAs($this->admin);
+    $this->getJson("/api/v1/reports/products-without-sales?from=2026-06-01&to=2026-06-30&branch_uuid={$this->branch->uuid}", ['X-Tenant' => 'mi-tenant'])
+        ->assertOk()
+        ->assertJsonCount(2, 'data.rows');
+});
+
+it('sin ventas devuelve todo el catalogo activo', function () {
+    Sanctum::actingAs($this->admin);
+    $this->getJson('/api/v1/reports/products-without-sales?from=2026-06-01&to=2026-06-30', ['X-Tenant' => 'mi-tenant'])
+        ->assertOk()
+        ->assertJsonCount(2, 'data.rows')
+        ->assertJsonPath('data.totals.amount', 0);
+});
+
+it('productos sin venta: un cajero sin permiso recibe 403', function () {
+    Sanctum::actingAs($this->cashier);
+    $this->getJson('/api/v1/reports/products-without-sales?from=2026-06-01&to=2026-06-30', ['X-Tenant' => 'mi-tenant'])
+        ->assertStatus(403);
+});
