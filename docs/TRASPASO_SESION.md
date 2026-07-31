@@ -20,12 +20,14 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **eedc5e0**, sincronizado con origin, working tree limpio.
+- `main` = **f438ab5**, sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
 - Suite: **604 passed (1927 assertions)**.
 - Ultima migracion: **000045**.
-- Historia reciente: eedc5e0 (#27 reportes operativos restantes) <- c7aeb0b (#26 docs
+- Historia reciente: f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
+  deuda tecnica volcada) <- 455e935 (#28 matriz y traspaso al dia) <- eedc5e0 (#27
+  reportes operativos restantes) <- c7aeb0b (#26 docs
   traspaso y rama aparcada) <- 23749fb (#25 docs traspaso) <- 2eb83c8 (#24 reportes por
   producto/cajero) <- 4940f17 (#23 docs
   traspaso) <- a5bc8d4 (#22 warehouses update/deactivate) <- 6d52270 (#21 docs
@@ -34,6 +36,12 @@ detenerse y reconstruir desde el repo real.
 
 ### PRs de esta sesion
 
+- **#30** corrige el hallazgo vivo 1: la consolidacion de ADRs YA estaba aplicada en
+  `main`. `backend/docs/adr/README.md` es puntero deliberado, no residuo. Corrige de
+  paso `[deuda-11]`, que el #29 marco `NO` heredando esa afirmacion sin verificarla.
+- **#29** vuelca el inventario `[deuda-N]` a `docs/DEUDA_TECNICA.md`. El rango real es
+  3-18, no 3-16: faltan 4 y 14, 16 esta duplicada, y 17-18 van en el cuerpo del commit.
+- **#28** cierra el hueco 3 en la matriz y pone este documento al dia tras #26 y #27.
 - **#27** hueco 3 CERRADO: `GET /reports/products-without-sales` (REPORT_SALES) y
   `GET /reports/cash-differences` (REPORT_FINANCE), 13 tests, sin migracion.
   `SalesRangeRequest` renombrado a `ReportRangeRequest` (sus reglas nunca fueron
@@ -43,7 +51,7 @@ detenerse y reconstruir desde el repo real.
   `feature/etapa3-frontend-cimientos` (diferida por ADR-0013). Agrega `git branch`
   a la Regla Cero, que era la causa raiz.
 
-### PRs de la sesion anterior
+### PRs de la sesion de reportes por rango (#21-#24)
 
 - **#24** hueco 3 (parcial): `GET /reports/sales-by-product` y `sales-by-cashier`,
   `SalesReportService`, `SalesRangeRequest`, 9 tests. Sin migracion.
@@ -53,7 +61,7 @@ detenerse y reconstruir desde el repo real.
   cobertura HTTP previa) y correccion de `COBERTURA_ALCANCE.md`. Sin migracion.
 - **#21** docs de cobertura del alcance original + este traspaso.
 
-### PRs de la sesion anterior
+### PRs de la sesion de devoluciones y password (#17-#20)
 
 - **#18** devoluciones basicas CU-CAJ-010: migracion 000044, `SaleReturnService`,
   endpoints `POST/GET /sales/{uuid}/returns`, 7 tests.
@@ -188,6 +196,14 @@ de rutas y un cat del service. Cuesta dos comandos.
     con `git ls-remote --heads origin`, no con `git branch -a` (que lee la referencia
     local cacheada) ni fiandose del mensaje. `git remote prune` no la quita si la rama
     sigue viva en el remoto: eso mismo es la señal.
+
+### De la sesion de deuda y ADRs (#28-#30)
+
+12. **Heredar una afirmacion de otro documento sin verificarla es la misma falta que
+    inventarla.** `DEUDA_TECNICA.md` nacio marcando `[deuda-11]` como `NO` porque este
+    documento lo decia. Era falso: la consolidacion estaba aplicada y
+    `backend/docs/adr/README.md` es un puntero a proposito. Un `ls` de dos directorios
+    lo habria evitado. Quinta aparicion del patron de la leccion 9.
 
 ### Diagnostico en tests
 
