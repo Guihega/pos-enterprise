@@ -142,15 +142,19 @@ Todas nacieron de inferir en vez de verificar. Corregir estos habitos.
 6. **`TenantContext::get()` NO existe**; el metodo es `current(): ?Company`. El lint no
    detecta llamadas estaticas a metodos inexistentes: solo verificar contra el archivo real.
 
-### De la sesion actual (#21-#24)
+### De la sesion anterior (#21-#24)
 
-**LECCION PRINCIPAL: verificar antes de construir ya evito trabajo duplicado dos
+**LECCION PRINCIPAL: verificar antes de construir ya evito trabajo duplicado tres
 veces.** No es preferencia de estilo, es ahorro medible:
 
 - Hueco 2: la matriz decia 'tres CRUD faltantes'. El repo tenia dos completos y al
   tercero le faltaban dos metodos. Se escribieron 2 metodos, no 3 CRUD.
 - Hueco 3: de los operativos listados como faltantes, `average_ticket` y el desglose
   por metodo de pago YA se servian dentro de `sales-summary`. No se duplicaron.
+- Diferencias de caja (#27): el reporte parecia requerir calculo propio.
+  `CashService::closeSession()` YA persiste `expected_amount`,
+  `counted_amount` y `difference` en `cash_sessions`. El endpoint solo
+  agrega por rango.
 
 La regla operativa: antes de implementar lo que un documento declara ausente, un grep
 de rutas y un cat del service. Cuesta dos comandos.
