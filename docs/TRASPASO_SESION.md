@@ -85,10 +85,13 @@ decision del usuario.
 - Sus fixes de backend YA estan en main por otra via (verificado con grep, no inferido):
   orden `EnsureTenantContext` -> `SubstituteBindings` en `bootstrap/app.php`, y
   `docker-compose.yml` sin credenciales hardcodeadas.
-- Residuo real NO aplicado en main: consolidacion de `docs/adr` con `backend/docs/adr`,
-  que hoy coexisten (commit 67ec408 de la rama).
-- Sus mensajes de commit son el UNICO registro de la numeracion [deuda-3]...[deuda-16].
-  No existe archivo de deuda en el repo. **No borrar la rama sin volcar ese inventario.**
+- Consolidacion de ADRs: **APLICADA en main** (verificado 2026-07-31). `docs/adr`
+  tiene 0001-0013, README y _template. `backend/docs/adr/` conserva solo un README
+  que es puntero deliberado a `/docs/adr/`, no residuo: lo dice su propio texto.
+  NO borrarlo.
+- Sus mensajes de commit fueron el registro original de la numeracion
+  [deuda-3]...[deuda-18], ya volcada a `docs/DEUDA_TECNICA.md` en el PR #29. La rama
+  ya no es punto unico de fallo para ese inventario.
 - Pendiente para el ciclo de frontend: ADR-0004 (offline-first) y ADR-0008 (online-only)
   estan ambos "Accepted" y 0008 declara "Supersedes: —". Se contradicen. Los cimientos
   de la rama se escribieron bajo una de las dos.
