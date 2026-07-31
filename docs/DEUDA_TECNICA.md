@@ -31,7 +31,7 @@ esta fusionada, el pago no esta en `main` salvo reintroduccion por otra via.
 | 8 | `48adb40` | feat(seeders): nombres realistas de retail en productos demo | sin verificar |
 | 9 | `e11fba5` | docs(tenancy): convierte mencion fantasma de TenantAwareJob en TODO rastreable | sin verificar |
 | 10 | `d10e00e` | docs(tenancy): documenta listener Octane pendiente como TODO rastreable | sin verificar |
-| 11 | `67ec408` | docs(adr): consolida ADRs en docs/adr unico y mueve 0007 desde backend | NO (hallazgo vivo 1) |
+| 11 | `67ec408` | docs(adr): consolida ADRs en docs/adr unico y mueve 0007 desde backend | SI (verificado) |
 | 12 | `2109b1f` | fix(docker): extrae credenciales hardcodeadas a variables del .env | SI (verificado) |
 | 13 | `de69845` | feat(frontend): diseno responsive del POS con drawer de carrito | no (frontend) |
 | 15 | `6066fc2` | feat(seeders): stocks iniciales por producto en DevDataSeeder | sin verificar |
@@ -53,9 +53,10 @@ esta fusionada, el pago no esta en `main` salvo reintroduccion por otra via.
 
 ## Cruces con otros documentos
 
-- **`[deuda-11]` (`67ec408`) es el hallazgo vivo 1 de `TRASPASO_SESION.md`**:
-  `docs/adr` y `backend/docs/adr` coexisten. Cerrar ese hallazgo es portar ese
-  commit; son el mismo trabajo, no dos.
+- **`[deuda-11]` (`67ec408`) YA esta en `main`** (verificado 2026-07-31).
+  Esta entrada nacio como `NO` heredando una afirmacion de `TRASPASO_SESION.md`
+  que nadie habia verificado, y era falsa. `backend/docs/adr/README.md` sobrevive
+  a proposito como puntero, no como residuo.
 - `[deuda-12]` (`2109b1f`) ya esta en `main` por otra via.
 - `b3ec40d` (orden `EnsureTenantContext` -> `SubstituteBindings`) tambien esta en
   `main`, pero NO lleva tag de deuda: no toda correccion de la rama esta numerada.
