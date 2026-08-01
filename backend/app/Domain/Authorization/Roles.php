@@ -94,6 +94,7 @@ final class Roles
                 $P::PRODUCT_VIEW,
                 $P::INVENTORY_VIEW, $P::INVENTORY_ADJUST, $P::INVENTORY_TRANSFER, $P::INVENTORY_COUNT,
                 ...self::transfers(),
+                $P::SUPPLIER_VIEW,
                 $P::REPORT_INVENTORY,
             ],
 
@@ -153,6 +154,7 @@ final class Roles
             $P::CASH_OPEN, $P::CASH_CLOSE, $P::CASH_MOVEMENT, $P::CASH_VIEW,
             $P::SALE_CREATE, $P::SALE_VIEW, $P::SALE_VOID, $P::SALE_REFUND, $P::SALE_DISCOUNT_AUTHORIZE,
             $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE, $P::CUSTOMER_DELETE,
+            $P::SUPPLIER_VIEW, $P::SUPPLIER_CREATE, $P::SUPPLIER_UPDATE,
             ...self::transfers(),
             ...self::transferRequests(),
         ];
