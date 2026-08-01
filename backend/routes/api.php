@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Inventory\TransferController;
 use App\Http\Controllers\Api\V1\Inventory\TransferRequestController;
 use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
+use App\Http\Controllers\Api\V1\Purchasing\SuppliersController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
 use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
 use App\Http\Controllers\Api\V1\Sales\SalesController;
@@ -159,6 +160,13 @@ Route::prefix('v1')->group(function (): void {
             Route::post('branches', [BranchesController::class, 'store']);
             Route::patch('branches/{branch:uuid}', [BranchesController::class, 'update']);
             Route::post('branches/{branch:uuid}/deactivate', [BranchesController::class, 'deactivate']);
+
+            // ----- Proveedores (4.1.5 Compras) -----
+            Route::get('suppliers', [SuppliersController::class, 'index']);
+            Route::get('suppliers/{supplier:uuid}', [SuppliersController::class, 'show']);
+            Route::post('suppliers', [SuppliersController::class, 'store']);
+            Route::patch('suppliers/{supplier:uuid}', [SuppliersController::class, 'update']);
+            Route::post('suppliers/{supplier:uuid}/deactivate', [SuppliersController::class, 'deactivate']);
 
             Route::prefix('inventory')->group(function (): void {
                 Route::get('stocks', [InventoryController::class, 'stocks']);

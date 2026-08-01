@@ -124,6 +124,12 @@ final class Permissions
 
     public const BRANCH_DELETE = 'branch.delete';
 
+    public const SUPPLIER_VIEW = 'supplier.view';
+
+    public const SUPPLIER_CREATE = 'supplier.create';
+
+    public const SUPPLIER_UPDATE = 'supplier.update';
+
     public const SETTINGS_UPDATE = 'settings.update';
 
     public const AUDIT_VIEW = 'audit.view';
@@ -160,6 +166,9 @@ final class Permissions
             self::SALE_CREATE, self::SALE_VIEW, self::SALE_VOID, self::SALE_REFUND, self::SALE_DISCOUNT_AUTHORIZE,
             // Clientes
             self::CUSTOMER_VIEW, self::CUSTOMER_CREATE, self::CUSTOMER_UPDATE, self::CUSTOMER_DELETE,
+            // Compras (4.1.5): maestro de proveedores. Sin SUPPLIER_DELETE:
+            // la convencion del repo no expone DELETE en entidades estructurales.
+            self::SUPPLIER_VIEW, self::SUPPLIER_CREATE, self::SUPPLIER_UPDATE,
             // Reportes
             self::REPORT_SALES, self::REPORT_INVENTORY, self::REPORT_FINANCE, self::REPORT_AUDIT,
             self::REPORT_CONSOLIDATED,
