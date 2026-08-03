@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **f438ab5**, sincronizado con origin, working tree limpio.
+- `main` = **94d9c53**, sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **604 passed (1927 assertions)**.
-- Ultima migracion: **000045**.
-- Historia reciente: f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
+- Suite: **612 passed (1965 assertions)**.
+- Ultima migracion: **000046**.
+- Historia reciente: 94d9c53 (#32 maestro de proveedores) <- fad82cc (#31 traspaso
+  al dia) <- f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
   deuda tecnica volcada) <- 455e935 (#28 matriz y traspaso al dia) <- eedc5e0 (#27
   reportes operativos restantes) <- c7aeb0b (#26 docs
   traspaso y rama aparcada) <- 23749fb (#25 docs traspaso) <- 2eb83c8 (#24 reportes por
@@ -36,6 +37,11 @@ detenerse y reconstruir desde el repo real.
 
 ### PRs de esta sesion
 
+- **#32** maestro de proveedores (4.1.5): crea el dominio `Purchasing`, migracion
+  000046, 5 endpoints (`/suppliers` CRUD + `deactivate`), permisos
+  SUPPLIER_VIEW/CREATE/UPDATE en `operations()`, 8 tests. Recorte deliberado: 5 de
+  los 22 endpoints que define el maestro en 29.7. Sin datos fiscales.
+- **#31** actualiza este documento a f438ab5 y desambigua dos encabezados homonimos.
 - **#30** corrige el hallazgo vivo 1: la consolidacion de ADRs YA estaba aplicada en
   `main`. `backend/docs/adr/README.md` es puntero deliberado, no residuo. Corrige de
   paso `[deuda-11]`, que el #29 marco `NO` heredando esa afirmacion sin verificarla.

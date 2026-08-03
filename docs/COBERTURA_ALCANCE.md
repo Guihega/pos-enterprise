@@ -1,7 +1,7 @@
 # Cobertura del alcance original — julio 2026
 
-Estado del repo al escribir esto: `main` = eedc5e0, suite 604 passed (1927 assertions).
-Historial: PR #22 cerro el hueco 2 (582 passed). PR #27 cerro el hueco 3 (604 passed).
+Estado del repo al escribir esto: `main` = 94d9c53, suite 612 passed (1965 assertions).
+Historial: PR #22 cerro el hueco 2 (582 passed). PR #27 cerro el hueco 3 (604 passed). PR #32 abrio el hueco 1 con el maestro de proveedores (612 passed).
 
 ## Que mide este documento
 
@@ -54,7 +54,7 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 | 4.1.2 Organizacional | Operable | Sucursales y almacenes con CRUD completo (update y deactivate de almacenes cerrados en PR #22) |
 | 4.1.3 Catalogo | Operable | Unidades e impuestos con apiResource completo (ya existia; la matriz lo reportaba mal). Sin variantes, combos, kits, recetas, productos por peso, promociones, cupones, listas de precios, precios programados (DIFERIBLE) |
 | 4.1.4 Inventario | Operable | Stock, lotes, movimientos, transferencias con solicitud. Sin conteos ciclicos, series, ubicaciones fisicas, kardex valorizado, analisis ABC, mermas por categoria (DIFERIBLE) |
-| 4.1.5 **Compras** | **Ausente** | **Dominio inexistente.** Ver hueco 1 |
+| 4.1.5 **Compras** | **Parcial** | Maestro de proveedores operable (PR #32). Sin ordenes de compra, sin recepcion, sin facturas de proveedor, sin cuentas por pagar. Ver hueco 1 |
 | 4.1.6 Ventas | Operable | Checkout, pagos multiples, cancelacion, devoluciones. Sin apartados, cotizaciones, gift cards, vales, propinas, comisiones, multiples carritos, suspension de venta (DIFERIBLE) |
 | 4.1.7 Caja | Operable | Apertura, movimientos, cierre, reporte Z. Sin corte X, sin handover de cajero, sin multi-moneda, sin auto-corte por horario (OPERATIVO/DIFERIBLE) |
 | 4.1.8 Clientes | Basico | CRUD. Sin credito (decision de negocio: diferido), sin datos fiscales RFC, sin direcciones ni telefonos multiples, sin consentimientos GDPR/ARCO (OPERATIVO) |
@@ -62,10 +62,12 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 
 ## Los tres huecos que duelen
 
-### 1. Compras (4.1.5) — OPERATIVO
+### 1. Compras (4.1.5) — PARCIAL (PR #32)
 
-Cero codigo. No existe el dominio, ni proveedores, ni ordenes de compra, ni recepcion,
-ni facturas de proveedor, ni cuentas por pagar.
+El dominio `Purchasing` YA existe. El maestro de proveedores es operable: migracion
+000046, `/suppliers` con CRUD y baja logica, permisos propios, 8 tests. Siguen
+ausentes las ordenes de compra, la recepcion, las facturas de proveedor y las
+cuentas por pagar: 17 de los 22 endpoints que define el maestro en 29.7.
 
 **Matiz que evita el panico**: el stock SI puede cargarse hoy via
 `InventoryService::recordEntry` con `TYPE_ENTRY`, expuesto en `POST /inventory/adjust`.
@@ -147,6 +149,8 @@ validado (422 si falta o esta malformado), a diferencia de los consolidados, que
 1. ~~Verificar el hueco 2~~ **HECHO en PR #22**: la hipotesis era falsa, ver arriba.
 2. ~~Reportes operativos basicos~~ **HECHO**: parcial en PR #24 (por producto y por
    cajero), CERRADO en PR #27 (productos sin venta y diferencias de caja).
-3. Compras (el modulo grande; conviene sesion dedicada). **El unico hueco intacto.**
+3. ~~Compras: maestro de proveedores~~ **HECHO en PR #32**: dominio `Purchasing`,
+   `/suppliers` operable. Sigue pendiente el resto del modulo (ordenes de compra,
+   recepcion, facturas). **Ya no queda ningun hueco intacto.**
 
 Ninguno es urgente por decision del usuario. El sistema opera.
