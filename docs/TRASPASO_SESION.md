@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **94d9c53**, sincronizado con origin, working tree limpio.
+- `main` = **994a3da**, sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **612 passed (1965 assertions)**.
-- Ultima migracion: **000046**.
-- Historia reciente: 94d9c53 (#32 maestro de proveedores) <- fad82cc (#31 traspaso
+- Suite: **622 passed (2004 assertions)**.
+- Ultima migracion: **000047**.
+- Historia reciente: 994a3da (#34 ordenes de compra) <- 5c46c6a (#33 estado
+  y 4.1.5 parcial) <- 94d9c53 (#32 maestro de proveedores) <- fad82cc (#31 traspaso
   al dia) <- f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
   deuda tecnica volcada) <- 455e935 (#28 matriz y traspaso al dia) <- eedc5e0 (#27
   reportes operativos restantes) <- c7aeb0b (#26 docs
@@ -210,6 +211,29 @@ de rutas y un cat del service. Cuesta dos comandos.
     documento lo decia. Era falso: la consolidacion estaba aplicada y
     `backend/docs/adr/README.md` es un puntero a proposito. Un `ls` de dos directorios
     lo habria evitado. Quinta aparicion del patron de la leccion 9.
+
+### De la sesion de ordenes de compra (#34)
+
+13. **Arreglar una causa destapa la siguiente.** Los 4 tests rojos del arranque
+    escondian TRES causas raiz, no una. Solo la primera estaba diagnosticada en
+    este documento; las otras dos solo aparecieron cuando la ejecucion llego mas
+    lejos. Corolario: no dar una entrega por diagnosticada porque se explique el
+    primer sintoma, y releer la salida COMPLETA despues de cada correccion.
+14. **`TenantScopedModel` impone `SoftDeletes`.** Un modelo hijo cuya tabla no
+    tiene `deleted_at` revienta con SQLSTATE 42703 al hacer eager load. El patron
+    del repo para lineas hijas es `extends Model` + `use BelongsToTenant;`, como
+    `SaleItem`, `TransferItem`, `SalePayment` o `SaleTax`. Mantiene RLS y tenancy
+    sin el borrado logico.
+15. **Postgres NO admite `FOR UPDATE` sobre agregados** (SQLSTATE 0A000). Un
+    consecutivo calculado con `max('id')` + `lockForUpdate()` no es viable. El
+    patron del repo para folios es la fila contador (`SaleNumberCounter`) con
+    `SELECT ... FOR UPDATE`.
+16. **`max('id')` sobre tabla con soft-delete recicla consecutivos.** El global
+    scope filtra `deleted_at is null`, asi que borrar la ultima fila hace que el
+    siguiente folio repita uno ya emitido. Requiere `withTrashed()` explicito.
+17. **Pint sobre los archivos tocados significa TODOS los tocados.** Se pintaron 3
+    de 15 y `pint --test` global fallo en `bootstrap/app.php` y
+    `PurchaseOrderFactory.php`. El conteo real del repo es **386 files**.
 
 ### Diagnostico en tests
 
