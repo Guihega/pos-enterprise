@@ -67,6 +67,10 @@ final class Roles
                 $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
                 // Maestro 39.3: "Solo gerente o admin puede resolver".
                 $P::SYNC_CONFLICT_VIEW, $P::SYNC_CONFLICT_RESOLVE,
+                // CU-COM-002: "Aprobar OC: por gerente, basado en monto y
+                // politicas". Los umbrales por monto NO estan especificados en
+                // el maestro: DIFERIDO. Hoy aprueba quien tiene el permiso.
+                $P::PURCHASE_ORDER_APPROVE,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -95,6 +99,7 @@ final class Roles
                 $P::INVENTORY_VIEW, $P::INVENTORY_ADJUST, $P::INVENTORY_TRANSFER, $P::INVENTORY_COUNT,
                 ...self::transfers(),
                 $P::SUPPLIER_VIEW,
+                $P::PURCHASE_ORDER_VIEW,
                 $P::REPORT_INVENTORY,
             ],
 
@@ -155,6 +160,7 @@ final class Roles
             $P::SALE_CREATE, $P::SALE_VIEW, $P::SALE_VOID, $P::SALE_REFUND, $P::SALE_DISCOUNT_AUTHORIZE,
             $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE, $P::CUSTOMER_DELETE,
             $P::SUPPLIER_VIEW, $P::SUPPLIER_CREATE, $P::SUPPLIER_UPDATE,
+            $P::PURCHASE_ORDER_VIEW, $P::PURCHASE_ORDER_CREATE,
             ...self::transfers(),
             ...self::transferRequests(),
         ];

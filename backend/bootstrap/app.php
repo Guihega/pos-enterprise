@@ -127,6 +127,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionNotOpenException') => [409, 'SESSION_NOT_OPEN', []],
                 is_a($e, 'App\\Domain\\Cash\\Exceptions\\CashSessionAlreadyOpenException') => [409, 'SESSION_ALREADY_OPEN', []],
 
+                // ----- Purchasing (por nombre de clase, sin acoplar import) -----
+                is_a($e, 'App\\Domain\\Purchasing\\Exceptions\\PurchaseOrderTransitionException') => [409, 'PURCHASE_ORDER_TRANSITION', []],
+
                 // ----- Argumentos invalidos de dominio -----
                 $e instanceof InvalidArgumentException => [422, 'INVALID_ARGUMENT', []],
 

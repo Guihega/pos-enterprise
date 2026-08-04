@@ -124,6 +124,12 @@ final class Permissions
 
     public const BRANCH_DELETE = 'branch.delete';
 
+    public const PURCHASE_ORDER_VIEW = 'purchase_order.view';
+
+    public const PURCHASE_ORDER_CREATE = 'purchase_order.create';
+
+    public const PURCHASE_ORDER_APPROVE = 'purchase_order.approve';
+
     public const SUPPLIER_VIEW = 'supplier.view';
 
     public const SUPPLIER_CREATE = 'supplier.create';
@@ -169,6 +175,8 @@ final class Permissions
             // Compras (4.1.5): maestro de proveedores. Sin SUPPLIER_DELETE:
             // la convencion del repo no expone DELETE en entidades estructurales.
             self::SUPPLIER_VIEW, self::SUPPLIER_CREATE, self::SUPPLIER_UPDATE,
+            // OCs: APPROVE separado de CREATE por CU-COM-002 (aprueba el gerente).
+            self::PURCHASE_ORDER_VIEW, self::PURCHASE_ORDER_CREATE, self::PURCHASE_ORDER_APPROVE,
             // Reportes
             self::REPORT_SALES, self::REPORT_INVENTORY, self::REPORT_FINANCE, self::REPORT_AUDIT,
             self::REPORT_CONSOLIDATED,

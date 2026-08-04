@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Inventory\TransferController;
 use App\Http\Controllers\Api\V1\Inventory\TransferRequestController;
 use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
+use App\Http\Controllers\Api\V1\Purchasing\PurchaseOrdersController;
 use App\Http\Controllers\Api\V1\Purchasing\SuppliersController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
 use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
@@ -167,6 +168,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('suppliers', [SuppliersController::class, 'store']);
             Route::patch('suppliers/{supplier:uuid}', [SuppliersController::class, 'update']);
             Route::post('suppliers/{supplier:uuid}/deactivate', [SuppliersController::class, 'deactivate']);
+
+            // ----- Ordenes de compra (4.1.5) -----
+            Route::get('purchase-orders', [PurchaseOrdersController::class, 'index']);
+            Route::get('purchase-orders/{purchaseOrder:uuid}', [PurchaseOrdersController::class, 'show']);
+            Route::post('purchase-orders', [PurchaseOrdersController::class, 'store']);
+            Route::post('purchase-orders/{purchaseOrder:uuid}/submit', [PurchaseOrdersController::class, 'submit']);
+            Route::post('purchase-orders/{purchaseOrder:uuid}/approve', [PurchaseOrdersController::class, 'approve']);
+            Route::post('purchase-orders/{purchaseOrder:uuid}/cancel', [PurchaseOrdersController::class, 'cancel']);
 
             Route::prefix('inventory')->group(function (): void {
                 Route::get('stocks', [InventoryController::class, 'stocks']);
