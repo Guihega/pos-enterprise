@@ -62,12 +62,16 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 
 ## Los tres huecos que duelen
 
-### 1. Compras (4.1.5) — PARCIAL (PR #32)
+### 1. Compras (4.1.5) — PARCIAL (PR #32, #34)
 
-El dominio `Purchasing` YA existe. El maestro de proveedores es operable: migracion
-000046, `/suppliers` con CRUD y baja logica, permisos propios, 8 tests. Siguen
-ausentes las ordenes de compra, la recepcion, las facturas de proveedor y las
-cuentas por pagar: 17 de los 22 endpoints que define el maestro en 29.7.
+El dominio `Purchasing` YA existe. Operables: el maestro de proveedores
+(migracion 000046, `/suppliers` con CRUD y baja logica) y las ordenes de compra
+(migracion 000047, ciclo `draft -> submitted -> approved` mas cancelacion,
+6 endpoints, PR #34). Van 11 de los 22 endpoints que define 29.7.
+
+Siguen ausentes: la recepcion de mercancia (`/receive`, que mueve stock via
+`InventoryService`), `purchase-receipts`, `supplier-invoices` y cuentas por
+pagar. Diferido documentado: PATCH de la OC en draft.
 
 **Matiz que evita el panico**: el stock SI puede cargarse hoy via
 `InventoryService::recordEntry` con `TYPE_ENTRY`, expuesto en `POST /inventory/adjust`.
