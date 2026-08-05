@@ -99,7 +99,7 @@ final class Roles
                 $P::INVENTORY_VIEW, $P::INVENTORY_ADJUST, $P::INVENTORY_TRANSFER, $P::INVENTORY_COUNT,
                 ...self::transfers(),
                 $P::SUPPLIER_VIEW,
-                $P::PURCHASE_ORDER_VIEW,
+                $P::PURCHASE_ORDER_VIEW, $P::PURCHASE_ORDER_RECEIVE,
                 $P::REPORT_INVENTORY,
             ],
 

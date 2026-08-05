@@ -8,6 +8,8 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Catalog\Models\Unit;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Stock;
+use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Purchasing\Models\PurchaseOrder;
 use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Tenancy\Models\Branch;
@@ -82,6 +84,98 @@ function poOrder(string $status = PurchaseOrder::STATUS_DRAFT): PurchaseOrder
     ]);
 }
 
+function poWarehouse(): Warehouse
+{
+    return Warehouse::factory()->create([
+        'company_id' => test()->tenant->id,
+        'branch_id' => test()->branch->id,
+        'is_active' => true,
+    ]);
+}
+
+function poApproved(Product $product, float $qty = 10, float $cost = 25): PurchaseOrder
+{
+    $resp = test()->postJson('/api/v1/purchase-orders', poPayload($product, $qty, $cost), poHeaders());
+    TenantContext::set(test()->tenant);
+    $orden = PurchaseOrder::query()->where('uuid', $resp->json('data.uuid'))->firstOrFail();
+    $orden->update(['status' => PurchaseOrder::STATUS_APPROVED, 'approved_at' => now()]);
+
+    return $orden->fresh(['items']);
+}
+
+function poStockDe(Product $product, Warehouse $warehouse): float
+{
+    TenantContext::set(test()->tenant);
+
+    return (float) (Stock::query()
+        ->where('product_id', $product->id)
+        ->where('warehouse_id', $warehouse->id)
+        ->value('quantity_on_hand') ?? 0);
+}
+
+it('recibe parcialmente y la orden sigue aprobada', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $product = poProduct();
+    $orden = poApproved($product, 10);
+    $wh = poWarehouse();
+
+    test()->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $wh->uuid,
+        'items' => [['product_uuid' => $product->uuid, 'quantity' => 4]],
+    ], poHeaders())->assertOk()->assertJsonPath('data.status', 'approved');
+
+    expect(poStockDe($product, $wh))->toBe(4.0);
+});
+
+it('recibe el total y la orden pasa a received', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $product = poProduct();
+    $orden = poApproved($product, 6);
+    $wh = poWarehouse();
+
+    test()->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $wh->uuid,
+        'items' => [['product_uuid' => $product->uuid, 'quantity' => 6]],
+    ], poHeaders())->assertOk()->assertJsonPath('data.status', 'received');
+
+    expect(poStockDe($product, $wh))->toBe(6.0);
+});
+
+it('rechaza recibir mas de lo pendiente', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $product = poProduct();
+    $orden = poApproved($product, 5);
+    $wh = poWarehouse();
+
+    test()->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $wh->uuid,
+        'items' => [['product_uuid' => $product->uuid, 'quantity' => 9]],
+    ], poHeaders())->assertStatus(422);
+});
+
+it('rechaza con 409 recibir una orden en draft', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $product = poProduct();
+    $wh = poWarehouse();
+    $resp = test()->postJson('/api/v1/purchase-orders', poPayload($product), poHeaders());
+
+    test()->postJson('/api/v1/purchase-orders/'.$resp->json('data.uuid').'/receive', [
+        'warehouse_uuid' => $wh->uuid,
+        'items' => [['product_uuid' => $product->uuid, 'quantity' => 1]],
+    ], poHeaders())->assertStatus(409);
+});
+
+it('niega recibir al usuario sin permiso de recepcion', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE]);
+    $product = poProduct();
+    $orden = poApproved($product);
+    $wh = poWarehouse();
+
+    test()->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $wh->uuid,
+        'items' => [['product_uuid' => $product->uuid, 'quantity' => 1]],
+    ], poHeaders())->assertStatus(403);
+});
 it('crea una orden en draft y calcula los totales con IVA', function (): void {
     poActor([Permissions::PURCHASE_ORDER_CREATE]);
     $product = poProduct(0.16);
