@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **994a3da**, sincronizado con origin, working tree limpio.
+- `main` = **0bf99ca**, sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **622 passed (2004 assertions)**.
-- Ultima migracion: **000047**.
-- Historia reciente: 994a3da (#34 ordenes de compra) <- 5c46c6a (#33 estado
+- Suite: **627 passed (2015 assertions)**.
+- Ultima migracion: **000048**.
+- Historia reciente: 0bf99ca (#36 recepcion de mercancia) <- ed3a8a7 (#35
+  docs) <- 994a3da (#34 ordenes de compra) <- 5c46c6a (#33 estado
   y 4.1.5 parcial) <- 94d9c53 (#32 maestro de proveedores) <- fad82cc (#31 traspaso
   al dia) <- f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
   deuda tecnica volcada) <- 455e935 (#28 matriz y traspaso al dia) <- eedc5e0 (#27
@@ -235,6 +236,19 @@ de rutas y un cat del service. Cuesta dos comandos.
     de 15 y `pint --test` global fallo en `bootstrap/app.php` y
     `PurchaseOrderFactory.php`. El conteo real del repo es **386 files**.
 
+### De la sesion de recepcion (#36)
+
+18. **El binding de ruta del repo es `{modelo:uuid}`, no `{modelo}`.** Un ancla
+    construida desde el nombre del parametro del controller fallo con
+    `count == 0`. La sintaxis de un archivo se lee de ese archivo, no se
+    deduce de otro. El assert lo atrapo antes de escribir nada.
+19. **Un servicio sin constructor lo gana al inyectar una dependencia.** Añadir
+    `receive()` con `$this->inventory` exigio crear el `__construct` completo:
+    `grep` de `$this->` solo devolvia la linea recien escrita, señal de que la
+    propiedad no existia.
+20. **Una columna que falta se añade en migracion propia, no editando la que
+    ya esta mergeada.** `received_at` fue la 000048 porque la 000047 ya estaba
+    aplicada en entornos.
 ### Diagnostico en tests
 
 - **`storage/logs/laravel.log` NO recibe logs en el entorno de testing.** Insertar
