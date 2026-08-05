@@ -6,6 +6,9 @@ namespace App\Domain\Purchasing\Services;
 
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\InventoryMovement;
+use App\Domain\Inventory\Models\Warehouse;
+use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Purchasing\Exceptions\PurchaseOrderTransitionException;
 use App\Domain\Purchasing\Models\PurchaseOrder;
 use App\Domain\Purchasing\Models\PurchaseOrderItem;
@@ -19,9 +22,9 @@ use InvalidArgumentException;
 /**
  * Ordenes de compra: creacion, edicion en draft y transiciones de estado.
  *
- * NO incluye la recepcion (/receive): mueve stock via InventoryService y va
- * en su propia entrega. Por eso `received` es alcanzable en el enum pero no
- * desde aqui.
+ * Incluye la recepcion (/receive), que acumula sobre quantity_received y
+ * mueve stock via InventoryService. La OC pasa a received solo cuando todas
+ * las lineas estan completas.
  *
  * Folio: consecutivo por tenant calculado dentro de la transaccion. No usa
  * FolioRangeService, que reserva rangos por dispositivo para operar offline
@@ -34,6 +37,10 @@ use InvalidArgumentException;
  */
 class PurchaseOrderService
 {
+    public function __construct(
+        private readonly InventoryService $inventory,
+    ) {}
+
     /**
      * @param  array<int, array{product_uuid: string, quantity: float, unit_cost: float}>  $items
      */
@@ -133,6 +140,114 @@ class PurchaseOrderService
         ], PurchaseOrder::STATUS_CANCELLED, 'cancelar', [
             'cancelled_at' => now(),
         ]);
+    }
+
+    /**
+     * Recepcion de mercancia contra una OC aprobada.
+     *
+     * Acumula sobre quantity_received y mueve stock via InventoryService,
+     * una entrada por linea con la OC como source. La OC pasa a received
+     * solo cuando TODAS las lineas alcanzan su cantidad pedida; con
+     * recepcion parcial permanece en approved.
+     *
+     * DIFERIDO: lotes y caducidad. recordEntry acepta $batch, pero capturar
+     * lote exige tracks_lots y validacion propia; va en su entrega.
+     *
+     * @param  list<array{item: PurchaseOrderItem, quantity: float}>  $recepciones
+     */
+    /**
+     * Recepcion de mercancia contra una OC aprobada.
+     *
+     * Acumula sobre quantity_received y mueve stock via InventoryService,
+     * una entrada por linea con la OC como source. La OC pasa a received
+     * solo cuando TODAS las lineas alcanzan la cantidad pedida; con
+     * recepcion parcial permanece en approved.
+     *
+     * DIFERIDO: lotes y caducidad. recordEntry acepta $batch, pero capturar
+     * lote exige tracks_lots y validacion propia; va en su entrega.
+     *
+     * @param  array<int, array{product_uuid: string, quantity: float}>  $items
+     */
+    public function receive(
+        PurchaseOrder $order,
+        string $warehouseUuid,
+        array $items,
+        User $user,
+    ): PurchaseOrder {
+        if ($items === []) {
+            throw new InvalidArgumentException('Una recepcion necesita al menos una linea.');
+        }
+
+        return DB::transaction(function () use ($order, $warehouseUuid, $items, $user) {
+            /** @var PurchaseOrder $locked */
+            $locked = PurchaseOrder::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== PurchaseOrder::STATUS_APPROVED) {
+                throw PurchaseOrderTransitionException::forStatus($locked->status, 'recibir');
+            }
+
+            $warehouse = Warehouse::query()
+                ->where('uuid', $warehouseUuid)
+                ->where('branch_id', $locked->branch_id)
+                ->where('is_active', true)
+                ->firstOrFail();
+
+            $lineas = $locked->items()->with('product')->get()->keyBy(
+                fn (PurchaseOrderItem $i): string => (string) $i->product->uuid
+            );
+
+            foreach ($items as $item) {
+                /** @var PurchaseOrderItem|null $linea */
+                $linea = $lineas->get($item['product_uuid']);
+
+                if ($linea === null) {
+                    throw new InvalidArgumentException(
+                        sprintf('El producto %s no pertenece a esta orden.', $item['product_uuid'])
+                    );
+                }
+
+                $cantidad = (float) $item['quantity'];
+                $pendiente = round((float) $linea->quantity - (float) $linea->quantity_received, 4);
+
+                if ($cantidad > $pendiente) {
+                    throw new InvalidArgumentException(sprintf(
+                        'La cantidad recibida (%s) excede lo pendiente (%s) del producto %s.',
+                        $cantidad,
+                        $pendiente,
+                        $item['product_uuid'],
+                    ));
+                }
+
+                $linea->update([
+                    'quantity_received' => round((float) $linea->quantity_received + $cantidad, 4),
+                ]);
+
+                $this->inventory->recordEntry(
+                    product: $linea->product,
+                    warehouse: $warehouse,
+                    quantity: $cantidad,
+                    unitCost: (float) $linea->unit_cost,
+                    type: InventoryMovement::TYPE_ENTRY,
+                    reason: 'Recepcion de OC '.$locked->folio,
+                    reference: $locked->folio,
+                    source: $locked,
+                    userId: $user->id,
+                );
+            }
+
+            $completa = $locked->items()->get()->every(
+                fn (PurchaseOrderItem $i): bool => (float) $i->quantity_received >= (float) $i->quantity
+            );
+
+            if ($completa) {
+                $locked->update([
+                    'status' => PurchaseOrder::STATUS_RECEIVED,
+                    'received_at' => now(),
+                ]);
+            }
+
+            return $locked->fresh(['items']);
+        });
     }
 
     /**

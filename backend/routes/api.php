@@ -176,6 +176,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('purchase-orders/{purchaseOrder:uuid}/submit', [PurchaseOrdersController::class, 'submit']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/approve', [PurchaseOrdersController::class, 'approve']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/cancel', [PurchaseOrdersController::class, 'cancel']);
+            Route::post('purchase-orders/{purchaseOrder:uuid}/receive', [PurchaseOrdersController::class, 'receive']);
 
             Route::prefix('inventory')->group(function (): void {
                 Route::get('stocks', [InventoryController::class, 'stocks']);
