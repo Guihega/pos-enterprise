@@ -108,9 +108,16 @@ decision del usuario.
 - Sus mensajes de commit fueron el registro original de la numeracion
   [deuda-3]...[deuda-18], ya volcada a `docs/DEUDA_TECNICA.md` en el PR #29. La rama
   ya no es punto unico de fallo para ese inventario.
-- Pendiente para el ciclo de frontend: ADR-0004 (offline-first) y ADR-0008 (online-only)
-  estan ambos "Accepted" y 0008 declara "Supersedes: —". Se contradicen. Los cimientos
-  de la rama se escribieron bajo una de las dos.
+- ADR-0004 y ADR-0008: **NO se contradicen** (verificado 2026-08-05 leyendo ambos
+  completos). 0008 documenta el gap del MVP hacia 0004 y lo dice textual: el
+  online-only de Fase 1 "no es un error del MVP"; su decision es mapear el rediseño
+  de Fase 2 (folios por rangos, oversell offline), y ADR-0009 ya diseña esos rangos.
+  Por eso "Supersedes: -" es correcto: no reemplaza nada. La cadena 0004 -> 0008 ->
+  0009 es coherente. El titulo de 0008 induce a error si no se abre el archivo:
+  segunda vez que un hallazgo sobre ADRs resulta falso por heredarlo sin leer
+  (leccion 12). Sin decision de arquitectura pendiente: el frontend va al FINAL,
+  cuando el backend este 100% confirmado y probado (ADR-0013), y su camino tecnico
+  ya esta diseñado.
 
 ## METODO DE TRABAJO (innegociable)
 
