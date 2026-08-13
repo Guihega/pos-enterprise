@@ -16,6 +16,7 @@ use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -380,4 +381,70 @@ it('crea un lote por cada entrega parcial', function (): void {
     expect($lotes)->toHaveCount(2)
         ->and($lotes->pluck('lot_number')->all())->toBe(['L-A', 'L-B'])
         ->and($lotes->every(fn ($l): bool => $l->purchase_order_id === $orden->id))->toBeTrue();
+});
+
+function poPatchUrl(PurchaseOrder $orden): string
+{
+    return '/api/v1/purchase-orders/'.$orden->uuid;
+}
+
+it('actualiza las lineas de una orden en draft y recalcula los totales', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_UPDATE]);
+    $producto = poProduct();
+    $orden = poOrder();
+
+    $this->patchJson(poPatchUrl($orden), [
+        'items' => [['product_uuid' => $producto->uuid, 'quantity' => 4, 'unit_cost' => 50]],
+    ], poHeaders())->assertOk();
+
+    TenantContext::set($this->tenant);
+    $fresco = PurchaseOrder::query()->whereKey($orden->id)->firstOrFail();
+
+    expect($fresco->items()->count())->toBe(1)
+        ->and((float) $fresco->subtotal)->toBe(200.0)
+        ->and((float) $fresco->tax_total)->toBe(32.0)
+        ->and((float) $fresco->total)->toBe(232.0);
+});
+
+it('actualiza solo las notas sin tocar las lineas', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_UPDATE]);
+    $orden = poOrder();
+    $totalPrevio = (float) $orden->total;
+    $lineasPrevias = $orden->items()->count();
+
+    $this->patchJson(poPatchUrl($orden), ['notes' => 'Revisar con el proveedor'], poHeaders())
+        ->assertOk();
+
+    TenantContext::set($this->tenant);
+    $fresco = PurchaseOrder::query()->whereKey($orden->id)->firstOrFail();
+
+    expect($fresco->notes)->toBe('Revisar con el proveedor')
+        ->and((float) $fresco->total)->toBe($totalPrevio)
+        ->and($fresco->items()->count())->toBe($lineasPrevias);
+});
+
+it('rechaza con 409 actualizar una orden que no esta en draft', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_UPDATE]);
+    $producto = poProduct();
+    $orden = poApproved($producto, 5);
+
+    $this->patchJson(poPatchUrl($orden), ['notes' => 'tarde'], poHeaders())
+        ->assertStatus(409);
+});
+
+it('niega actualizar al usuario sin permiso de actualizacion', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE]);
+    $orden = poOrder();
+
+    $this->patchJson(poPatchUrl($orden), ['notes' => 'sin permiso'], poHeaders())
+        ->assertStatus(403);
+});
+
+it('rechaza actualizar con un producto ajeno al tenant', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_UPDATE]);
+    $orden = poOrder();
+
+    $this->patchJson(poPatchUrl($orden), [
+        'items' => [['product_uuid' => (string) Str::uuid(), 'quantity' => 1, 'unit_cost' => 10]],
+    ], poHeaders())->assertStatus(422);
 });

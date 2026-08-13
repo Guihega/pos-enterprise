@@ -173,6 +173,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('purchase-orders', [PurchaseOrdersController::class, 'index']);
             Route::get('purchase-orders/{purchaseOrder:uuid}', [PurchaseOrdersController::class, 'show']);
             Route::post('purchase-orders', [PurchaseOrdersController::class, 'store']);
+            Route::patch('purchase-orders/{purchaseOrder:uuid}', [PurchaseOrdersController::class, 'update']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/submit', [PurchaseOrdersController::class, 'submit']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/approve', [PurchaseOrdersController::class, 'approve']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/cancel', [PurchaseOrdersController::class, 'cancel']);

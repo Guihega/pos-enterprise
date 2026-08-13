@@ -116,6 +116,106 @@ class PurchaseOrderService
         });
     }
 
+    /**
+     * Actualiza una orden en draft (maestro 29.7: Actualizar si draft).
+     *
+     * PATCH parcial. Si $items es null las lineas no se tocan y los
+     * totales quedan intactos; si viene, se reemplazan TODAS las lineas
+     * y se recalculan subtotal, tax_total y total.
+     *
+     * El reemplazo recalcula con la tasa de impuesto VIGENTE del producto,
+     * igual que create(): un draft no es documento fiscal y refleja lo que
+     * costaria hoy. No se congela la tasa original.
+     *
+     * supplier_id y branch_id no son modificables por decision de alcance.
+     *
+     * @param  array<int, array{product_uuid: string, quantity: float, unit_cost: float}>|null  $items
+     */
+    public function update(
+        PurchaseOrder $order,
+        ?array $items = null,
+        ?string $expectedDate = null,
+        ?string $notes = null,
+        bool $touchExpectedDate = false,
+        bool $touchNotes = false,
+    ): PurchaseOrder {
+        if ($items !== null && $items === []) {
+            throw new InvalidArgumentException('Una orden de compra necesita al menos una linea.');
+        }
+
+        return DB::transaction(function () use ($order, $items, $expectedDate, $notes, $touchExpectedDate, $touchNotes) {
+            /** @var PurchaseOrder $locked */
+            $locked = PurchaseOrder::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== PurchaseOrder::STATUS_DRAFT) {
+                throw PurchaseOrderTransitionException::forStatus($locked->status, 'actualizar');
+            }
+
+            $cambios = [];
+
+            if ($touchExpectedDate) {
+                $cambios['expected_date'] = $expectedDate;
+            }
+
+            if ($touchNotes) {
+                $cambios['notes'] = $notes;
+            }
+
+            if ($items !== null) {
+                $productUuids = array_map(fn (array $i): string => $i['product_uuid'], $items);
+
+                $products = Product::query()
+                    ->whereIn('uuid', $productUuids)
+                    ->with('tax')
+                    ->get()
+                    ->keyBy('uuid');
+
+                $lines = [];
+                $subtotal = 0.0;
+                $taxTotal = 0.0;
+
+                foreach ($items as $item) {
+                    $product = $products->get($item['product_uuid']);
+
+                    if ($product === null) {
+                        throw new InvalidArgumentException(
+                            sprintf('Producto %s no encontrado en este tenant.', $item['product_uuid'])
+                        );
+                    }
+
+                    $calc = $this->calculateLine(
+                        (float) $item['quantity'],
+                        (float) $item['unit_cost'],
+                        $product->tax !== null ? (float) $product->tax->rate : 0.0,
+                    );
+
+                    $lines[] = ['product_id' => $product->id] + $calc;
+                    $subtotal += $calc['subtotal'];
+                    $taxTotal += $calc['tax_amount'];
+                }
+
+                $locked->items()->delete();
+
+                foreach ($lines as $line) {
+                    PurchaseOrderItem::create([
+                        'company_id' => TenantContext::id(),
+                        'purchase_order_id' => $locked->id,
+                    ] + $line);
+                }
+
+                $cambios['subtotal'] = round($subtotal, 2);
+                $cambios['tax_total'] = round($taxTotal, 2);
+                $cambios['total'] = round($subtotal + $taxTotal, 2);
+            }
+
+            if ($cambios !== []) {
+                $locked->update($cambios);
+            }
+
+            return $locked->fresh(['items']);
+        });
+    }
+
     public function submit(PurchaseOrder $order): PurchaseOrder
     {
         return $this->transition($order, [PurchaseOrder::STATUS_DRAFT], PurchaseOrder::STATUS_SUBMITTED, 'enviar', [

@@ -71,10 +71,15 @@ compra (migraciones 000047 y 000048) con el ciclo completo
 mueve stock via `InventoryService` y admite entregas parciales: la OC solo
 pasa a `received` cuando todas las lineas estan completas.
 
-Van 12 de los 22 endpoints que define 29.7. Siguen ausentes:
+Van 13 de los 22 endpoints que define 29.7. Siguen ausentes:
 `purchase-receipts` (recepcion manual sin OC, cuya tabla el maestro no
 define), `supplier-invoices` y cuentas por pagar. Diferidos documentados:
-PATCH de la OC en draft. Los lotes y la caducidad en la recepcion se
+El PATCH de la OC en draft (maestro linea 5968, Actualizar si draft) ya
+esta entregado: PATCH parcial con permiso propio PURCHASE_ORDER_UPDATE,
+reemplazo de lineas en bloque con recalculo de totales, y 409 si la
+orden no esta en draft. supplier_uuid y branch_uuid NO son
+modificables por decision de alcance. Ya no quedan diferidos en
+Compras. Los lotes y la caducidad en la recepcion se
 entregaron en el PR de lotes (ADR-0014): recibir un producto con
 tracks_lots exige capturar batch, y el lote guarda supplier_id y
 purchase_order_id (migracion 000049). Siguen siendo 12 de 22
