@@ -20,12 +20,14 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **0bf99ca**, sincronizado con origin, working tree limpio.
+- `main` = **8ae49ff** (#39), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **627 passed (2015 assertions)**.
-- Ultima migracion: **000048**.
-- Historia reciente: 0bf99ca (#36 recepcion de mercancia) <- ed3a8a7 (#35
+- Suite: **631 passed (2028 assertions)**. Pint: **PASS 389 files**.
+- Ultima migracion: **000049** (supplier_id y purchase_order_id en product_batches).
+- Historia reciente: 8ae49ff (#39 lotes en la recepcion) <- cb634f9 (#38
+  desmiente el hallazgo de ADRs) <- 733efd0 (#37 docs) <- 0bf99ca (#36
+  recepcion de mercancia) <- ed3a8a7 (#35
   docs) <- 994a3da (#34 ordenes de compra) <- 5c46c6a (#33 estado
   y 4.1.5 parcial) <- 94d9c53 (#32 maestro de proveedores) <- fad82cc (#31 traspaso
   al dia) <- f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
@@ -38,6 +40,14 @@ detenerse y reconstruir desde el repo real.
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
 ### PRs de esta sesion
+
+- **#39** lotes y caducidad en la recepcion (4.1.5): cierra el diferido
+  del #36. Migracion 000049 (supplier_id y purchase_order_id en
+  product_batches, nullable con FK nullOnDelete), captura de lote
+  ESTRICTA (tracks_lots sin batch = 422), 4 tests nuevos (el archivo
+  pasa de 15 a 19). ADR-0014. Se descarto derivar received_date del
+  received_at de la OC y se documento por que. NO agrega endpoints:
+  siguen 12 de 22.
 
 - **#32** maestro de proveedores (4.1.5): crea el dominio `Purchasing`, migracion
   000046, 5 endpoints (`/suppliers` CRUD + `deactivate`), permisos
@@ -256,6 +266,20 @@ de rutas y un cat del service. Cuesta dos comandos.
 20. **Una columna que falta se añade en migracion propia, no editando la que
     ya esta mergeada.** `received_at` fue la 000048 porque la 000047 ya estaba
     aplicada en entornos.
+21. **Un docblock duplicado sobrevive a Pint, a los tests y al CI.**
+    receive() arrastraba desde el #36 dos docblocks consecutivos; el
+    muerto declaraba un @param con un parametro inexistente
+    ($recepciones). Nada automatico lo detecta: los comentarios no se
+    compilan ni se ejecutan. Solo aparecio al leer el archivo entero
+    para construir un ancla. Corolario: el grep que devuelve una linea
+    no dice cuantas veces existe el bloque; contar con count() antes.
+22. **Un parametro puede compilar, pasar la suite y no hacer nada.**
+    receivedDate derivado de received_at era un no-op: esa columna se
+    sella al FINAL de receive(), despues de leerse. Lo delato un grep -n
+    que mostro la linea de escritura por debajo de la de lectura, no el
+    compilador ni los tests (que pasaban igual). Antes de dar por buena
+    una derivacion, verificar el ORDEN de escritura del dato origen.
+
 ### Diagnostico en tests
 
 - **`storage/logs/laravel.log` NO recibe logs en el entorno de testing.** Insertar
