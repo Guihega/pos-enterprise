@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **8ae49ff** (#39), sincronizado con origin, working tree limpio.
+- `main` = **d2b4666** (#40), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **631 passed (2028 assertions)**. Pint: **PASS 389 files**.
+- Suite: **636 passed (2044 assertions)**. Pint: **PASS 390 files**.
 - Ultima migracion: **000049** (supplier_id y purchase_order_id en product_batches).
-- Historia reciente: 8ae49ff (#39 lotes en la recepcion) <- cb634f9 (#38
+- Historia reciente: d2b4666 (#40 PATCH de la OC en draft) <- fd439dc
+  (#39 docs) <- 8ae49ff (#39 lotes en la recepcion) <- cb634f9 (#38
   desmiente el hallazgo de ADRs) <- 733efd0 (#37 docs) <- 0bf99ca (#36
   recepcion de mercancia) <- ed3a8a7 (#35
   docs) <- 994a3da (#34 ordenes de compra) <- 5c46c6a (#33 estado
@@ -40,6 +41,18 @@ detenerse y reconstruir desde el repo real.
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
 ### PRs de esta sesion
+
+- **#40** PATCH de la OC en draft (4.1.5): cierra el ULTIMO diferido de
+  Compras. El maestro lo define en la linea 5968 sin detallar campos ni
+  semantica. Modificables items, expected_date y notes; supplier_uuid y
+  branch_uuid NO (branch_id decide el almacen de entrada). Lineas por
+  reemplazo en bloque. PATCH parcial real: flags touchExpectedDate/
+  touchNotes distinguen campo ausente de null. Permiso propio
+  PURCHASE_ORDER_UPDATE en operations(). update() es metodo NUEVO:
+  create() y receive() no se tocaron; reutiliza calculateLine(). Sin
+  ADR (el maestro define el endpoint; decisiones de detalle en
+  docblocks). 5 tests nuevos, el archivo pasa de 19 a 24. Sube a 13 de
+  22 endpoints de 29.7.
 
 - **#39** lotes y caducidad en la recepcion (4.1.5): cierra el diferido
   del #36. Migracion 000049 (supplier_id y purchase_order_id en
