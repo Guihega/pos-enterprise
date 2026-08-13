@@ -72,8 +72,9 @@ mueve stock via `InventoryService` y admite entregas parciales: la OC solo
 pasa a `received` cuando todas las lineas estan completas.
 
 Van 13 de los 22 endpoints que define 29.7. Siguen ausentes:
-`purchase-receipts` (recepcion manual sin OC, cuya tabla el maestro no
-define), `supplier-invoices` y cuentas por pagar. Diferidos documentados:
+`supplier-invoices` y cuentas por pagar. `purchase-receipts` (3
+endpoints) queda FUERA DE ALCANCE por decision del usuario, ver mas
+abajo: de los 22 endpoints, 3 no se haran en esta version.
 El PATCH de la OC en draft (maestro linea 5968, Actualizar si draft) ya
 esta entregado: PATCH parcial con permiso propio PURCHASE_ORDER_UPDATE,
 reemplazo de lineas en bloque con recalculo de totales, y 409 si la
@@ -156,6 +157,22 @@ validado (422 si falta o esta malformado), a diferencia de los consolidados, que
 - Nota de credito y CFDI: dependen de un modulo de facturacion que no existe (4.2.1).
 - RN-088 cambios atomicos: se puede hacer hoy en dos pasos (devolucion + venta nueva).
   Es comodidad, no necesidad, salvo que los cambios sean frecuentes en la operacion.
+- `purchase-receipts` (recepcion manual sin OC e historico de recepciones):
+  **evaluado y pospuesto a una version futura** por decision del usuario.
+  Recibir sin orden YA se puede: `POST /inventory/adjust` con `TYPE_ENTRY`
+  mueve stock y acepta lote. Si el proveedor va a facturar, el camino
+  correcto es crear la OC aunque sea despues del hecho, y eso opera hoy.
+  El historico TAMPOCO falta como dato: cada recepcion escribe en
+  `inventory_movements` con la OC como source polimorfico, usuario,
+  almacen y costo; lo que no hay es un endpoint que lo presente agrupado.
+  Construirlo de verdad exigiria que `receive()` escribiera en una tabla
+  nueva, es decir modificar un metodo ya entregado y probado (#36, #39).
+  Ademas el maestro NO define la tabla: la linea 7834 es prosa y el SQL
+  de Purchasing (4477-4570) no la incluye, asi que habria que diseñarla.
+  Criterio de reapertura: revisar DESPUES de `supplier-invoices`, porque
+  `/supplier-invoices/{uuid}/match` (conciliar con OC/recepcion) mostrara
+  que forma necesita una recepcion para ser conciliable. Diseñar la tabla
+  antes de saber eso es adivinar.
 - Permisos cross-branch / gerente regional (ADR-0010): no es una feature, es un cambio
   al modelo de autorizacion. Varios PRs y riesgo de regresion en toda la suite. Merece
   sesion limpia con diseno discutido antes de tocar codigo.
