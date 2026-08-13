@@ -128,6 +128,8 @@ final class Permissions
 
     public const PURCHASE_ORDER_CREATE = 'purchase_order.create';
 
+    public const PURCHASE_ORDER_UPDATE = 'purchase_order.update';
+
     public const PURCHASE_ORDER_APPROVE = 'purchase_order.approve';
 
     public const PURCHASE_ORDER_RECEIVE = 'purchase_order.receive';
@@ -178,7 +180,8 @@ final class Permissions
             // la convencion del repo no expone DELETE en entidades estructurales.
             self::SUPPLIER_VIEW, self::SUPPLIER_CREATE, self::SUPPLIER_UPDATE,
             // OCs: APPROVE separado de CREATE por CU-COM-002 (aprueba el gerente).
-            self::PURCHASE_ORDER_VIEW, self::PURCHASE_ORDER_CREATE, self::PURCHASE_ORDER_APPROVE,
+            self::PURCHASE_ORDER_VIEW, self::PURCHASE_ORDER_CREATE, self::PURCHASE_ORDER_UPDATE,
+            self::PURCHASE_ORDER_APPROVE,
             self::PURCHASE_ORDER_RECEIVE,
             // Reportes
             self::REPORT_SALES, self::REPORT_INVENTORY, self::REPORT_FINANCE, self::REPORT_AUDIT,

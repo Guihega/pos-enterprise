@@ -10,6 +10,7 @@ use App\Domain\Purchasing\Services\PurchaseOrderService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchasing\ReceivePurchaseOrderRequest;
 use App\Http\Requests\Purchasing\StorePurchaseOrderRequest;
+use App\Http\Requests\Purchasing\UpdatePurchaseOrderRequest;
 use App\Http\Resources\PurchaseOrderResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -96,6 +97,22 @@ class PurchaseOrdersController extends Controller
         abort_unless((bool) $request->user()?->can(Permissions::PURCHASE_ORDER_CREATE), 403);
 
         return $this->respond($this->service->cancel($purchaseOrder));
+    }
+
+    public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder): JsonResponse
+    {
+        abort_unless((bool) $request->user()?->can(Permissions::PURCHASE_ORDER_UPDATE), 403);
+
+        $data = $request->validated();
+
+        return $this->respond($this->service->update(
+            $purchaseOrder,
+            $data['items'] ?? null,
+            $data['expected_date'] ?? null,
+            $data['notes'] ?? null,
+            $request->has('expected_date'),
+            $request->has('notes'),
+        ));
     }
 
     public function receive(ReceivePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder): JsonResponse
