@@ -51,6 +51,7 @@ class Batch extends Model
     protected $fillable = [
         'uuid', 'company_id',
         'product_id', 'branch_id', 'warehouse_id',
+        'supplier_id', 'purchase_order_id',
         'lot_number', 'expiration_date',
         'received_date', 'received_quantity', 'quantity', 'cost',
         'status',

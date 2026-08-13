@@ -74,7 +74,11 @@ pasa a `received` cuando todas las lineas estan completas.
 Van 12 de los 22 endpoints que define 29.7. Siguen ausentes:
 `purchase-receipts` (recepcion manual sin OC, cuya tabla el maestro no
 define), `supplier-invoices` y cuentas por pagar. Diferidos documentados:
-PATCH de la OC en draft, y lotes/caducidad en la recepcion.
+PATCH de la OC en draft. Los lotes y la caducidad en la recepcion se
+entregaron en el PR de lotes (ADR-0014): recibir un producto con
+tracks_lots exige capturar batch, y el lote guarda supplier_id y
+purchase_order_id (migracion 000049). Siguen siendo 12 de 22
+endpoints: esta entrega amplia el de recepcion, no agrega ninguno.
 
 **Matiz que evita el panico**: el stock SI puede cargarse hoy via
 `InventoryService::recordEntry` con `TYPE_ENTRY`, expuesto en `POST /inventory/adjust`.
