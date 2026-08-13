@@ -52,6 +52,9 @@ final class InventoryService
         ?int $userId = null,
         ?string $transferId = null,
         ?array $batch = null,
+        ?int $supplierId = null,
+        ?int $purchaseOrderId = null,
+        ?string $receivedDate = null,
     ): InventoryMovement {
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Quantity must be positive for entries');
@@ -66,7 +69,8 @@ final class InventoryService
 
         return DB::transaction(function () use (
             $product, $warehouse, $quantity, $unitCost, $type,
-            $reason, $reference, $source, $userId, $transferId, $batch
+            $reason, $reference, $source, $userId, $transferId, $batch,
+            $supplierId, $purchaseOrderId, $receivedDate
         ) {
             $stock = $this->lockOrCreateStock($product, $warehouse);
 
@@ -86,7 +90,10 @@ final class InventoryService
             $stock->save();
 
             if ($product->tracks_lots && $batch !== null) {
-                $this->createBatchForEntry($product, $warehouse, $quantity, $unitCost, $batch);
+                $this->createBatchForEntry(
+                    $product, $warehouse, $quantity, $unitCost, $batch,
+                    $supplierId, $purchaseOrderId, $receivedDate
+                );
             }
 
             return $this->writeMovement(
@@ -344,6 +351,9 @@ final class InventoryService
         float $quantity,
         float $unitCost,
         array $batch,
+        ?int $supplierId = null,
+        ?int $purchaseOrderId = null,
+        ?string $receivedDate = null,
     ): Batch {
         return Batch::query()->create([
             'uuid' => (string) Str::uuid(),
@@ -353,7 +363,9 @@ final class InventoryService
             'warehouse_id' => $warehouse->id,
             'lot_number' => $batch['lot_number'] ?? null,
             'expiration_date' => $batch['expiration_date'] ?? null,
-            'received_date' => now()->toDateString(),
+            'supplier_id' => $supplierId,
+            'purchase_order_id' => $purchaseOrderId,
+            'received_date' => $receivedDate ?? now()->toDateString(),
             'received_quantity' => $quantity,
             'quantity' => $quantity,
             'cost' => $unitCost,

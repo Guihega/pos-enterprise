@@ -147,19 +147,6 @@ class PurchaseOrderService
      *
      * Acumula sobre quantity_received y mueve stock via InventoryService,
      * una entrada por linea con la OC como source. La OC pasa a received
-     * solo cuando TODAS las lineas alcanzan su cantidad pedida; con
-     * recepcion parcial permanece en approved.
-     *
-     * DIFERIDO: lotes y caducidad. recordEntry acepta $batch, pero capturar
-     * lote exige tracks_lots y validacion propia; va en su entrega.
-     *
-     * @param  list<array{item: PurchaseOrderItem, quantity: float}>  $recepciones
-     */
-    /**
-     * Recepcion de mercancia contra una OC aprobada.
-     *
-     * Acumula sobre quantity_received y mueve stock via InventoryService,
-     * una entrada por linea con la OC como source. La OC pasa a received
      * solo cuando TODAS las lineas alcanzan la cantidad pedida; con
      * recepcion parcial permanece en approved.
      *
@@ -207,6 +194,13 @@ class PurchaseOrderService
                 }
 
                 $cantidad = (float) $item['quantity'];
+
+                if ($linea->product->tracks_lots && ($item['batch'] ?? null) === null) {
+                    throw new InvalidArgumentException(sprintf(
+                        'El producto %s maneja lotes; la recepcion debe capturar batch.',
+                        $item['product_uuid'],
+                    ));
+                }
                 $pendiente = round((float) $linea->quantity - (float) $linea->quantity_received, 4);
 
                 if ($cantidad > $pendiente) {
@@ -232,6 +226,9 @@ class PurchaseOrderService
                     reference: $locked->folio,
                     source: $locked,
                     userId: $user->id,
+                    batch: $item['batch'] ?? null,
+                    supplierId: $locked->supplier_id,
+                    purchaseOrderId: $locked->id,
                 );
             }
 

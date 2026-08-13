@@ -8,6 +8,7 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Catalog\Models\Unit;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Batch;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Purchasing\Models\PurchaseOrder;
@@ -289,4 +290,94 @@ it('no expone ordenes de otro tenant', function (): void {
     TenantContext::set($this->tenant);
     $this->getJson('/api/v1/purchase-orders', poHeaders())
         ->assertOk()->assertJsonCount(1, 'data');
+});
+
+function poProductoConLotes(): Product
+{
+    $tax = Tax::factory()->rate(0.16)->create(['company_id' => test()->tenant->id]);
+    $unit = Unit::factory()->create(['company_id' => test()->tenant->id]);
+
+    return Product::factory()->withTax($tax)->create([
+        'unit_id' => $unit->id,
+        'tracks_lots' => true,
+    ]);
+}
+
+it('crea el lote al recibir con batch y lo liga a la OC y al proveedor', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $producto = poProductoConLotes();
+    $orden = poApproved($producto, 10);
+    $almacen = poWarehouse();
+
+    $this->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $almacen->uuid,
+        'items' => [[
+            'product_uuid' => $producto->uuid,
+            'quantity' => 10,
+            'batch' => ['lot_number' => 'L-001', 'expiration_date' => '2027-01-31'],
+        ]],
+    ], poHeaders())->assertOk();
+
+    TenantContext::set($this->tenant);
+    $lote = Batch::query()->where('product_id', $producto->id)->sole();
+
+    expect($lote->lot_number)->toBe('L-001')
+        ->and($lote->expiration_date->toDateString())->toBe('2027-01-31')
+        ->and($lote->purchase_order_id)->toBe($orden->id)
+        ->and($lote->supplier_id)->toBe($this->supplier->id)
+        ->and((float) $lote->quantity)->toBe(10.0);
+});
+
+it('exige batch cuando el producto maneja lotes', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $producto = poProductoConLotes();
+    $orden = poApproved($producto, 10);
+    $almacen = poWarehouse();
+
+    $this->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $almacen->uuid,
+        'items' => [['product_uuid' => $producto->uuid, 'quantity' => 10]],
+    ], poHeaders())->assertStatus(422);
+});
+
+it('rechaza capturar caducidad si el producto no maneja lotes', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $producto = poProduct();
+    $orden = poApproved($producto, 10);
+    $almacen = poWarehouse();
+
+    $this->postJson('/api/v1/purchase-orders/'.$orden->uuid.'/receive', [
+        'warehouse_uuid' => $almacen->uuid,
+        'items' => [[
+            'product_uuid' => $producto->uuid,
+            'quantity' => 10,
+            'batch' => ['expiration_date' => '2027-01-31'],
+        ]],
+    ], poHeaders())->assertStatus(422);
+});
+
+it('crea un lote por cada entrega parcial', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE, Permissions::PURCHASE_ORDER_RECEIVE]);
+    $producto = poProductoConLotes();
+    $orden = poApproved($producto, 10);
+    $almacen = poWarehouse();
+    $url = '/api/v1/purchase-orders/'.$orden->uuid.'/receive';
+
+    foreach (['L-A', 'L-B'] as $lote) {
+        $this->postJson($url, [
+            'warehouse_uuid' => $almacen->uuid,
+            'items' => [[
+                'product_uuid' => $producto->uuid,
+                'quantity' => 5,
+                'batch' => ['lot_number' => $lote],
+            ]],
+        ], poHeaders())->assertOk();
+        TenantContext::set($this->tenant);
+    }
+
+    $lotes = Batch::query()->where('product_id', $producto->id)->orderBy('id')->get();
+
+    expect($lotes)->toHaveCount(2)
+        ->and($lotes->pluck('lot_number')->all())->toBe(['L-A', 'L-B'])
+        ->and($lotes->every(fn ($l): bool => $l->purchase_order_id === $orden->id))->toBeTrue();
 });

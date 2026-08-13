@@ -35,6 +35,10 @@ class ReceivePurchaseOrderRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_uuid' => ['required', 'uuid'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'items.*.batch' => ['sometimes', 'array'],
+            'items.*.batch.lot_number' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'items.*.batch.expiration_date' => ['sometimes', 'nullable', 'date'],
+            'items.*.batch.notes' => ['sometimes', 'nullable', 'string'],
         ];
     }
 }
