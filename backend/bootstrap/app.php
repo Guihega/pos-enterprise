@@ -129,6 +129,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 // ----- Purchasing (por nombre de clase, sin acoplar import) -----
                 is_a($e, 'App\\Domain\\Purchasing\\Exceptions\\PurchaseOrderTransitionException') => [409, 'PURCHASE_ORDER_TRANSITION', []],
+                is_a($e, 'App\\Domain\\Purchasing\\Exceptions\\SupplierInvoiceTransitionException') => [409, 'SUPPLIER_INVOICE_TRANSITION', []],
 
                 // ----- Argumentos invalidos de dominio -----
                 $e instanceof InvalidArgumentException => [422, 'INVALID_ARGUMENT', []],
