@@ -406,8 +406,12 @@ class PurchaseOrderService
         $ultimo = PurchaseOrder::query()
             ->withTrashed()
             ->where('company_id', TenantContext::id())
-            ->max('id');
+            ->where('folio', 'like', 'OC-%')
+            ->orderByDesc('folio')
+            ->value('folio');
 
-        return 'OC-'.str_pad((string) (((int) $ultimo) + 1), 6, '0', STR_PAD_LEFT);
+        $n = $ultimo !== null ? (int) substr($ultimo, 3) : 0;
+
+        return 'OC-'.str_pad((string) ($n + 1), 6, '0', STR_PAD_LEFT);
     }
 }

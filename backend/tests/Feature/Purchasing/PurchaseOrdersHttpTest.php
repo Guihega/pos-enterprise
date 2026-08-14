@@ -193,6 +193,28 @@ it('crea una orden en draft y calcula los totales con IVA', function (): void {
     expect($resp->json('data.folio'))->toStartWith('OC-');
 });
 
+/**
+ * Regresion: nextFolio() derivaba el numero de max('id'), que es la secuencia
+ * GLOBAL de la tabla, no un consecutivo por tenant. Con varios tenants activos
+ * los folios saltaban (OC-000001 -> OC-000015). toStartWith('OC-') no lo
+ * detectaba porque solo mira el prefijo. Ahora se deriva del folio maximo
+ * emitido por ese tenant.
+ */
+it('genera folios de OC consecutivos por tenant', function (): void {
+    poActor([Permissions::PURCHASE_ORDER_CREATE]);
+    $producto = poProduct();
+
+    $this->postJson('/api/v1/purchase-orders', poPayload($producto), poHeaders())->assertCreated();
+    TenantContext::set($this->tenant);
+
+    $this->postJson('/api/v1/purchase-orders', poPayload($producto), poHeaders())->assertCreated();
+    TenantContext::set($this->tenant);
+
+    $folios = PurchaseOrder::query()->withTrashed()->orderBy('id')->pluck('folio')->all();
+
+    expect($folios)->toBe(['OC-000001', 'OC-000002']);
+});
+
 it('calcula sin impuesto cuando el producto no tiene tax', function (): void {
     poActor([Permissions::PURCHASE_ORDER_CREATE]);
     $unit = Unit::factory()->create(['company_id' => $this->tenant->id]);
