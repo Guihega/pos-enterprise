@@ -51,6 +51,9 @@ final class Roles
                 $P::REPORT_CONSOLIDATED,
                 $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
                 $P::SYNC_CONFLICT_VIEW, $P::SYNC_CONFLICT_RESOLVE,
+                // PAY no vive en operations(): ADMIN se compone por spread de los
+                // tres metodos, asi que necesita la constante explicita.
+                $P::SUPPLIER_INVOICE_PAY,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -71,6 +74,7 @@ final class Roles
                 // politicas". Los umbrales por monto NO estan especificados en
                 // el maestro: DIFERIDO. Hoy aprueba quien tiene el permiso.
                 $P::PURCHASE_ORDER_APPROVE,
+                $P::SUPPLIER_INVOICE_PAY,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -161,6 +165,7 @@ final class Roles
             $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE, $P::CUSTOMER_DELETE,
             $P::SUPPLIER_VIEW, $P::SUPPLIER_CREATE, $P::SUPPLIER_UPDATE,
             $P::PURCHASE_ORDER_VIEW, $P::PURCHASE_ORDER_CREATE, $P::PURCHASE_ORDER_UPDATE,
+            $P::SUPPLIER_INVOICE_VIEW, $P::SUPPLIER_INVOICE_CREATE,
             ...self::transfers(),
             ...self::transferRequests(),
         ];

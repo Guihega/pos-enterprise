@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\Inventory\TransferRequestController;
 use App\Http\Controllers\Api\V1\Inventory\WarehousesController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
 use App\Http\Controllers\Api\V1\Purchasing\PurchaseOrdersController;
+use App\Http\Controllers\Api\V1\Purchasing\SupplierInvoicesController;
 use App\Http\Controllers\Api\V1\Purchasing\SuppliersController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
 use App\Http\Controllers\Api\V1\Sales\FolioRangesController;
@@ -178,6 +179,13 @@ Route::prefix('v1')->group(function (): void {
             Route::post('purchase-orders/{purchaseOrder:uuid}/approve', [PurchaseOrdersController::class, 'approve']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/cancel', [PurchaseOrdersController::class, 'cancel']);
             Route::post('purchase-orders/{purchaseOrder:uuid}/receive', [PurchaseOrdersController::class, 'receive']);
+
+            // ----- Facturas de proveedor y CxP (4.1.5) -----
+            Route::get('supplier-invoices', [SupplierInvoicesController::class, 'index']);
+            Route::post('supplier-invoices', [SupplierInvoicesController::class, 'store']);
+            Route::post('supplier-invoices/{supplierInvoice:uuid}/match', [SupplierInvoicesController::class, 'match']);
+            Route::post('supplier-invoices/{supplierInvoice:uuid}/pay', [SupplierInvoicesController::class, 'pay']);
+            Route::get('suppliers/{supplier:uuid}/balance', [SupplierInvoicesController::class, 'balance']);
 
             Route::prefix('inventory')->group(function (): void {
                 Route::get('stocks', [InventoryController::class, 'stocks']);

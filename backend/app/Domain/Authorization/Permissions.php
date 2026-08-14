@@ -140,6 +140,12 @@ final class Permissions
 
     public const SUPPLIER_UPDATE = 'supplier.update';
 
+    public const SUPPLIER_INVOICE_VIEW = 'supplier_invoice.view';
+
+    public const SUPPLIER_INVOICE_CREATE = 'supplier_invoice.create';
+
+    public const SUPPLIER_INVOICE_PAY = 'supplier_invoice.pay';
+
     public const SETTINGS_UPDATE = 'settings.update';
 
     public const AUDIT_VIEW = 'audit.view';
@@ -179,6 +185,10 @@ final class Permissions
             // Compras (4.1.5): maestro de proveedores. Sin SUPPLIER_DELETE:
             // la convencion del repo no expone DELETE en entidades estructurales.
             self::SUPPLIER_VIEW, self::SUPPLIER_CREATE, self::SUPPLIER_UPDATE,
+            // CxP: PAY separado de CREATE. Quien registra la deuda no la
+            // liquida; mismo criterio que APPROVE en las OCs (CU-COM-002).
+            self::SUPPLIER_INVOICE_VIEW, self::SUPPLIER_INVOICE_CREATE,
+            self::SUPPLIER_INVOICE_PAY,
             // OCs: APPROVE separado de CREATE por CU-COM-002 (aprueba el gerente).
             self::PURCHASE_ORDER_VIEW, self::PURCHASE_ORDER_CREATE, self::PURCHASE_ORDER_UPDATE,
             self::PURCHASE_ORDER_APPROVE,
