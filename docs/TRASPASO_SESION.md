@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **d2b4666** (#40), sincronizado con origin, working tree limpio.
+- `main` = **48a5776** (#41), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **636 passed (2044 assertions)**. Pint: **PASS 390 files**.
-- Ultima migracion: **000049** (supplier_id y purchase_order_id en product_batches).
-- Historia reciente: d2b4666 (#40 PATCH de la OC en draft) <- fd439dc
+- Suite: **649 passed (2091 assertions)**. Pint: **PASS 402 files**.
+- Ultima migracion: **000050** (supplier_invoices + supplier_payments).
+- Historia reciente: 48a5776 (#41 facturas de proveedor) <- 8823844 (docs
+  purchase-receipts pospuesto) <- a8441c3 (#40 docs) <- d2b4666 (#40 PATCH de la OC en draft) <- fd439dc
   (#39 docs) <- 8ae49ff (#39 lotes en la recepcion) <- cb634f9 (#38
   desmiente el hallazgo de ADRs) <- 733efd0 (#37 docs) <- 0bf99ca (#36
   recepcion de mercancia) <- ed3a8a7 (#35
@@ -41,6 +42,21 @@ detenerse y reconstruir desde el repo real.
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
 ### PRs de esta sesion
+
+- **#41** facturas de proveedor, conciliacion y pagos (4.1.5): migracion
+  000050 (supplier_invoices + supplier_payments, decimal 18,4), modelos,
+  SupplierInvoiceService, 5 endpoints (listar, crear, match, pay y
+  balance por proveedor), permisos SUPPLIER_INVOICE_VIEW/CREATE/PAY
+  (PAY explicito en GERENTE y en ADMIN: ADMIN se compone por spread y
+  no lo heredaria), SupplierInvoiceTransitionException propia -> 409
+  (el code de la respuesta es contrato de API), 12 tests + 1 de
+  regresion. match() concilia contra lo RECIBIDO por TOTALES, exceso =
+  422 exacto; status derivado de paid_amount; sobrepago en pay() = 422;
+  supplier_payments sin SoftDeletes; folio de factura lo emite el
+  proveedor (unique company+supplier+folio, validado en servicio con el
+  unique como red), folio de pago PAY-{6}. Corrige nextFolio() en AMBOS
+  servicios: derivaba de max(id) global y saltaba folios entre tenants.
+  Sube a 18 de 22 endpoints de 29.7.
 
 - **#40** PATCH de la OC en draft (4.1.5): cierra el ULTIMO diferido de
   Compras. El maestro lo define en la linea 5968 sin detallar campos ni
@@ -62,6 +78,8 @@ detenerse y reconstruir desde el repo real.
   received_at de la OC y se documento por que. NO agrega endpoints:
   siguen 12 de 22.
 
+- (#33 a #38 sin entrada propia: #34 y #36 tienen seccion de lecciones
+  abajo; todos constan en la historia de commits del estado.)
 - **#32** maestro de proveedores (4.1.5): crea el dominio `Purchasing`, migracion
   000046, 5 endpoints (`/suppliers` CRUD + `deactivate`), permisos
   SUPPLIER_VIEW/CREATE/UPDATE en `operations()`, 8 tests. Recorte deliberado: 5 de
@@ -185,9 +203,13 @@ Todas nacieron de inferir en vez de verificar. Corregir estos habitos.
 4. **`password_reset_tokens` tiene PK compuesta `(company_id, email)` sin columna `id`.**
    `$model->save()` falla con `column id does not exist`: Eloquent no puede construir el
    WHERE. Usar query builder con la clave real.
-5. **`app.timezone` es `America/Mexico_City`.** `Carbon::now()` escrito en columna
-   `timestampTz` guarda el reloj local como si fuera UTC, desfasando 6 horas. Para
-   vigencias usar `Carbon::now()->utc()` explicito.
+5. **CORREGIDA en #41: `now()` en columna `timestampTz` NO desfasa.**
+   `now()`, `Carbon::now()` y `->utc()` son el MISMO instante y Postgres
+   normaliza timestamptz a UTC (verificado: 22:20-06:00 == 04:20+00:00).
+   `PurchaseOrderService` usa `now()` a secas en 4 columnas y es
+   correcto. El desfase que esta leccion describia debio tener otra
+   causa; la redaccion original lo atribuyo a `app.timezone` sin
+   verificarlo.
 6. **`TenantContext::get()` NO existe**; el metodo es `current(): ?Company`. El lint no
    detecta llamadas estaticas a metodos inexistentes: solo verificar contra el archivo real.
 
@@ -293,10 +315,31 @@ de rutas y un cat del service. Cuesta dos comandos.
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
 
+### De la sesion de facturas (#41)
+
+23. **Una asercion sobre la FORMA da falsa sensacion de cobertura sobre
+    el COMPORTAMIENTO.** `toStartWith('OC-')` paso en verde durante
+    cuatro PRs mientras el consecutivo estaba roto (saltaba folios
+    entre tenants). Buscar este patron en otros tests.
+24. **Un `create()` no conoce los DEFAULT de columnas que no son
+    fillable.** `status` y `paid_amount` volvian null en la respuesta
+    aunque la fila estuviera correcta. Requiere `->refresh()` antes de
+    retornar.
+25. **El unique de BD protege contra carreras, pero NO es validacion de
+    usuario.** Un folio de factura repetido saltaba como QueryException
+    y el handler la convertia en 500: error del usuario devuelto como
+    fallo del servidor. Si el dato lo teclea una persona, validar en el
+    servicio (422) y dejar el unique como red.
+26. **`php -l` valida sintaxis, no que una clase exista.** Un
+    `use App\Models\User;` inexistente paso el linter; lo delato
+    instanciarla con `artisan tinker --execute="new Clase()"`.
+
 ### Diagnostico en tests
 
-- **`storage/logs/laravel.log` NO recibe logs en el entorno de testing.** Insertar
-  `\Log::warning` para depurar no sirve. Lo que si funciona: `withoutExceptionHandling()`
+- **`storage/logs/laravel.log` SI recibe los errores del handler en testing**
+  (verificado en #41: asi se diagnostico un 500). La version anterior de esta
+  nota lo negaba en absoluto; lo unico que no se re-verifico es que
+  `\Log::warning` manual no aparezca. Tambien funciona: `withoutExceptionHandling()`
   en el test (la excepcion sube cruda en vez de volverse 500), o meter el diagnostico
   temporalmente en el mensaje de la excepcion, que viaja al JSON.
 - Para un 500 en tests con handler activo: `dump($resp->json())` muestra el envoltorio
