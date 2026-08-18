@@ -15,6 +15,7 @@ use App\Domain\Purchasing\Models\PurchaseOrderItem;
 use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -351,6 +352,28 @@ class PurchaseOrderService
      * @param  list<string>  $desde
      * @param  array<string, mixed>  $extra
      */
+
+    /**
+     * Productos del proveedor (maestro 29.7, GET /suppliers/{uuid}/products).
+     *
+     * Fuente: purchase_order_items de OCs del proveedor en cualquier status
+     * excepto cancelled (una OC cancelada no establece relacion comercial;
+     * una draft si expresa intencion). Productos comprados sin OC no son
+     * listables por proveedor: ver [deuda-19] en DEUDA_TECNICA.md.
+     */
+    public function productsForSupplier(Supplier $supplier, int $perPage): LengthAwarePaginator
+    {
+        return Product::query()
+            ->whereIn('id', PurchaseOrderItem::query()
+                ->whereIn('purchase_order_id', PurchaseOrder::query()
+                    ->where('supplier_id', $supplier->id)
+                    ->where('status', '!=', PurchaseOrder::STATUS_CANCELLED)
+                    ->select('id'))
+                ->select('product_id'))
+            ->orderBy('id')
+            ->paginate($perPage);
+    }
+
     private function transition(
         PurchaseOrder $order,
         array $desde,

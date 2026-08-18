@@ -169,6 +169,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('suppliers', [SuppliersController::class, 'store']);
             Route::patch('suppliers/{supplier:uuid}', [SuppliersController::class, 'update']);
             Route::post('suppliers/{supplier:uuid}/deactivate', [SuppliersController::class, 'deactivate']);
+            Route::get('suppliers/{supplier:uuid}/products', [PurchaseOrdersController::class, 'supplierProducts']);
 
             // ----- Ordenes de compra (4.1.5) -----
             Route::get('purchase-orders', [PurchaseOrdersController::class, 'index']);
