@@ -6,11 +6,13 @@ namespace App\Http\Controllers\Api\V1\Purchasing;
 
 use App\Domain\Authorization\Permissions;
 use App\Domain\Purchasing\Models\PurchaseOrder;
+use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Purchasing\Services\PurchaseOrderService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchasing\ReceivePurchaseOrderRequest;
 use App\Http\Requests\Purchasing\StorePurchaseOrderRequest;
 use App\Http\Requests\Purchasing\UpdatePurchaseOrderRequest;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\PurchaseOrderResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,8 +22,8 @@ use Illuminate\Http\Response;
 /**
  * Ordenes de compra (4.1.5, maestro 29.7).
  *
- * Entrega actual: crear, listar, ver, submit, approve, cancel, receive.
- * DIFERIDO: PATCH de la OC en draft. La recepcion manual sin OC
+ * Entrega actual: crear, listar, ver, update (draft), submit, approve,
+ * cancel, receive y productos del proveedor. La recepcion manual sin OC
  * (purchase-receipts, 3 endpoints de 29.7) va en su propia entrega: el
  * maestro no define su tabla.
  *
@@ -127,6 +129,17 @@ class PurchaseOrdersController extends Controller
             $data['items'],
             $request->user(),
         ));
+    }
+
+    public function supplierProducts(Request $request, Supplier $supplier): AnonymousResourceCollection
+    {
+        abort_unless((bool) $request->user()?->can(Permissions::SUPPLIER_VIEW), 403);
+
+        $perPage = min((int) $request->query('per_page', 50), 200);
+
+        return ProductResource::collection(
+            $this->service->productsForSupplier($supplier, $perPage)
+        );
     }
 
     private function respond(PurchaseOrder $order): JsonResponse
