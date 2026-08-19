@@ -135,11 +135,12 @@ detenerse y reconstruir desde el repo real.
 
 ## Frentes: ninguno en curso, uno aparcado
 
-No hay trabajo en curso. Hueco 2 CERRADO (#22). **Hueco 3 CERRADO (#27)**: 4.1.9 pasa
-a operable; el bloque analitico y el contable siguen DIFERIBLE por decision del
-documento. **Compras (4.1.5) es el UNICO hueco intacto** y es el modulo grande;
-ver `docs/COBERTURA_ALCANCE.md` y el orden sugerido. Ninguno es urgente por
-decision del usuario.
+No hay trabajo en curso. Hueco 2 CERRADO (#22). **Hueco 3 CERRADO (#27)**:
+4.1.9 pasa a operable; el bloque analitico y el contable siguen DIFERIBLE
+por decision del documento. **Compras (4.1.5) CERRADO**: el alcance 29.7
+esta completo (19 de 22 entregados hasta el #42; los 3 de purchase-receipts
+pospuestos, criterio de reapertura revisado tras #41 y cerrado, ver
+`docs/COBERTURA_ALCANCE.md`). Ningun hueco queda intacto ni urgente.
 
 ### Rama de frontend aparcada (verificado 2026-07-29)
 

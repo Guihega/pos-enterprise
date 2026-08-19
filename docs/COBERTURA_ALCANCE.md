@@ -176,6 +176,10 @@ validado (422 si falta o esta malformado), a diferencia de los consolidados, que
   `/supplier-invoices/{uuid}/match` (conciliar con OC/recepcion) mostrara
   que forma necesita una recepcion para ser conciliable. Diseñar la tabla
   antes de saber eso es adivinar.
+  **Revision hecha tras #41 (criterio cumplido)**: `match()` concilia por
+  TOTALES contra lo recibido, calculado desde `purchase_order_items`. Una
+  recepcion conciliable NO necesita tabla propia. El posponimiento queda
+  reforzado: reabrirlo seria valor administrativo, no deuda tecnica.
 - Permisos cross-branch / gerente regional (ADR-0010): no es una feature, es un cambio
   al modelo de autorizacion. Varios PRs y riesgo de regresion en toda la suite. Merece
   sesion limpia con diseno discutido antes de tocar codigo.
