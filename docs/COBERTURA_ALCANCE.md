@@ -62,7 +62,7 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 
 ## Los tres huecos que duelen
 
-### 1. Compras (4.1.5) — PARCIAL (PRs #32, #34, #36, #39, #40, #41)
+### 1. Compras (4.1.5) — PARCIAL (PRs #32, #34, #36, #39-#42)
 
 El dominio `Purchasing` YA existe. Operables: el maestro de proveedores
 (migracion 000046, `/suppliers` con CRUD y baja logica) y las ordenes de
@@ -71,12 +71,12 @@ compra (migraciones 000047 y 000048) con el ciclo completo
 mueve stock via `InventoryService` y admite entregas parciales: la OC solo
 pasa a `received` cuando todas las lineas estan completas.
 
-Van 18 de los 22 endpoints que define 29.7. El PR #41 entrego
-`supplier-invoices` completo: facturas de proveedor, conciliacion contra
-lo recibido, pagos y saldo. Queda ausente solo
-`GET /suppliers/{uuid}/products` (PR 2 acordado). `purchase-receipts`
-(3 endpoints) queda FUERA DE ALCANCE por decision del usuario, ver mas
-abajo: de los 22, 3 no se haran en esta version y 1 esta pendiente.
+Van 19 de los 22 endpoints que define 29.7: TODO el alcance acordado
+esta entregado. El #41 entrego `supplier-invoices` completo y el #42
+`GET /suppliers/{uuid}/products` (fuente: OCs no canceladas del
+proveedor; los productos comprados sin OC no son listables, ver
+[deuda-19]). Los 3 restantes son `purchase-receipts`, FUERA DE
+ALCANCE por decision del usuario, ver mas abajo.
 El PATCH de la OC en draft (maestro linea 5968, Actualizar si draft) ya
 esta entregado: PATCH parcial con permiso propio PURCHASE_ORDER_UPDATE,
 reemplazo de lineas en bloque con recalculo de totales, y 409 si la
@@ -85,9 +85,9 @@ modificables por decision de alcance. Ya no quedan diferidos en
 Compras. Los lotes y la caducidad en la recepcion se
 entregaron en el PR de lotes (ADR-0014): recibir un producto con
 tracks_lots exige capturar batch, y el lote guarda supplier_id y
-purchase_order_id (migracion 000049). Con el PR #41 son 18 de 22
-endpoints: se sumaron los 5 de facturas (listar, crear, conciliar,
-pagar y saldo por proveedor).
+purchase_order_id (migracion 000049). Con los PRs #41 y #42 son 19 de
+22 endpoints: los 5 de facturas (listar, crear, conciliar, pagar y
+saldo) y los productos del proveedor.
 
 **Matiz que evita el panico**: el stock SI puede cargarse hoy via
 `InventoryService::recordEntry` con `TYPE_ENTRY`, expuesto en `POST /inventory/adjust`.
@@ -188,7 +188,7 @@ validado (422 si falta o esta malformado), a diferencia de los consolidados, que
 3. ~~Compras: maestro de proveedores~~ **HECHO en PR #32**: dominio `Purchasing`,
    `/suppliers` operable. Ordenes de compra (#34), recepcion con lotes
    (#36, #39), PATCH en draft (#40) y facturas con conciliacion, pagos y
-   saldo (#41) tambien entregados. Sigue pendiente solo
-   `GET /suppliers/{uuid}/products`. **Ya no queda ningun hueco intacto.**
+   saldo (#41) y productos del proveedor (#42) tambien entregados: el
+   alcance acordado esta COMPLETO. **Ya no queda ningun hueco intacto.**
 
 Ninguno es urgente por decision del usuario. El sistema opera.

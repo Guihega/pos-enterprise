@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **48a5776** (#41), sincronizado con origin, working tree limpio.
+- `main` = **50b69bd** (#42), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **649 passed (2091 assertions)**. Pint: **PASS 402 files**.
+- Suite: **655 passed (2102 assertions)**. Pint: **PASS 403 files**.
 - Ultima migracion: **000050** (supplier_invoices + supplier_payments).
-- Historia reciente: 48a5776 (#41 facturas de proveedor) <- 8823844 (docs
+- Historia reciente: 50b69bd (#42 productos del proveedor) <- 90b21d5
+  (docs del #41) <- 48a5776 (#41 facturas de proveedor) <- 8823844 (docs
   purchase-receipts pospuesto) <- a8441c3 (#40 docs) <- d2b4666 (#40 PATCH de la OC en draft) <- fd439dc
   (#39 docs) <- 8ae49ff (#39 lotes en la recepcion) <- cb634f9 (#38
   desmiente el hallazgo de ADRs) <- 733efd0 (#37 docs) <- 0bf99ca (#36
@@ -42,6 +43,20 @@ detenerse y reconstruir desde el repo real.
   24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
 
 ### PRs de esta sesion
+
+- **#42** productos del proveedor (4.1.5): GET /suppliers/{uuid}/products,
+  el ultimo endpoint del alcance acordado (19 de 22; los 3 de
+  purchase-receipts siguen fuera). Fuente: purchase_order_items de OCs
+  no canceladas (draft cuenta). productsForSupplier en
+  PurchaseOrderService + supplierProducts en PurchaseOrdersController
+  (criterio de la decision 16); permiso SUPPLIER_VIEW existente; 6
+  tests. Deja [deuda-19]: la entrada manual de inventario no captura
+  proveedor. INCIDENCIA CI: el primer run se colgo 30 min en el job de
+  tests con UNA aspa visible en el log de puntos; en local paso todo
+  (serie x2, --parallel x2, seeds distintos). El rerun paso en 2m26s.
+  Fallo intermitente sin nombre capturado: si reaparece un aspa en CI
+  con verde local, dejar COMPLETAR el run para capturar el nombre del
+  test antes de cancelar.
 
 - **#41** facturas de proveedor, conciliacion y pagos (4.1.5): migracion
   000050 (supplier_invoices + supplier_payments, decimal 18,4), modelos,
@@ -315,6 +330,17 @@ de rutas y un cat del service. Cuesta dos comandos.
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
 
+### De la sesion de productos del proveedor (#42)
+
+27. **En strings de Python `\$` no es escape: el backslash queda
+    LITERAL y envenena el PHP generado.** El reflejo viene de los
+    heredocs de bash, donde si hace falta. El SyntaxWarning "invalid
+    escape sequence" es el aviso: tratarlo como error
+    (`python3 -W error::SyntaxWarning`).
+28. **El CI corre `php artisan test --parallel --coverage`, no pest en
+    serie.** Correr `--parallel` en local antes del push pisa el mismo
+    terreno que el CI (12 procesos, misma BD compartida entre ellos).
+
 ### De la sesion de facturas (#41)
 
 23. **Una asercion sobre la FORMA da falsa sensacion de cobertura sobre
@@ -347,6 +373,9 @@ de rutas y un cat del service. Cuesta dos comandos.
 
 ### gh CLI
 
+- **`gh run view --log` NO sirve en jobs vivos** (solo al completar); el log en
+  streaming solo existe en la web. `gh run view --job ID` si muestra el step
+  en curso.
 - **Tras un push, `gh pr checks N --watch` devuelve el run VIEJO** si el nuevo aun no
   arranco. Verificar con `gh run list --limit 2` que el ID cambio, o esperar ~45s.
   Sintoma: tiempos identicos a la corrida anterior.

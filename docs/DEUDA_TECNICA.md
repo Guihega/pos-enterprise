@@ -40,6 +40,18 @@ esta fusionada, el pago no esta en `main` salvo reintroduccion por otra via.
 | 17 | `185857d` | refactor(frontend): extrae formatPrice a lib/format.ts | no (frontend) |
 | 18 | `b15adb6` | fix(docs): corrige enum status de sesion de caja a voided en OpenAPI | sin verificar |
 
+## Deudas abiertas (sin commit de pago)
+
+A diferencia del inventario de arriba (commits que PAGARON deudas en la
+rama de frontend), estas son deudas declaradas y aun no pagadas.
+
+- **[deuda-19]** La entrada manual de inventario (`POST /inventory/adjust`)
+  no captura proveedor: los productos comprados sin OC (perecederos,
+  compra informal) no son listables en `GET /suppliers/{uuid}/products`.
+  `InventoryService::recordEntry` ya acepta `supplierId`; falta el campo
+  en `AdjustStockRequest`, pasarlo, y cambiar la fuente del endpoint a
+  la union con `product_batches.supplier_id`. Declarada en #42.
+
 ## Anomalias de la numeracion
 
 1. **`[deuda-4]` y `[deuda-14]` no existen** en ningun mensaje de la rama.
