@@ -11,6 +11,7 @@ use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
+use App\Domain\Purchasing\Models\Supplier;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\AdjustStockRequest;
 use App\Http\Requests\Inventory\TransferStockRequest;
@@ -82,6 +83,15 @@ class InventoryController extends Controller
         $product = Product::query()->where('uuid', $validated['product_uuid'])->firstOrFail();
         $warehouse = Warehouse::query()->where('uuid', $validated['warehouse_uuid'])->firstOrFail();
 
+        $supplier = isset($validated['supplier_uuid'])
+            ? Supplier::query()->where('uuid', $validated['supplier_uuid'])->firstOrFail()
+            : null;
+
+        $batch = array_filter([
+            'lot_number' => $validated['lot_number'] ?? null,
+            'expiration_date' => $validated['expiration_date'] ?? null,
+        ], fn ($v) => $v !== null) ?: null;
+
         try {
             $movement = $this->service->adjust(
                 product: $product,
@@ -89,6 +99,8 @@ class InventoryController extends Controller
                 delta: (float) $validated['delta'],
                 reason: $validated['reason'],
                 userId: $request->user()->id,
+                supplierId: $supplier?->id,
+                batch: $batch,
             );
         } catch (InsufficientStockException $e) {
             return response()->json([

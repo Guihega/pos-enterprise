@@ -88,6 +88,7 @@ class InventoryMovement extends Model
         'reason',
         'reference',
         'user_id',
+        'supplier_id',
         'metadata',
         'movement_at',
     ];

@@ -6,10 +6,12 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Unit;
 use App\Domain\Catalog\Services\CatalogProvisioner;
 use App\Domain\Inventory\Exceptions\InsufficientStockException;
+use App\Domain\Inventory\Models\Batch;
 use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Stock;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
+use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
@@ -254,4 +256,98 @@ it('invariante: suma de deltas de un producto/almacén = quantity_on_hand', func
     expect((float) $stock->quantity_on_hand)->toBe($sumDeltas);
     // 100 - 30 - 5 + 20 = 85
     expect((float) $stock->quantity_on_hand)->toBe(85.0);
+});
+
+// ====================================================================
+//  Adjust con proveedor ([deuda-19])
+// ====================================================================
+
+it('adjust positivo captura proveedor en el movimiento sin crear lote', function () {
+    $supplier = Supplier::factory()->create();
+    $conLotes = Product::factory()->create([
+        'company_id' => $this->tenant->id,
+        'unit_id' => $this->unit->id,
+        'tracks_lots' => true,
+    ]);
+
+    $movement = $this->service->adjust(
+        product: $conLotes,
+        warehouse: $this->warehouse,
+        delta: 5,
+        reason: 'compra informal perecederos',
+        supplierId: $supplier->id,
+    );
+
+    expect($movement->supplier_id)->toBe($supplier->id)
+        ->and(Batch::query()->where('product_id', $conLotes->id)->count())->toBe(0);
+});
+
+it('adjust rechaza supplier en ajuste negativo', function () {
+    $supplier = Supplier::factory()->create();
+
+    expect(fn () => $this->service->adjust(
+        product: $this->product,
+        warehouse: $this->warehouse,
+        delta: -3,
+        reason: 'merma',
+        supplierId: $supplier->id,
+    ))->toThrow(InvalidArgumentException::class);
+});
+
+it('adjust captura proveedor en producto sin lotes (tracks_lots=false)', function () {
+    $supplier = Supplier::factory()->create();
+    $sinLotes = Product::factory()->create([
+        'company_id' => $this->tenant->id,
+        'unit_id' => $this->unit->id,
+        'tracks_lots' => false,
+    ]);
+
+    $movement = $this->service->adjust(
+        product: $sinLotes,
+        warehouse: $this->warehouse,
+        delta: 5,
+        reason: 'compra informal',
+        supplierId: $supplier->id,
+    );
+
+    expect($movement->supplier_id)->toBe($supplier->id)
+        ->and(Batch::query()->where('product_id', $sinLotes->id)->count())->toBe(0);
+});
+
+it('adjust rechaza lote explicito en producto sin lotes', function () {
+    $sinLotes = Product::factory()->create([
+        'company_id' => $this->tenant->id,
+        'unit_id' => $this->unit->id,
+        'tracks_lots' => false,
+    ]);
+
+    expect(fn () => $this->service->adjust(
+        product: $sinLotes,
+        warehouse: $this->warehouse,
+        delta: 5,
+        reason: 'entrada con lote invalido',
+        batch: ['lot_number' => 'LOTE-X'],
+    ))->toThrow(InvalidArgumentException::class);
+});
+
+it('adjust positivo acepta lote explicito con proveedor', function () {
+    $supplier = Supplier::factory()->create();
+    $conLotes = Product::factory()->create([
+        'company_id' => $this->tenant->id,
+        'unit_id' => $this->unit->id,
+        'tracks_lots' => true,
+    ]);
+
+    $this->service->adjust(
+        product: $conLotes,
+        warehouse: $this->warehouse,
+        delta: 8,
+        reason: 'entrada con lote',
+        supplierId: $supplier->id,
+        batch: ['lot_number' => 'LOTE-D19'],
+    );
+
+    $batch = Batch::query()->where('product_id', $conLotes->id)->firstOrFail();
+    expect($batch->lot_number)->toBe('LOTE-D19')
+        ->and($batch->supplier_id)->toBe($supplier->id);
 });

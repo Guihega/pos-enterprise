@@ -33,6 +33,12 @@ class AdjustStockRequest extends FormRequest
             ],
             'delta' => ['required', 'numeric', 'not_in:0'],
             'reason' => ['required', 'string', 'min:3', 'max:500'],
+            'supplier_uuid' => [
+                'nullable', 'uuid',
+                Rule::exists('suppliers', 'uuid')->where('company_id', $companyId),
+            ],
+            'lot_number' => ['nullable', 'string', 'max:60'],
+            'expiration_date' => ['nullable', 'date'],
         ];
     }
 }
