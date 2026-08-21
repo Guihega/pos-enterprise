@@ -8,6 +8,8 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Tax;
 use App\Domain\Catalog\Models\Unit;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Warehouse;
+use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Purchasing\Models\PurchaseOrder;
 use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Tenancy\Models\Branch;
@@ -136,4 +138,55 @@ it('respeta per_page en la paginacion', function (): void {
 
     expect($resp->json('data'))->toHaveCount(2);
     expect($resp->json('meta.total'))->toBe(3);
+});
+
+// ====================================================================
+//  [deuda-19] Compra informal: ajuste con proveedor, sin OC ni lotes
+// ====================================================================
+
+it('lista producto capturado por ajuste con proveedor sin OC ni lotes', function (): void {
+    spActor([Permissions::SUPPLIER_VIEW]);
+    $informal = spProduct();
+    $informal->update(['tracks_lots' => false]);
+
+    $warehouse = Warehouse::factory()
+        ->create(['branch_id' => test()->branch->id, 'company_id' => test()->tenant->id]);
+
+    app(InventoryService::class)->adjust(
+        product: $informal,
+        warehouse: $warehouse,
+        delta: 4,
+        reason: 'compra informal perecederos',
+        supplierId: test()->supplier->id,
+    );
+
+    $resp = test()->getJson('/api/v1/suppliers/'.test()->supplier->uuid.'/products', spHeaders());
+    TenantContext::set(test()->tenant);
+
+    $resp->assertOk();
+    expect(collect($resp->json('data'))->pluck('uuid'))->toContain($informal->uuid);
+});
+
+it('no lista el producto ajustado para un proveedor distinto', function (): void {
+    spActor([Permissions::SUPPLIER_VIEW]);
+    $otro = Supplier::factory()->create(['code' => 'PROV-OTRO']);
+    $informal = spProduct();
+    $informal->update(['tracks_lots' => false]);
+
+    $warehouse = Warehouse::factory()
+        ->create(['branch_id' => test()->branch->id, 'company_id' => test()->tenant->id]);
+
+    app(InventoryService::class)->adjust(
+        product: $informal,
+        warehouse: $warehouse,
+        delta: 4,
+        reason: 'compra informal',
+        supplierId: $otro->id,
+    );
+
+    $resp = test()->getJson('/api/v1/suppliers/'.test()->supplier->uuid.'/products', spHeaders());
+    TenantContext::set(test()->tenant);
+
+    $resp->assertOk();
+    expect(collect($resp->json('data'))->pluck('uuid'))->not->toContain($informal->uuid);
 });

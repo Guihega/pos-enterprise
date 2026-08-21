@@ -6,6 +6,7 @@ namespace App\Domain\Purchasing\Services;
 
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\Batch;
 use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
@@ -364,12 +365,20 @@ class PurchaseOrderService
     public function productsForSupplier(Supplier $supplier, int $perPage): LengthAwarePaginator
     {
         return Product::query()
-            ->whereIn('id', PurchaseOrderItem::query()
-                ->whereIn('purchase_order_id', PurchaseOrder::query()
-                    ->where('supplier_id', $supplier->id)
-                    ->where('status', '!=', PurchaseOrder::STATUS_CANCELLED)
-                    ->select('id'))
-                ->select('product_id'))
+            ->where(function ($q) use ($supplier) {
+                $q->whereIn('id', PurchaseOrderItem::query()
+                    ->whereIn('purchase_order_id', PurchaseOrder::query()
+                        ->where('supplier_id', $supplier->id)
+                        ->where('status', '!=', PurchaseOrder::STATUS_CANCELLED)
+                        ->select('id'))
+                    ->select('product_id'))
+                    ->orWhereIn('id', Batch::query()
+                        ->where('supplier_id', $supplier->id)
+                        ->select('product_id'))
+                    ->orWhereIn('id', InventoryMovement::query()
+                        ->where('supplier_id', $supplier->id)
+                        ->select('product_id'));
+            })
             ->orderBy('id')
             ->paginate($perPage);
     }

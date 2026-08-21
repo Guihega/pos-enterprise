@@ -110,6 +110,7 @@ final class InventoryService
                 source: $source,
                 userId: $userId,
                 transferId: $transferId,
+                supplierId: $supplierId,
             );
         });
     }
@@ -214,6 +215,8 @@ final class InventoryService
         float $delta,
         string $reason,
         ?int $userId = null,
+        ?int $supplierId = null,
+        ?array $batch = null,
     ): InventoryMovement {
         if ($delta === 0.0) {
             throw new \InvalidArgumentException('Adjustment delta cannot be zero');
@@ -222,11 +225,19 @@ final class InventoryService
             throw new \InvalidArgumentException('Reason is required for adjustments');
         }
 
+        if ($delta < 0 && ($supplierId !== null || $batch !== null)) {
+            throw new \InvalidArgumentException('Supplier and batch are only valid for positive adjustments');
+        }
+        if ($batch !== null && ! $product->tracks_lots) {
+            throw new \InvalidArgumentException('El producto no maneja lotes (tracks_lots=false); no se puede capturar lote.');
+        }
+
         return $delta > 0
             ? $this->recordEntry(
                 product: $product, warehouse: $warehouse, quantity: $delta,
                 unitCost: 0, type: InventoryMovement::TYPE_ADJUSTMENT,
                 reason: $reason, userId: $userId,
+                supplierId: $supplierId, batch: $batch,
             )
             : $this->recordExit(
                 product: $product, warehouse: $warehouse, quantity: abs($delta),
@@ -411,6 +422,7 @@ final class InventoryService
         ?Model $source,
         ?int $userId,
         ?string $transferId,
+        ?int $supplierId = null,
     ): InventoryMovement {
         return InventoryMovement::create([
             'uuid' => (string) Str::uuid(),
@@ -430,6 +442,7 @@ final class InventoryService
             'reason' => $reason,
             'reference' => $reference,
             'user_id' => $userId,
+            'supplier_id' => $supplierId,
             'movement_at' => now(),
         ]);
     }

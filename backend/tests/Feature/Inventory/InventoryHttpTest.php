@@ -8,8 +8,10 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\Unit;
 use App\Domain\Catalog\Services\CatalogProvisioner;
 use App\Domain\Identity\Models\User;
+use App\Domain\Inventory\Models\InventoryMovement;
 use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
+use App\Domain\Purchasing\Models\Supplier;
 use App\Domain\Tenancy\Models\Branch;
 use App\Domain\Tenancy\Models\Company;
 use App\Domain\Tenancy\Services\TenantContext;
@@ -246,4 +248,49 @@ it('Aislamiento: stocks de tenant A no visibles desde tenant B', function () {
     $response->assertOk();
     expect($response->json('meta.total'))->toBe(1);
     expect($response->json('data.0.quantity.on_hand'))->toBe(99);
+});
+
+// ====================================================================
+//  [deuda-19] POST /inventory/adjust con proveedor
+// ====================================================================
+
+it('POST /inventory/adjust con supplier_uuid persiste el proveedor en el movimiento', function () {
+    $supplier = Supplier::factory()->create();
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson('/api/v1/inventory/adjust', [
+        'product_uuid' => $this->product->uuid,
+        'warehouse_uuid' => $this->warehouse->uuid,
+        'delta' => 7,
+        'reason' => 'compra informal sin OC',
+        'supplier_uuid' => $supplier->uuid,
+    ], ['X-Tenant' => 'mi-tenant']);
+    TenantContext::set($this->tenant);
+
+    $response->assertStatus(201);
+    $movement = InventoryMovement::query()
+        ->where('uuid', $response->json('data.uuid'))
+        ->firstOrFail();
+    expect($movement->supplier_id)->toBe($supplier->id);
+});
+
+it('POST /inventory/adjust con supplier_uuid de otro tenant devuelve 422', function () {
+    $tenantB = Company::factory()->create(['slug' => 'tenant-b-adj']);
+    TenantContext::set($tenantB);
+    $ajeno = Supplier::factory()->create();
+    TenantContext::set($this->tenant);
+
+    Sanctum::actingAs($this->admin);
+
+    $response = $this->postJson('/api/v1/inventory/adjust', [
+        'product_uuid' => $this->product->uuid,
+        'warehouse_uuid' => $this->warehouse->uuid,
+        'delta' => 7,
+        'reason' => 'proveedor ajeno',
+        'supplier_uuid' => $ajeno->uuid,
+    ], ['X-Tenant' => 'mi-tenant']);
+    TenantContext::set($this->tenant);
+
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['supplier_uuid']);
 });
