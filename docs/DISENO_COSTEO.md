@@ -39,7 +39,17 @@ Todo decimal(18,4), redondeo solo al final, patron del sistema.
 Permisos: dominio Purchasing (COSTING_VIEW/CREATE/CONFIRM, 3 pasos).
 Servicio nuevo (regla: metodo nuevo antes que tocar entregado).
 
-## Decisiones del USUARIO pendientes
+## Decisiones (DECIDIDO 2026-08-21, orden de continuar del usuario:
+recomendaciones del copiloto aplicadas; D3 disuelta en campo por linea)
+
+- D1 = (b): confirmar escribe products.cost; price queda SUGERIDO y se
+  acepta por producto en un paso aparte.
+- D2 = corrida multi-producto; el producto suelto es corrida de 1 linea.
+- D3 = campo margin_type por linea ('markup' | 'on_price'): soporta
+  ambas formulas, el usuario elige por dato, no por diseño.
+- D4 = prorrateo del flete por VALOR de linea (packs_qty * pack_price).
+
+## Decisiones originales planteadas (referencia)
 
 - D1 Efecto de confirmar: (a) escribe products.cost y products.price;
   (b) solo products.cost y el price queda sugerido para aceptar por
