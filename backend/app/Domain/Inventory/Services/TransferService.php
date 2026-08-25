@@ -310,10 +310,13 @@ final class TransferService
     private function nextFolio(): string
     {
         $prefix = 'TR-'.now()->format('Ymd').'-';
-        $count = Transfer::query()
+        $ultimo = Transfer::query()
             ->where('folio', 'like', $prefix.'%')
-            ->count();
+            ->orderByDesc('folio')
+            ->value('folio');
 
-        return $prefix.str_pad((string) ($count + 1), 4, '0', STR_PAD_LEFT);
+        $n = $ultimo !== null ? (int) substr($ultimo, strlen($prefix)) : 0;
+
+        return $prefix.str_pad((string) ($n + 1), 4, '0', STR_PAD_LEFT);
     }
 }

@@ -263,3 +263,33 @@ it('no permite enviar dos veces la misma transferencia', function () {
     expect(fn () => $this->service->send($transfer))
         ->toThrow(InvalidTransferTransitionException::class);
 });
+
+// ====================================================================
+//  nextFolio (regresion deuda-20: derivar del maximo, no de count)
+// ====================================================================
+
+it('genera folios de transfer consecutivos dentro del dia', function () {
+    $lines = [['product' => $this->product, 'quantity' => 1, 'unit_cost' => 10]];
+    $a = $this->service->create(fromBranch: $this->branchA, toBranch: $this->branchB, lines: $lines);
+    $b = $this->service->create(fromBranch: $this->branchA, toBranch: $this->branchB, lines: $lines);
+
+    $prefix = 'TR-'.now()->format('Ymd').'-';
+    expect($a->folio)->toBe($prefix.'0001')
+        ->and($b->folio)->toBe($prefix.'0002');
+});
+
+it('no reusa folio de transfer tras un borrado fisico', function () {
+    $lines = [['product' => $this->product, 'quantity' => 1, 'unit_cost' => 10]];
+    $a = $this->service->create(fromBranch: $this->branchA, toBranch: $this->branchB, lines: $lines);
+    $b = $this->service->create(fromBranch: $this->branchA, toBranch: $this->branchB, lines: $lines);
+
+    // Sin SoftDeletes el delete es fisico; count()+1 habria repetido 0002.
+    $a->items()->delete();
+    $a->delete();
+
+    $c = $this->service->create(fromBranch: $this->branchA, toBranch: $this->branchB, lines: $lines);
+
+    $prefix = 'TR-'.now()->format('Ymd').'-';
+    expect($c->folio)->toBe($prefix.'0003')
+        ->and($c->folio)->not->toBe($b->folio);
+});
