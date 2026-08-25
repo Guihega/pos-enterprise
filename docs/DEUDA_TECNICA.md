@@ -70,17 +70,6 @@ rama de frontend), estas son deudas declaradas y aun no pagadas.
   UpdateRequest + un test cross-tenant por recurso. Declarada 2026-08-21
   en el barrido de leccion 25; el usuario corto el ciclo de barridos en
   este punto: backend cerrado, deudas 20 y 21 quedan como registro.
-- **[deuda-21]** Los UpdateRequest de recursos con unique por tenant
-  (units, categories, taxes, suppliers, warehouses, branches, customers;
-  probable brands y products) llevan `Rule::unique` SIN
-  `->where('company_id')`, a diferencia de sus Store: un code/slug libre
-  en el tenant se rechaza con 422 si OTRO tenant lo usa (edicion
-  legitima bloqueada + fuga sutil de existencia de codes ajenos).
-  Pendiente confirmar si llevan `ignore()` (los tests de update en verde
-  sugieren que si). Remedio: añadir el scope de company a ~8
-  UpdateRequest + un test cross-tenant por recurso. Declarada 2026-08-21
-  en el barrido de leccion 25; el usuario corto el ciclo de barridos en
-  este punto: backend cerrado, deudas 20 y 21 quedan como registro.
 
 ## Deudas pagadas en main (fuera de la rama frontend)
 
