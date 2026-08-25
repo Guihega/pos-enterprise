@@ -45,7 +45,18 @@ esta fusionada, el pago no esta en `main` salvo reintroduccion por otra via.
 A diferencia del inventario de arriba (commits que PAGARON deudas en la
 rama de frontend), estas son deudas declaradas y aun no pagadas.
 
-- **[deuda-20]** Los folios de `Transfer` (`TR-Ymd-NNNN`) y
+Ninguna a fecha 2026-08-21 (segunda vez en el dia: 19 y 20 pagadas,
+21 retirada como falsa).
+
+## Deudas pagadas en main (fuera de la rama frontend)
+
+- **[deuda-20]** PAGADA en `1bc2d08` (#44, squash, 2026-08-21):
+  `nextFolio()` de ambos servicios deriva ahora del folio maximo del
+  dia parseando el sufijo (patron decision 17), con 4 tests de
+  regresion (consecutivo del dia y no-reuso tras borrado fisico). La
+  carrera bajo alta concurrencia queda DIFERIDA con la misma nota que
+  facturas: la red es el unique. Texto original de la declaracion:
+  Los folios de `Transfer` (`TR-Ymd-NNNN`) y
   `TransferRequest` (`TRQ-Ymd-NNNN`) derivan de `count()+1` sobre el
   prefijo del dia (TransferService::nextFolio ~310;
   TransferRequestService::nextFolio ~209, formula duplicada declarada).
@@ -68,7 +79,6 @@ rama de frontend), estas son deudas declaradas y aun no pagadas.
   fragmento de grep no es el bloque" prohibe. El numero 21 queda
   QUEMADO: no reutilizar para otra deuda.
 
-## Deudas pagadas en main (fuera de la rama frontend)
 
 - **[deuda-19]** La entrada manual de inventario (`POST /inventory/adjust`)
   no capturaba proveedor: los productos comprados sin OC (perecederos,
