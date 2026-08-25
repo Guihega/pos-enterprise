@@ -45,7 +45,20 @@ esta fusionada, el pago no esta en `main` salvo reintroduccion por otra via.
 A diferencia del inventario de arriba (commits que PAGARON deudas en la
 rama de frontend), estas son deudas declaradas y aun no pagadas.
 
-Ninguna a fecha 2026-08-21. La ultima ([deuda-19]) esta pagada; ver abajo.
+- **[deuda-20]** Los folios de `Transfer` (`TR-Ymd-NNNN`) y
+  `TransferRequest` (`TRQ-Ymd-NNNN`) derivan de `count()+1` sobre el
+  prefijo del dia (TransferService::nextFolio ~310;
+  TransferRequestService::nextFolio ~209, formula duplicada declarada).
+  Dos vectores: carrera (dos creaciones simultaneas leen el mismo count)
+  y reuso tras hard delete (los modelos NO llevan SoftDeletes). El
+  `unique(company_id, folio)` de BD lo convierte en QueryException ->
+  500 sin contrato (patron leccion 25). Ademas la unica cobertura es
+  `toStartWith` (leccion 23): no hay test de consecutivo diario.
+  Mitigantes: conteo tenant-scoped, prefijo diario acota la ventana, no
+  hay flujo de borrado en la API. Remedio previsto: derivar del folio
+  maximo del dia (patron decision 17 de facturas) + test de consecutivo.
+  Declarada 2026-08-21 en el barrido de leccion 23, diferida por decision
+  del usuario para resolverla junto al paquete del barrido de leccion 25.
 
 ## Deudas pagadas en main (fuera de la rama frontend)
 
