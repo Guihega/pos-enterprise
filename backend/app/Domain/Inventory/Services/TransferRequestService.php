@@ -209,10 +209,13 @@ final class TransferRequestService
     private function nextFolio(): string
     {
         $prefix = 'TRQ-'.now()->format('Ymd').'-';
-        $count = TransferRequest::query()
+        $ultimo = TransferRequest::query()
             ->where('folio', 'like', $prefix.'%')
-            ->count();
+            ->orderByDesc('folio')
+            ->value('folio');
 
-        return $prefix.str_pad((string) ($count + 1), 4, '0', STR_PAD_LEFT);
+        $n = $ultimo !== null ? (int) substr($ultimo, strlen($prefix)) : 0;
+
+        return $prefix.str_pad((string) ($n + 1), 4, '0', STR_PAD_LEFT);
     }
 }

@@ -163,3 +163,31 @@ it('no permite cancelar una solicitud ya aprobada', function (): void {
 
     $this->service->cancel($request, $this->requester);
 })->throws(InvalidTransferRequestTransitionException::class);
+
+// ====================================================================
+//  nextFolio (regresion deuda-20: derivar del maximo, no de count)
+// ====================================================================
+
+it('genera folios de solicitud consecutivos dentro del dia', function (): void {
+    $a = trqMakePending();
+    $b = trqMakePending();
+
+    $prefix = 'TRQ-'.now()->format('Ymd').'-';
+    expect($a->folio)->toBe($prefix.'0001')
+        ->and($b->folio)->toBe($prefix.'0002');
+});
+
+it('no reusa folio de solicitud tras un borrado fisico', function (): void {
+    $a = trqMakePending();
+    $b = trqMakePending();
+
+    // Sin SoftDeletes el delete es fisico; count()+1 habria repetido 0002.
+    $a->items()->delete();
+    $a->delete();
+
+    $c = trqMakePending();
+
+    $prefix = 'TRQ-'.now()->format('Ymd').'-';
+    expect($c->folio)->toBe($prefix.'0003')
+        ->and($c->folio)->not->toBe($b->folio);
+});
