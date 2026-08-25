@@ -146,6 +146,12 @@ final class Permissions
 
     public const SUPPLIER_INVOICE_PAY = 'supplier_invoice.pay';
 
+    public const COSTING_VIEW = 'costing.view';
+
+    public const COSTING_CREATE = 'costing.create';
+
+    public const COSTING_CONFIRM = 'costing.confirm';
+
     public const SETTINGS_UPDATE = 'settings.update';
 
     public const AUDIT_VIEW = 'audit.view';
@@ -189,6 +195,8 @@ final class Permissions
             // liquida; mismo criterio que APPROVE en las OCs (CU-COM-002).
             self::SUPPLIER_INVOICE_VIEW, self::SUPPLIER_INVOICE_CREATE,
             self::SUPPLIER_INVOICE_PAY,
+            self::COSTING_VIEW, self::COSTING_CREATE,
+            self::COSTING_CONFIRM,
             // OCs: APPROVE separado de CREATE por CU-COM-002 (aprueba el gerente).
             self::PURCHASE_ORDER_VIEW, self::PURCHASE_ORDER_CREATE, self::PURCHASE_ORDER_UPDATE,
             self::PURCHASE_ORDER_APPROVE,
