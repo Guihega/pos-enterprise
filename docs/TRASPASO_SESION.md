@@ -331,6 +331,25 @@ de rutas y un cat del service. Cuesta dos comandos.
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
 
+### De la sesion del CI colgado y el cierre de deuda-19 (#43)
+
+29. **`gh run view --job --log` solo sirve para jobs TERMINADOS** (detalle
+    en la seccion gh CLI). Un job colgado in_progress no tiene log por CLI.
+30. **`gh run cancel` es asincrono**: confirmar completed/cancelled antes
+    del rerun; relanzar sobre un run vivo rebota (detalle en gh CLI).
+31. **Un run cancelled no admite `rerun --failed`**: rerun completo.
+32. **En incidentes de INFRA, ciclo barato de accion antes que diagnostico
+    exhaustivo.** Un job de tests colgado 1h40m (normal ~2.5min) se
+    resolvio con cancelar+relanzar (1m48s, verde): era flake de runner.
+    Cancelar no pierde informacion, la difiere un ciclo: si es codigo, el
+    fallo reaparece CON log legible. La exhaustividad, para el codigo.
+33. **Dos salidas del mismo fichero que se contradicen = el fichero
+    cambio** (rama, edicion paralela): verificar `git status` antes de
+    intentar conciliarlas.
+- Nota de entorno: los pantallazos AGOTAN el limite de carga de la
+  conversacion (15 imagenes mataron una sesion). Pedir salidas como TEXTO
+  pegado, explicito en cada peticion.
+
 ### De la sesion de productos del proveedor (#42)
 
 27. **En strings de Python `\$` no es escape: el backslash queda
@@ -377,6 +396,12 @@ de rutas y un cat del service. Cuesta dos comandos.
 - **`gh run view --log` NO sirve en jobs vivos** (solo al completar); el log en
   streaming solo existe en la web. `gh run view --job ID` si muestra el step
   en curso.
+- **`gh run cancel` es ASINCRONO**: queda "submitted" pero el run sigue vivo un
+  rato. Un `gh run rerun` inmediato rebota con "This workflow is already
+  running". Confirmar antes `status: completed / conclusion: cancelled` con
+  `gh run view ID --json status,conclusion`.
+- **`gh run rerun --failed` no aplica a runs cancelled** (no tienen jobs
+  failed): rerun COMPLETO sin flag.
 - **Tras un push, `gh pr checks N --watch` devuelve el run VIEJO** si el nuevo aun no
   arranco. Verificar con `gh run list --limit 2` que el ID cambio, o esperar ~45s.
   Sintoma: tiempos identicos a la corrida anterior.

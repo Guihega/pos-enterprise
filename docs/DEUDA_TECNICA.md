@@ -45,12 +45,24 @@ esta fusionada, el pago no esta en `main` salvo reintroduccion por otra via.
 A diferencia del inventario de arriba (commits que PAGARON deudas en la
 rama de frontend), estas son deudas declaradas y aun no pagadas.
 
+Ninguna a fecha 2026-08-21. La ultima ([deuda-19]) esta pagada; ver abajo.
+
+## Deudas pagadas en main (fuera de la rama frontend)
+
 - **[deuda-19]** La entrada manual de inventario (`POST /inventory/adjust`)
-  no captura proveedor: los productos comprados sin OC (perecederos,
-  compra informal) no son listables en `GET /suppliers/{uuid}/products`.
-  `InventoryService::recordEntry` ya acepta `supplierId`; falta el campo
-  en `AdjustStockRequest`, pasarlo, y cambiar la fuente del endpoint a
-  la union con `product_batches.supplier_id`. Declarada en #42.
+  no capturaba proveedor: los productos comprados sin OC (perecederos,
+  compra informal) no eran listables en `GET /suppliers/{uuid}/products`.
+  Declarada en #42. PAGADA en `57d8b26` (#43, squash, 2026-08-21):
+  `AdjustStockRequest` acepta `supplier_uuid`, `lot_number` y
+  `expiration_date` opcionales. DESVIACION JUSTIFICADA respecto a la
+  declaracion original, que apuntaba a `product_batches.supplier_id`: un
+  ajuste sin datos de lote no crea batch y `tracks_lots=false` no puede
+  crearlo, asi que el proveedor persiste en
+  `inventory_movements.supplier_id` (migracion 000051), el hecho que
+  ocurre siempre. `GET /suppliers/{uuid}/products` suma DOS fuentes
+  nuevas (`product_batches.supplier_id` e
+  `inventory_movements.supplier_id`) a la UNICA fuente original del #42
+  (OCs no canceladas).
 
 ## Anomalias de la numeracion
 

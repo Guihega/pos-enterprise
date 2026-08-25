@@ -73,9 +73,12 @@ pasa a `received` cuando todas las lineas estan completas.
 
 Van 19 de los 22 endpoints que define 29.7: TODO el alcance acordado
 esta entregado. El #41 entrego `supplier-invoices` completo y el #42
-`GET /suppliers/{uuid}/products` (fuente: OCs no canceladas del
-proveedor; los productos comprados sin OC no son listables, ver
-[deuda-19]). Los 3 restantes son `purchase-receipts`, FUERA DE
+`GET /suppliers/{uuid}/products` (fuente original del #42: OCs no
+canceladas del proveedor). El #43 (`57d8b26`, 2026-08-21) pago
+[deuda-19] sumando DOS fuentes: `product_batches.supplier_id` e
+`inventory_movements.supplier_id`; los productos comprados sin OC y
+ajustados con proveedor via `POST /inventory/adjust` ya SI son
+listables. Los 3 restantes son `purchase-receipts`, FUERA DE
 ALCANCE por decision del usuario, ver mas abajo.
 El PATCH de la OC en draft (maestro linea 5968, Actualizar si draft) ya
 esta entregado: PATCH parcial con permiso propio PURCHASE_ORDER_UPDATE,
