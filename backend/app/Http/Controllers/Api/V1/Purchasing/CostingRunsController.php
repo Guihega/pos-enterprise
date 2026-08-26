@@ -71,4 +71,20 @@ class CostingRunsController extends Controller
             $this->service->confirm($costingRun)->load('lines.product')
         );
     }
+
+    public function applyPrices(Request $request, CostingRun $costingRun): CostingRunResource
+    {
+        abort_unless((bool) $request->user()?->can(Permissions::COSTING_CONFIRM), 403);
+
+        $data = $request->validate([
+            'product_uuids' => ['nullable', 'array', 'min:1'],
+            'product_uuids.*' => ['uuid'],
+        ]);
+
+        return new CostingRunResource(
+            $this->service
+                ->applyPrices($costingRun, $data['product_uuids'] ?? null)
+                ->load('lines.product')
+        );
+    }
 }
