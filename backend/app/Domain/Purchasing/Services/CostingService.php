@@ -168,7 +168,7 @@ class CostingService
     }
 
     /**
-     * @param array<string, mixed> $line
+     * @param  array<string, mixed>  $line
      */
     private function validateLine(array $line): void
     {

@@ -10,6 +10,4 @@ use RuntimeException;
  * Transicion invalida de una corrida de costeo. El handler la convierte
  * en 409, patron de PurchaseOrderTransitionException (decision 14).
  */
-class CostingRunTransitionException extends RuntimeException
-{
-}
+class CostingRunTransitionException extends RuntimeException {}
