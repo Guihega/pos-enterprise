@@ -36,7 +36,7 @@ class UnitFactory extends Factory
         return [
             'uuid' => (string) Str::uuid(),
             'company_id' => Company::factory(),
-            'code' => $combo['code'].$this->faker->numerify('##'),
+            'code' => $combo['code'].'-'.strtoupper(Str::random(6)),
             'name' => $combo['name'],
             'plural_name' => $combo['plural'],
             'symbol' => $combo['sym'],

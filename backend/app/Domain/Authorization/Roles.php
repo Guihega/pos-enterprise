@@ -43,19 +43,11 @@ final class Roles
 
         return [
             // Admin: TODO menos super_admin (que es global del SaaS)
-            self::ADMIN => [
-                ...self::tenantWideManagement(),
-                ...self::operations(),
-                ...self::reports(),
-                $P::INVENTORY_VIEW_CROSS_BRANCH,
-                $P::REPORT_CONSOLIDATED,
-                $P::DEVICE_VIEW, $P::DEVICE_REVOKE,
-                $P::SYNC_CONFLICT_VIEW, $P::SYNC_CONFLICT_RESOLVE,
-                // PAY no vive en operations(): ADMIN se compone por spread de los
-                // tres metodos, asi que necesita la constante explicita.
-                $P::SUPPLIER_INVOICE_PAY,
-                $P::COSTING_CONFIRM,
-            ],
+            self::ADMIN => Permissions::all(),
+            // Control total por DISENO (decision del usuario 2026-08-21):
+            // todo permiso presente Y FUTURO. El spread anterior goteaba:
+            // approve y receive de OC se le escaparon sin que nadie lo
+            // notara. all() hace la politica imposible de violar.
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
             self::GERENTE => [
