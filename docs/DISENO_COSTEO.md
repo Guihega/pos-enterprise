@@ -4,7 +4,8 @@ Estado: IMPLEMENTADO en `b8ea0b0` (#45, squash, 2026-08-21). Suite 682
 passed. Diferido de v1 anotado como decision: NO hay update de lineas;
 una corrida draft equivocada se abandona y se crea otra (barato, y evita
 el flujo de recalculo con validacion de edicion). El update, si algun
-dia duele, es alcance nuevo.
+dia duele, es alcance nuevo. apply-prices entregado en `febb336` (#46):
+la segunda mitad de D1=b, aceptar precios por producto o todos.
 Origen: peticion del usuario 2026-08-21. Anclas verificadas en repo:
 products.cost / price / compare_at_price / min_price (decimal 18,4,
 CHECK no-negativos, migracion 000011); unit_cost en purchase_orders
