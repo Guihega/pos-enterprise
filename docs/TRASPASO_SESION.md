@@ -331,6 +331,28 @@ de rutas y un cat del service. Cuesta dos comandos.
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
 
+### De la sesion del costeo (#44-#46)
+
+34. **pint reescribe lo recien mergeado: las anclas de una sesion
+    anterior caducan.** Un docblock alineado por pint (@param con doble
+    espacio) rompio un patch anclado al texto original. Anclar a FIRMAS
+    de metodos, no a docblocks ni comentarios.
+35. **El merge va DESPUES del watch en verde, nunca encadenado con `;`.**
+    `gh pr checks --watch ; gh pr merge` ejecuta el merge aunque el
+    watch termine con checks pendientes; sin branch protection nada lo
+    frena. Ocurrio en #46 (acabo verde, pero fue suerte, no metodo).
+36. **Los numeros esperados de tests de formulas se derivan con la
+    evidencia delante, no de memoria.** Un endurecimiento de asercion
+    puso 22.75 donde el prorrateo multi-linea daba 19.5; el propio
+    fallo del test dio el valor real. Derivar por escrito en el
+    comentario del test.
+- Estado al cierre: main 2b9463b, 687 tests (2183 assertions), 27
+  endpoints, cero deuda abierta, 69 permisos. Modulo de costeo COMPLETO
+  (#45 corridas + #46 apply-prices, docs/DISENO_COSTEO.md). Pendientes
+  del usuario: ADMIN aprueba OCs (si/no) y alcance siguiente
+  (cross-branch ADR-0010 en sesion limpia / reportes 4.1.9 / frontend,
+  cuyo bloqueo documentado ya no existe).
+
 ### De la sesion del CI colgado y el cierre de deuda-19 (#43)
 
 29. **`gh run view --job --log` solo sirve para jobs TERMINADOS** (detalle
