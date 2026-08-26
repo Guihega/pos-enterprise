@@ -20,27 +20,16 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **50b69bd** (#42), sincronizado con origin, working tree limpio.
+- `main` = **e7b6a7d** (#47), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **655 passed (2102 assertions)**. Pint: **PASS 403 files**.
-- Ultima migracion: **000050** (supplier_invoices + supplier_payments).
-- Historia reciente: 50b69bd (#42 productos del proveedor) <- 90b21d5
-  (docs del #41) <- 48a5776 (#41 facturas de proveedor) <- 8823844 (docs
-  purchase-receipts pospuesto) <- a8441c3 (#40 docs) <- d2b4666 (#40 PATCH de la OC en draft) <- fd439dc
-  (#39 docs) <- 8ae49ff (#39 lotes en la recepcion) <- cb634f9 (#38
-  desmiente el hallazgo de ADRs) <- 733efd0 (#37 docs) <- 0bf99ca (#36
-  recepcion de mercancia) <- ed3a8a7 (#35
-  docs) <- 994a3da (#34 ordenes de compra) <- 5c46c6a (#33 estado
-  y 4.1.5 parcial) <- 94d9c53 (#32 maestro de proveedores) <- fad82cc (#31 traspaso
-  al dia) <- f438ab5 (#30 corrige el hallazgo 1 de ADRs) <- a8147f0 (#29
-  deuda tecnica volcada) <- 455e935 (#28 matriz y traspaso al dia) <- eedc5e0 (#27
-  reportes operativos restantes) <- c7aeb0b (#26 docs
-  traspaso y rama aparcada) <- 23749fb (#25 docs traspaso) <- 2eb83c8 (#24 reportes por
-  producto/cajero) <- 4940f17 (#23 docs
-  traspaso) <- a5bc8d4 (#22 warehouses update/deactivate) <- 6d52270 (#21 docs
-  cobertura) <- a3adfab (#20 reset password) <- e6ed9f8 (#19 docs cierre) <-
-  24d34e4 (#18 devoluciones) <- 00dec9c (#17 cierre documental).
+- Suite: **687 passed (2187 assertions)**. Pint: **PASS 415 files**.
+- Ultima migracion: **000052** (costing_runs + costing_run_lines).
+- Historia reciente (verificada 2026-08-26): e7b6a7d (#47 ADMIN control
+  total + factories) <- 1879859 (docs lecciones 34-36) <- 2b9463b (docs
+  #46) <- febb336 (#46 apply-prices) <- bd5b4dc (docs #45) <- b8ea0b0
+  (#45 modulo de costeo). Lo anterior: `git --no-pager log --oneline -40`;
+  cada bloque de lecciones registra el SHA de su squash.
 
 ### PRs de esta sesion
 
@@ -331,6 +320,36 @@ de rutas y un cat del service. Cuesta dos comandos.
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
 
+### De la sesion del cierre de ADMIN (#47)
+
+37. **Un aleatorio de rango corto en una factory es un flaky latente.**
+    TaxFactory generaba `'TAX'.numerify('##')` (100 valores): dos taxes
+    en la misma company colisionaban ~1% por test, y la suite completa
+    dio 687 verde y luego 1 failed sobre el MISMO codigo con seeds
+    distintos. UnitFactory tenia el mismo patron. Corregido clonando el
+    patron de WarehouseFactory (`prefijo + strtoupper(Str::random(6))`)
+    y demostrado con 15 corridas consecutivas limpias del archivo.
+    Regla: codigos con unique de BD en factories usan Str::random, nunca
+    numerify de dos cifras. Correr la suite completa DOS veces antes de
+    comitear revela flakies que una sola corrida esconde.
+- Estado al cierre: main e7b6a7d (#47 squash: ADMIN => Permissions::all()
+  + factories Tax/Unit), 687 tests (2187 assertions), pint 415 files, 27
+  endpoints, cero deuda abierta, 69 permisos, ultima migracion 000052.
+- DECISIONES DEL USUARIO (al cierre de la sesion del costeo; cierran los
+  dos pendientes del bloque siguiente):
+  (a) ADMIN tiene control total del sistema por DISENO: `Permissions::all()`,
+      sin spread manual que gotee. Sistema de roles confirmado tal como
+      existe (admin/gerente/cajero). super_admin es ROL global del SaaS,
+      no permiso: no entra en all(). GERENTE y CAJERO intactos.
+  (b) PRIORIDAD DE ALCANCE: cross-branch (ADR-0010) PRIMERO, en sesion
+      limpia con diseno previo escrito y COMITEADO en docs/ (patron
+      DISENO_COSTEO.md); reportes 4.1.9 DESPUES; frontend SOLO cuando el
+      usuario declare la funcionalidad al 100% (literal: "sin considerar
+      aun el frontend, porque la funcionalidad aun no esta lista al
+      100%"). NO proponer frontend.
+- Regla operativa vigente: CONSTRUIR PRIMERO. Sin barridos ni auditorias
+  proactivas; los bugs entran solo por test fallido o error real en uso.
+
 ### De la sesion del costeo (#44-#46)
 
 34. **pint reescribe lo recien mergeado: las anclas de una sesion
@@ -437,8 +456,12 @@ de rutas y un cat del service. Cuesta dos comandos.
 
 - Constantes en `app/Domain/Authorization/Permissions.php`; catalogo en `all()` (~linea 144).
 - Asignacion rol->permisos en `app/Domain/Authorization/Roles.php`, metodo `defaultMatrix()`.
-  Los roles componen helpers privados: `tenantWideManagement()` (~linea 131, **solo la usa
-  ADMIN**), `operations()`, `reports()`.
+  Helpers privados: `operations()`, `reports()` (los compone GERENTE, linea 53; CAJERO
+  en linea 87).
+- ADMIN = `Permissions::all()` (linea 46, #47 e7b6a7d): control total por DISENO, no
+  compone helpers. super_admin es ROL global del SaaS, no permiso, no entra en all().
+- `tenantWideManagement()` (linea 135) quedo HUERFANO tras #47: nadie lo llama. Se
+  retira cuando se vuelva a tocar Roles.php; no es deuda.
 - GERENTE = `operations() + reports() + USER_VIEW`, deliberadamente sin gestion de usuarios.
 - Convencion de nombres: singular con puntos (`user.password.reset`), aunque el maestro
   use plural con guion (`users.reset-password`). El codigo manda; documentar la divergencia
