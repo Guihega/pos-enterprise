@@ -54,6 +54,7 @@ final class Roles
                 // PAY no vive en operations(): ADMIN se compone por spread de los
                 // tres metodos, asi que necesita la constante explicita.
                 $P::SUPPLIER_INVOICE_PAY,
+                $P::COSTING_CONFIRM,
             ],
 
             // Gerente de sucursal: operaciones + reportes, sin tocar settings/usuarios
@@ -75,6 +76,7 @@ final class Roles
                 // el maestro: DIFERIDO. Hoy aprueba quien tiene el permiso.
                 $P::PURCHASE_ORDER_APPROVE,
                 $P::SUPPLIER_INVOICE_PAY,
+                $P::COSTING_CONFIRM,
             ],
 
             // Supervisor: cobros, autorizaciones, ver reportes operativos
@@ -166,6 +168,7 @@ final class Roles
             $P::SUPPLIER_VIEW, $P::SUPPLIER_CREATE, $P::SUPPLIER_UPDATE,
             $P::PURCHASE_ORDER_VIEW, $P::PURCHASE_ORDER_CREATE, $P::PURCHASE_ORDER_UPDATE,
             $P::SUPPLIER_INVOICE_VIEW, $P::SUPPLIER_INVOICE_CREATE,
+            $P::COSTING_VIEW, $P::COSTING_CREATE,
             ...self::transfers(),
             ...self::transferRequests(),
         ];
