@@ -118,3 +118,84 @@ it('waste_pct de 1 rebota en el request con 422', function (): void {
     $this->postJson('/api/v1/costing-runs', $payload, crhHeaders())
         ->assertStatus(422);
 });
+
+// ====================================================================
+//  apply-prices (segunda mitad de D1=b)
+// ====================================================================
+
+it('aplica todos los precios sugeridos a products.price', function (): void {
+    crhActor([Permissions::COSTING_CREATE, Permissions::COSTING_CONFIRM]);
+    $p = crhProduct();
+    $resp = $this->postJson('/api/v1/costing-runs', crhPayload($p), crhHeaders());
+    TenantContext::set($this->tenant);
+    $uuid = $resp->json('data.uuid');
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/confirm', [], crhHeaders())->assertOk();
+    TenantContext::set($this->tenant);
+
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/apply-prices', [], crhHeaders())
+        ->assertOk();
+    TenantContext::set($this->tenant);
+
+    // computed_price del payload base: 22.75 (17.5 con markup 0.3)
+    expect((float) $p->refresh()->price)->toBe(22.75)
+        ->and((float) $p->cost)->toBe(17.5);
+});
+
+it('aplica solo los productos seleccionados', function (): void {
+    crhActor([Permissions::COSTING_CREATE, Permissions::COSTING_CONFIRM]);
+    $a = crhProduct();
+    $b = crhProduct();
+    $precioOriginalB = (float) $b->price;
+    $payload = crhPayload($a);
+    $payload['lines'][] = array_merge($payload['lines'][0], ['product_uuid' => $b->uuid]);
+    $resp = $this->postJson('/api/v1/costing-runs', $payload, crhHeaders());
+    TenantContext::set($this->tenant);
+    $uuid = $resp->json('data.uuid');
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/confirm', [], crhHeaders())->assertOk();
+    TenantContext::set($this->tenant);
+
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/apply-prices', [
+        'product_uuids' => [$a->uuid],
+    ], crhHeaders())->assertOk();
+    TenantContext::set($this->tenant);
+
+    // Dos lineas de igual valor: flete 40 -> 20 por linea, 2 por unidad;
+    // base 10 + 2 = 12; merma 0.2 -> 12/0.8 = 15; markup 0.3 -> 19.5
+    expect((float) $a->refresh()->price)->toBe(19.5)
+        ->and((float) $b->refresh()->price)->toBe($precioOriginalB);
+});
+
+it('aplicar precios de un draft devuelve 409', function (): void {
+    crhActor([Permissions::COSTING_CREATE, Permissions::COSTING_CONFIRM]);
+    $resp = $this->postJson('/api/v1/costing-runs', crhPayload(crhProduct()), crhHeaders());
+    TenantContext::set($this->tenant);
+    $uuid = $resp->json('data.uuid');
+
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/apply-prices', [], crhHeaders())
+        ->assertStatus(409)
+        ->assertJsonPath('error.code', 'COSTING_RUN_TRANSITION');
+});
+
+it('un uuid ajeno a la corrida rebota con 422', function (): void {
+    crhActor([Permissions::COSTING_CREATE, Permissions::COSTING_CONFIRM]);
+    $ajeno = crhProduct();
+    $resp = $this->postJson('/api/v1/costing-runs', crhPayload(crhProduct()), crhHeaders());
+    TenantContext::set($this->tenant);
+    $uuid = $resp->json('data.uuid');
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/confirm', [], crhHeaders())->assertOk();
+    TenantContext::set($this->tenant);
+
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/apply-prices', [
+        'product_uuids' => [$ajeno->uuid],
+    ], crhHeaders())->assertStatus(422);
+});
+
+it('sin COSTING_CONFIRM el apply-prices devuelve 403', function (): void {
+    crhActor([Permissions::COSTING_CREATE, Permissions::COSTING_VIEW]);
+    $resp = $this->postJson('/api/v1/costing-runs', crhPayload(crhProduct()), crhHeaders());
+    TenantContext::set($this->tenant);
+    $uuid = $resp->json('data.uuid');
+
+    $this->postJson('/api/v1/costing-runs/'.$uuid.'/apply-prices', [], crhHeaders())
+        ->assertStatus(403);
+});

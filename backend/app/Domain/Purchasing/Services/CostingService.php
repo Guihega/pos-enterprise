@@ -168,6 +168,51 @@ class CostingService
     }
 
     /**
+     * Aplica los precios sugeridos a products.price: la segunda mitad de
+     * D1=(b). Solo sobre corridas confirmed (un draft son numeros no
+     * ratificados). Sin lista aplica TODAS las lineas; con lista, solo
+     * esas. Idempotente. NO toca products.cost (eso fue confirm).
+     *
+     * @param  array<int, string>|null  $productUuids
+     */
+    public function applyPrices(CostingRun $run, ?array $productUuids = null): CostingRun
+    {
+        if ($run->status !== CostingRun::STATUS_CONFIRMED) {
+            throw new CostingRunTransitionException(
+                'Solo una corrida confirmada puede aplicar precios.'
+            );
+        }
+
+        $run->loadMissing('lines.product');
+        $lines = $run->lines;
+
+        if ($productUuids !== null) {
+            $enCorrida = $run->lines->map(
+                fn (CostingRunLine $l) => $l->product->uuid
+            )->all();
+            $missing = array_diff($productUuids, $enCorrida);
+            if ($missing !== []) {
+                throw new InvalidArgumentException(
+                    sprintf('Productos fuera de la corrida: %s.', implode(', ', $missing))
+                );
+            }
+            $lines = $run->lines->filter(
+                fn (CostingRunLine $l) => in_array($l->product->uuid, $productUuids, true)
+            );
+        }
+
+        return DB::transaction(function () use ($run, $lines): CostingRun {
+            foreach ($lines as $line) {
+                Product::query()
+                    ->whereKey($line->product_id)
+                    ->update(['price' => $line->computed_price]);
+            }
+
+            return $run;
+        });
+    }
+
+    /**
      * @param  array<string, mixed>  $line
      */
     private function validateLine(array $line): void

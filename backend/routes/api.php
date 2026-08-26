@@ -191,6 +191,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('costing-runs', [CostingRunsController::class, 'store']);
             Route::get('costing-runs/{costingRun:uuid}', [CostingRunsController::class, 'show']);
             Route::post('costing-runs/{costingRun:uuid}/confirm', [CostingRunsController::class, 'confirm']);
+            Route::post('costing-runs/{costingRun:uuid}/apply-prices', [CostingRunsController::class, 'applyPrices']);
             Route::get('suppliers/{supplier:uuid}/balance', [SupplierInvoicesController::class, 'balance']);
 
             Route::prefix('inventory')->group(function (): void {
