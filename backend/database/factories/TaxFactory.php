@@ -28,7 +28,7 @@ class TaxFactory extends Factory
         return [
             'uuid' => (string) Str::uuid(),
             'company_id' => Company::factory(),
-            'code' => 'TAX'.$this->faker->numerify('##'),
+            'code' => 'TAX-'.strtoupper(Str::random(6)),
             'name' => 'IVA tasa '.$this->faker->randomElement([0, 8, 16]).'%',
             'description' => null,
             'rate' => $this->faker->randomElement([0, 0.08, 0.16]),
