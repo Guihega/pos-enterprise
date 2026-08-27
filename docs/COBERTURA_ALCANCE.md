@@ -58,7 +58,7 @@ Lo que falta es administracion alrededor de la venta, no la venta.
 | 4.1.6 Ventas | Operable | Checkout, pagos multiples, cancelacion, devoluciones. Sin apartados, cotizaciones, gift cards, vales, propinas, comisiones, multiples carritos, suspension de venta (DIFERIBLE) |
 | 4.1.7 Caja | Operable | Apertura, movimientos, cierre, reporte Z. Sin corte X, sin handover de cajero, sin multi-moneda, sin auto-corte por horario (OPERATIVO/DIFERIBLE) |
 | 4.1.8 Clientes | Basico | CRUD. Sin credito (decision de negocio: diferido), sin datos fiscales RFC, sin direcciones ni telefonos multiples, sin consentimientos GDPR/ARCO (OPERATIVO) |
-| 4.1.9 Reportes | Operable | 8 endpoints. Productos sin venta y diferencias de caja cerrados en PR #27. Bloque analitico y contable DIFERIBLE |
+| 4.1.9 Reportes | Operable | 9 endpoints (margen real por producto en #49). Productos sin venta y diferencias de caja cerrados en PR #27. Bloque analitico y contable DIFERIBLE |
 
 ## Los tres huecos que duelen
 
@@ -133,6 +133,7 @@ Estado tras el PR #24 (6 endpoints bajo `Route::prefix('reports')`):
 | `sales-by-cashier` | **PR #24**. Rango de fechas, con ticket promedio |
 | `products-without-sales` | **PR #27**. Rango, con `last_sold_at` del historico completo |
 | `cash-differences` | **PR #27**. Sesiones cerradas por rango, faltantes y sobrantes |
+| `margin-by-product` | **PR #49** (f779b95). Ingreso neto, costo real por venta, margen y margin_pct; permiso `report.finance`. Primera pieza analitica; docs/DISENO_MARGEN.md |
 
 Hallazgo al verificar: de los operativos basicos que este documento listaba como
 faltantes, **dos ya estaban servidos dentro de `sales-summary`** y nadie lo habia

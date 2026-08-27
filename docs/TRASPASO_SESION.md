@@ -20,12 +20,13 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **5129a00** (#48), sincronizado con origin, working tree limpio.
+- `main` = **f779b95** (#49), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **696 passed (2224 assertions)**. Pint: **PASS 417 files**.
+- Suite: **702 passed (2256 assertions)**. Pint: **PASS 418 files**.
 - Ultima migracion: **000052** (costing_runs + costing_run_lines).
-- Historia reciente (verificada 2026-08-27): 5129a00 (#48 cross-branch
+- Historia reciente (verificada 2026-08-27): f779b95 (#49 margen por
+  producto) <- 5591672 (docs #48) <- 5129a00 (#48 cross-branch
   transferencias) <- e4b91a8 (docs diseno cross-branch) <- 9a0384e (docs
   #47) <- e7b6a7d (#47 ADMIN control
   total + factories) <- 1879859 (docs lecciones 34-36) <- 2b9463b (docs
@@ -321,6 +322,22 @@ de rutas y un cat del service. Cuesta dos comandos.
     que mostro la linea de escritura por debajo de la de lectura, no el
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
+
+### De la sesion de margen por producto (#49)
+
+- Estado al cierre: main f779b95 (#49 squash), 702 tests (2256
+  assertions), pint 418 files, 70 permisos, 28 endpoints, cero deuda
+  abierta. Primer reporte analitico de 4.1.9: margen real por producto
+  (docs/DISENO_MARGEN.md IMPLEMENTADO; permiso report.finance).
+- DIFERIDO documentado, NO deuda: netear devoluciones en TODOS los
+  reportes de ventas a la vez (sales-by-product, by-cashier, margin).
+- Candidatos siguientes de 4.1.9 con datos ya existentes, a decision del
+  usuario: cuentas por pagar (antiguedad de saldos sobre
+  supplier_invoices; GET /suppliers/{uuid}/balance ya existe) y compras
+  por proveedor/periodo. Frontend NO se propone.
+- Ritmo: 3 PRs mergeados con CI verde en un dia (#47, #48, #49). Ese es
+  el ritmo esperado; el metodo (diseno corto comiteado, clonar lineas
+  hermanas, numeros a mano, suite x2) no lo frena, lo sostiene.
 
 ### De la sesion de cross-branch (#48)
 

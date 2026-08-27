@@ -1,6 +1,6 @@
 # Diseno: margen real por producto (4.1.9 analitico, primera pieza)
 
-- Estado: DISENADO 2026-08-27, PR en curso. Decision de alcance del usuario:
+- Estado: IMPLEMENTADO en f779b95 (#49, 2026-08-27). Decision de alcance del usuario:
   reportes 4.1.9 despues de cross-branch; eleccion A (margen) por metodo,
   al ser la unica partida con datos nuevos (products.cost del costeo,
   sale_items.unit_cost real por venta).
