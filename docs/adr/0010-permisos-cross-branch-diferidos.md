@@ -1,6 +1,6 @@
 # ADR-0010: Permisos cross-branch y gerente regional (46.7) diferidos
 
-- Estado: aceptado
+- Estado: superado el 2026-08-26 por docs/DISENO_CROSS_BRANCH.md
 - Fecha: 2026-07-24
 
 ## Contexto
@@ -47,3 +47,12 @@ contextuales + gates en los endpoints de stock/transferencias/reportes.
   dimension de sucursal (salvo los scopes ya existentes por tenant).
 - La tabla 46.7 del maestro queda como especificacion aspiracional
   hasta la reapertura.
+
+## Superacion (2026-08-26)
+
+Auditoria del 2026-08-26 (docs/DISENO_CROSS_BRANCH.md, sec. 1): los
+gaps (b) y (c) ya no existian (user_branches + inventory.view.cross-branch
++ report.consolidated, aplicados en inventario y reportes) y el gap (a)
+lo cerro el usuario confirmando los 7 roles existentes (2026-08-21). El
+unico hueco real era la pertenencia de sucursal en transferencias
+(decisiones D1/D2 del diseno). Este ADR se conserva como historia.
