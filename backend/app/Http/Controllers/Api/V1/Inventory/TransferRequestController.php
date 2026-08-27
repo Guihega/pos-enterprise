@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Inventory;
 
+use App\Domain\Authorization\BranchAccess;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Inventory\Exceptions\InvalidTransferRequestTransitionException;
@@ -83,6 +84,8 @@ class TransferRequestController extends Controller
         $fromBranch = Branch::query()->where('uuid', $validated['from_branch_uuid'])->firstOrFail();
         $toBranch = Branch::query()->where('uuid', $validated['to_branch_uuid'])->firstOrFail();
 
+        abort_unless(BranchAccess::allows($user, $toBranch->id), 403);
+
         $lines = [];
         foreach ($validated['items'] as $item) {
             $lines[] = [
@@ -116,6 +119,7 @@ class TransferRequestController extends Controller
         $user = $request->user();
         abort_if($user === null, 401);
         abort_unless((bool) $user->can(Permissions::TRANSFER_REQUESTS_APPROVE), 403);
+        abort_unless(BranchAccess::allows($user, $transferRequest->from_branch_id), 403);
 
         try {
             $transferRequest = $this->service->approve($transferRequest, $user);
@@ -136,6 +140,7 @@ class TransferRequestController extends Controller
         $user = $request->user();
         abort_if($user === null, 401);
         abort_unless((bool) $user->can(Permissions::TRANSFER_REQUESTS_APPROVE), 403);
+        abort_unless(BranchAccess::allows($user, $transferRequest->from_branch_id), 403);
 
         try {
             $transferRequest = $this->service->reject($transferRequest, $user, $request->validated()['reason']);

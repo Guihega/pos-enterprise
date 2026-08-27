@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Inventory;
 
+use App\Domain\Authorization\BranchAccess;
 use App\Domain\Authorization\Permissions;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Inventory\Exceptions\InsufficientStockException;
@@ -82,6 +83,8 @@ class TransferController extends Controller
         $fromBranch = Branch::query()->where('uuid', $validated['from_branch_uuid'])->firstOrFail();
         $toBranch = Branch::query()->where('uuid', $validated['to_branch_uuid'])->firstOrFail();
 
+        abort_unless(BranchAccess::allows($request->user(), $fromBranch->id), 403);
+
         $fromWarehouse = isset($validated['from_warehouse_uuid'])
             ? Warehouse::query()->where('uuid', $validated['from_warehouse_uuid'])->firstOrFail()
             : null;
@@ -124,6 +127,7 @@ class TransferController extends Controller
     public function send(Request $request, Transfer $transfer): JsonResponse
     {
         abort_unless((bool) $request->user()?->can(Permissions::TRANSFERS_SEND), 403);
+        abort_unless(BranchAccess::allows($request->user(), $transfer->from_branch_id), 403);
 
         try {
             $transfer = $this->service->send($transfer, $request->user()->id);
@@ -148,6 +152,7 @@ class TransferController extends Controller
     public function receive(Request $request, Transfer $transfer): JsonResponse
     {
         abort_unless((bool) $request->user()?->can(Permissions::TRANSFERS_RECEIVE), 403);
+        abort_unless(BranchAccess::allows($request->user(), $transfer->to_branch_id), 403);
 
         $transfer->load(['items.product']);
 
@@ -186,6 +191,7 @@ class TransferController extends Controller
     public function cancel(Request $request, Transfer $transfer): JsonResponse
     {
         abort_unless((bool) $request->user()?->can(Permissions::TRANSFERS_CANCEL), 403);
+        abort_unless(BranchAccess::allows($request->user(), $transfer->from_branch_id), 403);
 
         $reason = $request->input('reason');
 
