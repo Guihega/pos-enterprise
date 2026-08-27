@@ -71,6 +71,75 @@ final class SalesReportService
     }
 
     /**
+     * Margen real por producto en el rango (docs/DISENO_MARGEN.md).
+     *
+     * Ingreso NETO de impuesto (line_subtotal) y costo REAL de cada venta
+     * (sale_items.unit_cost, escrito por SalesService al descontar stock),
+     * no el costo actual del producto. margin_pct es fraccion (0.4 = 40%).
+     * Devoluciones fuera, igual que byProduct().
+     */
+    public function marginByProduct(string $from, string $to, ?string $branchUuid = null, ?int $limit = null): array
+    {
+        [$start, $end, $branch] = $this->resolve($from, $to, $branchUuid);
+
+        $query = SaleItem::query()
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->where('sales.status', Sale::STATUS_COMPLETED)
+            ->whereBetween('sales.completed_at', [$start, $end]);
+
+        if ($branch !== null) {
+            $query->where('sales.branch_id', $branch->id);
+        }
+
+        $query->groupBy('sale_items.product_id', 'products.uuid', 'sale_items.product_sku', 'sale_items.product_name')
+            ->orderByDesc('margin');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        $rows = $query->get([
+            'products.uuid as product_uuid',
+            'sale_items.product_sku as sku',
+            'sale_items.product_name as name',
+            \DB::raw('COALESCE(SUM(sale_items.quantity), 0) as quantity'),
+            \DB::raw('COALESCE(SUM(sale_items.line_subtotal), 0) as revenue'),
+            \DB::raw('COALESCE(SUM(sale_items.quantity * sale_items.unit_cost), 0) as cost'),
+            \DB::raw('COALESCE(SUM(sale_items.line_subtotal - sale_items.quantity * sale_items.unit_cost), 0) as margin'),
+        ])->map(function ($r): array {
+            $revenue = round((float) $r->revenue, 2);
+            $cost = round((float) $r->cost, 2);
+            $margin = round($revenue - $cost, 2);
+
+            return [
+                'product_uuid' => $r->product_uuid !== null ? (string) $r->product_uuid : null,
+                'sku' => (string) $r->sku,
+                'name' => (string) $r->name,
+                'quantity' => round((float) $r->quantity, 4),
+                'revenue' => $revenue,
+                'cost' => $cost,
+                'margin' => $margin,
+                'margin_pct' => $revenue > 0 ? round($margin / $revenue, 4) : 0.0,
+            ];
+        })->all();
+
+        $envelope = $this->envelope($start, $end, $branch, $rows);
+        $revenue = round(array_sum(array_column($rows, 'revenue')), 2);
+        $cost = round(array_sum(array_column($rows, 'cost')), 2);
+        $margin = round($revenue - $cost, 2);
+        $envelope['totals'] = [
+            'rows_count' => count($rows),
+            'revenue' => $revenue,
+            'cost' => $cost,
+            'margin' => $margin,
+            'margin_pct' => $revenue > 0 ? round($margin / $revenue, 4) : 0.0,
+        ];
+
+        return $envelope;
+    }
+
+    /**
      * Ventas agregadas por cajero (users.id via sales.user_id) en el rango.
      */
     public function byCashier(string $from, string $to, ?string $branchUuid = null, ?int $limit = null): array
