@@ -1,6 +1,7 @@
 # Diseno: venta a granel (productos por peso) — backend
 
-- Estado: DISENADO 2026-08-27, pendiente de decision D1 del usuario.
+- Estado: IMPLEMENTADO en 1ebc2b8 (#50, 2026-08-27). D1 aplicada por
+  defecto del copiloto = (a); PENDIENTE DE CONFIRMAR por el usuario.
 - Alcance del usuario: "cajero elige el producto, la bascula da el peso,
   importe = peso x precio". Sin etiquetas con peso embebido (no aplica
   parseo EAN-13). Terminales de pago: fase posterior, fuera.

@@ -20,12 +20,14 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **f779b95** (#49), sincronizado con origin, working tree limpio.
+- `main` = **1ebc2b8** (#50), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **702 passed (2256 assertions)**. Pint: **PASS 418 files**.
-- Ultima migracion: **000052** (costing_runs + costing_run_lines).
-- Historia reciente (verificada 2026-08-27): f779b95 (#49 margen por
+- Suite: **710 passed (2281 assertions)**. Pint: **PASS 420 files**.
+- Ultima migracion: **000053** (sale_items.quantity_source).
+- Historia reciente (verificada 2026-08-27): 1ebc2b8 (#50 venta a
+  granel) <- ebab875 (docs diseno granel) <- 1a16754 (docs #49) <-
+  f779b95 (#49 margen por
   producto) <- 5591672 (docs #48) <- 5129a00 (#48 cross-branch
   transferencias) <- e4b91a8 (docs diseno cross-branch) <- 9a0384e (docs
   #47) <- e7b6a7d (#47 ADMIN control
@@ -322,6 +324,28 @@ de rutas y un cat del service. Cuesta dos comandos.
     que mostro la linea de escritura por debajo de la de lectura, no el
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
+
+### De la sesion de venta a granel (#50)
+
+39. **Decision binaria sin respuesta tras tres preguntas: aplicar la
+    recomendacion, marcarla como default del copiloto y seguir.** D1 de
+    granel (quien autoriza captura manual de peso) se pregunto tres
+    veces sin respuesta; se aplico (a) y quedo marcada en el diseno y en
+    el commit. Bloquear un PR por una linea de matriz es peor que
+    corregir una linea despues.
+- Estado al cierre: main 1ebc2b8 (#50 squash), 710 tests (2281
+  assertions), pint 420 files, 71 permisos, 28 endpoints, ultima
+  migracion 000053 (sale_items.quantity_source), cero deuda abierta.
+- DECISION ABIERTA DEL USUARIO: D1 de DISENO_GRANEL.md (sale.weight.manual
+  para GERENTE y SUPERVISOR, no CAJERO) aplicada por defecto; CONFIRMAR
+  al abrir la proxima sesion. Cambiarla es una linea en Roles.php.
+- DIFERIDOS documentados, NO deuda: gate de fraccion en movimientos de
+  inventario (por movimiento, cuando se toque cada uno); neteo de
+  devoluciones en reportes de ventas (en bloque).
+- Alcance declarado por el usuario para despues: terminales de pago con
+  tarjeta (maestro 48.6), fase posterior. La lectura de bascula es de la
+  terminal (48.4 ScaleBridge -> WebSocket -> frontend): NO es backend y
+  NO se propone frontend.
 
 ### De la sesion de margen por producto (#49)
 
