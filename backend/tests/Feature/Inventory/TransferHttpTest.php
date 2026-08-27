@@ -217,6 +217,8 @@ it('almacenista puede crear y enviar transferencias', function () {
 
     $almacen = User::factory()->create(['company_id' => $this->tenant->id]);
     $almacen->assignRole(Roles::ALMACEN);
+    // Gate de sucursal (DISENO_CROSS_BRANCH D1): opera desde una sucursal propia.
+    $almacen->syncBranches([$this->branchA]);
 
     Sanctum::actingAs($almacen);
     $uuid = $this->postJson(

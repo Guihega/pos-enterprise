@@ -55,6 +55,8 @@ final class Permissions
 
     public const TRANSFER_REQUESTS_APPROVE = 'transfer-requests.approve';
 
+    public const TRANSFERS_CROSS_BRANCH = 'transfers.cross-branch';
+
     // Caja
     public const CASH_OPEN = 'cash.open';
 
@@ -182,6 +184,8 @@ final class Permissions
             self::TRANSFERS_RECEIVE, self::TRANSFERS_CANCEL,
             // Solicitudes de transferencia (CU-GER-003)
             self::TRANSFER_REQUESTS_VIEW, self::TRANSFER_REQUESTS_CREATE, self::TRANSFER_REQUESTS_APPROVE,
+            // Bypass de pertenencia de sucursal en transferencias (DISENO_CROSS_BRANCH, D1)
+            self::TRANSFERS_CROSS_BRANCH,
             // Caja
             self::CASH_OPEN, self::CASH_CLOSE, self::CASH_MOVEMENT, self::CASH_VIEW,
             // Ventas
