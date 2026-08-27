@@ -186,6 +186,9 @@ validado (422 si falta o esta malformado), a diferencia de los consolidados, que
 - Permisos cross-branch / gerente regional (ADR-0010): no es una feature, es un cambio
   al modelo de autorizacion. Varios PRs y riesgo de regresion en toda la suite. Merece
   sesion limpia con diseno discutido antes de tocar codigo.
+  APLICADO en 5129a00 (#48, 2026-08-27): gate de pertenencia de sucursal en
+  transferencias y solicitudes + permiso transfers.cross-branch (all() = 70).
+  Diseno en docs/DISENO_CROSS_BRANCH.md; ADR-0010 superado. 46.7 aplicada.
 
 ## Orden sugerido si se retoma
 

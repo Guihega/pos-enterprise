@@ -20,12 +20,14 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **e7b6a7d** (#47), sincronizado con origin, working tree limpio.
+- `main` = **5129a00** (#48), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **687 passed (2187 assertions)**. Pint: **PASS 415 files**.
+- Suite: **696 passed (2224 assertions)**. Pint: **PASS 417 files**.
 - Ultima migracion: **000052** (costing_runs + costing_run_lines).
-- Historia reciente (verificada 2026-08-26): e7b6a7d (#47 ADMIN control
+- Historia reciente (verificada 2026-08-27): 5129a00 (#48 cross-branch
+  transferencias) <- e4b91a8 (docs diseno cross-branch) <- 9a0384e (docs
+  #47) <- e7b6a7d (#47 ADMIN control
   total + factories) <- 1879859 (docs lecciones 34-36) <- 2b9463b (docs
   #46) <- febb336 (#46 apply-prices) <- bd5b4dc (docs #45) <- b8ea0b0
   (#45 modulo de costeo). Lo anterior: `git --no-pager log --oneline -40`;
@@ -320,6 +322,24 @@ de rutas y un cat del service. Cuesta dos comandos.
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
 
+### De la sesion de cross-branch (#48)
+
+38. **Antes de declarar que algo NO existe, buscar el CONCEPTO, no la
+    palabra.** Dos veces en una sesion: un grep por tres nombres de rol
+    concluyo "solo hay 3 roles" (hay 7) y un grep por transfer_loss
+    concluyo "no hay alerta de no recibidas" (existia como
+    transfers:detect-lost). Un `ls tests/Feature/X` o un grep con
+    sinonimos cuesta nada y desmiente conclusiones antes de escribirlas.
+- Estado al cierre: main 5129a00 (#48 squash), 696 tests (2224
+  assertions), pint 417 files, 70 permisos, 27 endpoints (sin rutas
+  nuevas), cero deuda abierta. Cross-branch CERRADO: ADR-0010 superado,
+  DISENO_CROSS_BRANCH.md IMPLEMENTADO. tenantWideManagement() sigue
+  huerfano (no es deuda).
+- Endurecimiento futuro anotado, NO deuda: index/show de transferencias
+  no filtran por sucursal (46.7 solo limita INICIAR).
+- SIGUIENTE ALCANCE por decision (b) del usuario: reportes 4.1.9. Frontend
+  NO se propone.
+
 ### De la sesion del cierre de ADMIN (#47)
 
 37. **Un aleatorio de rango corto en una factory es un flaky latente.**
@@ -456,8 +476,10 @@ de rutas y un cat del service. Cuesta dos comandos.
 
 - Constantes en `app/Domain/Authorization/Permissions.php`; catalogo en `all()` (~linea 144).
 - Asignacion rol->permisos en `app/Domain/Authorization/Roles.php`, metodo `defaultMatrix()`.
-  Helpers privados: `operations()`, `reports()` (los compone GERENTE, linea 53; CAJERO
-  en linea 87).
+  Helpers privados: `operations()`, `reports()`, `transfers()`. La matriz tiene 7 roles
+  (ADMIN, GERENTE, SUPERVISOR, CAJERO, ALMACEN, COBRANZA, AUDITOR) mas SUPER_ADMIN global;
+  ALMACEN = inventario + transfers() (verificado 2026-08-27). Permiso
+  `transfers.cross-branch` (#48): bypass del gate de sucursal, solo ADMIN via all().
 - ADMIN = `Permissions::all()` (linea 46, #47 e7b6a7d): control total por DISENO, no
   compone helpers. super_admin es ROL global del SaaS, no permiso, no entra en all().
 - `tenantWideManagement()` (linea 135) quedo HUERFANO tras #47: nadie lo llama. Se

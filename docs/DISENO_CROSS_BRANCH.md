@@ -1,6 +1,7 @@
 # Diseno: cross-branch (ADR-0010 reabierto y superado)
 
-- Estado: DISENADO 2026-08-26, pendiente de implementar (PR 1 y PR 2).
+- Estado: IMPLEMENTADO en 5129a00 (#48, 2026-08-27). PR 2 no existe: G2 ya
+  estaba hecho (ver sec. 2).
 - Origen: maestro 46.4-46.7, RN-232/233; ADR-0010 (diferido 2026-07-24).
 - Decisiones del usuario marcadas como D1/D2 (2026-08-26).
 
@@ -34,8 +35,11 @@ A crea/envia desde B o recibe en C sin pertenecer a ninguna. Es la fila
 aplicar. Que se rompe si no se hace: cualquier usuario con permiso de
 transferencias vacia cualquier sucursal del tenant.
 
-G2 (menor): 46.4 paso 6, alerta si el destino no recibe en N dias. No
-existe en el codigo.
+G2 (menor): 46.4 paso 6, alerta si el destino no recibe en N dias.
+CORRECCION 2026-08-27: YA EXISTIA. Comando transfers:detect-lost con TTL,
+alerta a admin, sin repeticion, aislado por tenant
+(LostTransferDetectionTest, 5 tests). El grep del diseno busco
+transfer_loss (merma), no lost: fragmento de grep != bloque.
 
 Fuera de alcance (no es autorizacion cross-branch): 46.5 settings JSONB
 por sucursal; vistas materializadas de 46.6. Si el usuario los pide,
@@ -55,6 +59,7 @@ de N dias (N=7, en config), a ADMIN del tenant y GERENTE de la sucursal
 destino, via NotificationService. Condicion: que exista scheduler en el
 proyecto (routes/console.php o Console/Kernel). Si no existe, D2 pasa a
 DIFERIDO documentado sin discusion.
+RESULTADO: D2 cerrada SIN PR. Ya existia (ver G2).
 
 ## 4. Regla de pertenencia (G1)
 
@@ -101,10 +106,12 @@ solo restringe INICIAR); se anota como posible endurecimiento futuro.
   pueden crear usuarios sin filas en user_branches y pasaran a 403.
   Se actualizan con syncBranches() y justificacion en el commit, no se
   fuerza el gate.
+  RESULTADO: un solo test (almacenista de TransferHttpTest) necesito
+  syncBranches(); los 48 restantes pasaron sin tocar.
 - Sin migracion. Sin rutas nuevas. Docs: COBERTURA_ALCANCE (46.7
   aplicada), este doc a IMPLEMENTADO con SHA.
 
-## 6. Diseno tecnico PR 2 (G2, solo si D2 aplica)
+## 6. Diseno tecnico PR 2 (NO EJECUTADO: G2 ya existia, ver sec. 2)
 
 - Comando `transfers:alert-stale` (dias por config, default 7):
   Transfer status=sent con sent_at < now - N dias, no notificados aun
@@ -116,5 +123,6 @@ solo restringe INICIAR); se anota como posible endurecimiento futuro.
 
 ## 7. Orden
 
-1. PR 1 (G1). 2. Docs. 3. Verificar scheduler; PR 2 o diferir.
-4. Siguiente alcance del usuario: reportes 4.1.9.
+1. PR 1 (G1): HECHO, #48 = 5129a00 (2026-08-27). 2. Docs: hecho.
+3. PR 2: NO APLICA (G2 ya existia). 4. Siguiente alcance del usuario:
+reportes 4.1.9.
