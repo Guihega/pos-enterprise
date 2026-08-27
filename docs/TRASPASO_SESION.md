@@ -336,9 +336,8 @@ de rutas y un cat del service. Cuesta dos comandos.
 - Estado al cierre: main 1ebc2b8 (#50 squash), 710 tests (2281
   assertions), pint 420 files, 71 permisos, 28 endpoints, ultima
   migracion 000053 (sale_items.quantity_source), cero deuda abierta.
-- DECISION ABIERTA DEL USUARIO: D1 de DISENO_GRANEL.md (sale.weight.manual
-  para GERENTE y SUPERVISOR, no CAJERO) aplicada por defecto; CONFIRMAR
-  al abrir la proxima sesion. Cambiarla es una linea en Roles.php.
+- D1 de DISENO_GRANEL.md CONFIRMADA por el usuario (2026-08-27):
+  sale.weight.manual solo GERENTE y SUPERVISOR. Nada abierto.
 - DIFERIDOS documentados, NO deuda: gate de fraccion en movimientos de
   inventario (por movimiento, cuando se toque cada uno); neteo de
   devoluciones en reportes de ventas (en bloque).

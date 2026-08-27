@@ -1,7 +1,7 @@
 # Diseno: venta a granel (productos por peso) — backend
 
 - Estado: IMPLEMENTADO en 1ebc2b8 (#50, 2026-08-27). D1 aplicada por
-  defecto del copiloto = (a); PENDIENTE DE CONFIRMAR por el usuario.
+  defecto del copiloto = (a); CONFIRMADA por el usuario el 2026-08-27.
 - Alcance del usuario: "cajero elige el producto, la bascula da el peso,
   importe = peso x precio". Sin etiquetas con peso embebido (no aplica
   parseo EAN-13). Terminales de pago: fase posterior, fuera.
@@ -62,7 +62,8 @@ D1 — Quien autoriza la captura manual de peso (bascula desconectada):
   Recomendacion: (a). Que se rompe con (b): cualquier cajero teclea
   el peso y la bascula deja de ser la fuente de verdad.
   RESPUESTA: (a) aplicada por DEFECTO DEL COPILOTO ante silencio del
-  usuario (2026-08-27). CONFIRMAR: cambiarla es una linea en Roles.php.
+  usuario (2026-08-27) y CONFIRMADA por el usuario el mismo dia:
+  "solo gerente y supervisor".
 
 ## 6. Piezas (PR unico)
 
