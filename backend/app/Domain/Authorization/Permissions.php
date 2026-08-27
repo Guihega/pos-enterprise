@@ -77,6 +77,8 @@ final class Permissions
 
     public const SALE_DISCOUNT_AUTHORIZE = 'sale.discount.authorize';
 
+    public const SALE_WEIGHT_MANUAL = 'sale.weight.manual';
+
     // Clientes
     public const CUSTOMER_VIEW = 'customer.view';
 
@@ -190,6 +192,8 @@ final class Permissions
             self::CASH_OPEN, self::CASH_CLOSE, self::CASH_MOVEMENT, self::CASH_VIEW,
             // Ventas
             self::SALE_CREATE, self::SALE_VIEW, self::SALE_VOID, self::SALE_REFUND, self::SALE_DISCOUNT_AUTHORIZE,
+            // Captura manual de peso con bascula desconectada (EX-163, DISENO_GRANEL)
+            self::SALE_WEIGHT_MANUAL,
             // Clientes
             self::CUSTOMER_VIEW, self::CUSTOMER_CREATE, self::CUSTOMER_UPDATE, self::CUSTOMER_DELETE,
             // Compras (4.1.5): maestro de proveedores. Sin SUPPLIER_DELETE:

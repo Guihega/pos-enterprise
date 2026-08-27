@@ -53,6 +53,8 @@ final class Roles
             self::GERENTE => [
                 ...self::operations(),
                 ...self::reports(),
+                // D1 = (a) DISENO_GRANEL: autoriza captura manual de peso (EX-163)
+                $P::SALE_WEIGHT_MANUAL,
                 $P::USER_VIEW,
                 $P::BRANCH_VIEW,
                 $P::INVENTORY_VIEW_CROSS_BRANCH,
@@ -75,6 +77,7 @@ final class Roles
             self::SUPERVISOR => [
                 $P::SALE_CREATE, $P::SALE_VIEW, $P::SALE_VOID, $P::SALE_REFUND,
                 $P::SALE_DISCOUNT_AUTHORIZE,
+                $P::SALE_WEIGHT_MANUAL,
                 $P::CASH_OPEN, $P::CASH_CLOSE, $P::CASH_MOVEMENT, $P::CASH_VIEW,
                 $P::CUSTOMER_VIEW, $P::CUSTOMER_CREATE, $P::CUSTOMER_UPDATE,
                 $P::PRODUCT_VIEW,

@@ -41,12 +41,17 @@ class SaleItem extends Model
     use BelongsToTenant;
     use HasFactory;
 
+    /** Origen de la cantidad en productos por peso (docs/DISENO_GRANEL.md). */
+    public const QUANTITY_SOURCE_SCALE = 'scale';
+
+    public const QUANTITY_SOURCE_MANUAL = 'manual';
+
     protected $table = 'sale_items';
 
     protected $fillable = [
         'uuid', 'company_id', 'sale_id', 'product_id',
         'product_sku', 'product_name', 'unit_name',
-        'quantity', 'unit_price', 'unit_cost',
+        'quantity', 'quantity_source', 'unit_price', 'unit_cost',
         'line_subtotal', 'discount_percent', 'discount_amount',
         'is_taxable', 'tax_inclusive', 'tax_rate', 'tax_amount', 'tax_code',
         'line_total', 'track_inventory',

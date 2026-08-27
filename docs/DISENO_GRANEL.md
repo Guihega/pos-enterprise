@@ -60,7 +60,8 @@ D1 — Quien autoriza la captura manual de peso (bascula desconectada):
   (b) Tambien CAJERO (sin control real; el permiso queda decorativo).
   Recomendacion: (a). Que se rompe con (b): cualquier cajero teclea
   el peso y la bascula deja de ser la fuente de verdad.
-  RESPUESTA: PENDIENTE.
+  RESPUESTA: (a) aplicada por DEFECTO DEL COPILOTO ante silencio del
+  usuario (2026-08-27). CONFIRMAR: cambiarla es una linea en Roles.php.
 
 ## 6. Piezas (PR unico)
 

@@ -59,6 +59,7 @@ class SaleResource extends JsonResource
                 'tax_amount' => (float) $item->tax_amount,
                 'tax_code' => $item->tax_code,
                 'line_total' => (float) $item->line_total,
+                'quantity_source' => $item->quantity_source,
             ])),
 
             'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn ($payment) => [
