@@ -108,6 +108,24 @@ final class ReportsController extends Controller
     }
 
     /**
+     * GET /reports/margin-by-product
+     *
+     * Margen real por producto (ingreso neto - costo de venta) en un rango.
+     * Muestra costos: permiso de finanzas, no de ventas.
+     */
+    public function marginByProduct(ReportRangeRequest $request): JsonResponse
+    {
+        Gate::authorize(Permissions::REPORT_FINANCE);
+
+        return response()->json(['data' => $this->salesReport->marginByProduct(
+            $request->from(),
+            $request->to(),
+            $request->branchUuid(),
+            $request->limitValue(),
+        )]);
+    }
+
+    /**
      * GET /reports/sales-by-cashier
      *
      * Ventas agregadas por cajero (sales.user_id) en un rango.

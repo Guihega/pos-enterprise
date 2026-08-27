@@ -310,6 +310,8 @@ Route::prefix('v1')->group(function (): void {
                 // Reportes operativos por rango de fechas.
                 Route::get('sales-by-product', [ReportsController::class, 'salesByProduct'])
                     ->name('reports.sales-by-product');
+                Route::get('margin-by-product', [ReportsController::class, 'marginByProduct'])
+                    ->name('reports.margin-by-product');
                 Route::get('sales-by-cashier', [ReportsController::class, 'salesByCashier'])
                     ->name('reports.sales-by-cashier');
                 Route::get('products-without-sales', [ReportsController::class, 'productsWithoutSales'])
