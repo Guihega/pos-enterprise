@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales\Services;
 
+use App\Domain\Authorization\Permissions;
 use App\Domain\Authorization\Roles;
 use App\Domain\Cash\Exceptions\CashSessionNotOpenException;
 use App\Domain\Cash\Models\CashMovement;
@@ -17,6 +18,7 @@ use App\Domain\Inventory\Models\Warehouse;
 use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Notifications\Models\Notification;
 use App\Domain\Notifications\Services\NotificationService;
+use App\Domain\Sales\Dto\CheckoutItem;
 use App\Domain\Sales\Dto\CheckoutPayment;
 use App\Domain\Sales\Dto\CheckoutRequest;
 use App\Domain\Sales\Exceptions\InsufficientCreditException;
@@ -29,6 +31,7 @@ use App\Domain\Sales\Models\SaleItemBatch;
 use App\Domain\Sales\Models\SalePayment;
 use App\Domain\Sales\Models\SaleTax;
 use App\Domain\Tenancy\Services\TenantContext;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -131,8 +134,10 @@ final class SalesService
                         $itemRequest->productUuid
                     );
                 }
+                $this->assertQuantityPolicy($product, $itemRequest, $user);
                 $linesData[] = [
                     'product' => $product,
+                    'item' => $itemRequest,
                     'calc' => $this->calculator->calculateLine($product, $itemRequest),
                 ];
             }
@@ -228,6 +233,7 @@ final class SalesService
                     'product_name' => $calc['product_name'],
                     'unit_name' => $calc['unit_name'],
                     'quantity' => $calc['quantity'],
+                    'quantity_source' => $line['item']->quantitySource,
                     'unit_price' => $calc['unit_price'],
                     'unit_cost' => 0,  // se actualiza tras descontar stock con costo promedio
                     'line_subtotal' => $calc['line_subtotal'],
@@ -370,6 +376,44 @@ final class SalesService
      * RN-196: notifica al admin cuando una venta supera el umbral de monto.
      * Cada venta grande es un evento independiente (sin guard de repeticion).
      */
+    /**
+     * Venta a granel (docs/DISENO_GRANEL.md, sec. 4): la fraccion solo se
+     * admite con products.allow_decimals; en esos productos quantity_source
+     * es obligatorio y 'manual' (bascula desconectada, EX-163) exige el
+     * permiso SALE_WEIGHT_MANUAL. 422 en servicio (leccion 25); 403 via
+     * AuthorizationException, que Laravel ya traduce.
+     */
+    private function assertQuantityPolicy(Product $product, CheckoutItem $item, User $user): void
+    {
+        $isInteger = abs($item->quantity - round($item->quantity)) < 0.00001;
+
+        if (! $product->allow_decimals) {
+            if (! $isInteger) {
+                throw new \InvalidArgumentException(sprintf(
+                    'El producto %s se vende por pieza: la cantidad debe ser entera (recibido %s).',
+                    $product->sku,
+                    $item->quantity,
+                ));
+            }
+
+            return;
+        }
+
+        if ($item->quantitySource === null) {
+            throw new \InvalidArgumentException(sprintf(
+                'El producto %s se vende por peso: quantity_source (scale|manual) es obligatorio.',
+                $product->sku,
+            ));
+        }
+
+        if ($item->quantitySource === SaleItem::QUANTITY_SOURCE_MANUAL
+            && ! $user->can(Permissions::SALE_WEIGHT_MANUAL)) {
+            throw new AuthorizationException(
+                'La captura manual de peso requiere autorizacion (sale.weight.manual).'
+            );
+        }
+    }
+
     private function maybeNotifyLargeSale(Sale $sale): void
     {
         if ((float) $sale->total_amount <= self::LARGE_SALE_THRESHOLD) {

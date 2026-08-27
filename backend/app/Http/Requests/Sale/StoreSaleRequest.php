@@ -58,6 +58,7 @@ class StoreSaleRequest extends FormRequest
                 Rule::exists('products', 'uuid')->where('company_id', $companyId),
             ],
             'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:9999999.9999'],
+            'items.*.quantity_source' => ['nullable', 'string', Rule::in(['scale', 'manual'])],
             'items.*.unit_price' => ['nullable', 'numeric', 'min:0', 'max:9999999.9999'],
             'items.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'items.*.discount_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],

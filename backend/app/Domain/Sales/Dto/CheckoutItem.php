@@ -19,6 +19,7 @@ final class CheckoutItem
         public readonly float $discountPercent = 0,
         public readonly ?float $discountAmountOverride = null,
         public readonly ?string $notes = null,
+        public readonly ?string $quantitySource = null,
     ) {}
 
     /**
@@ -33,6 +34,7 @@ final class CheckoutItem
             discountPercent: (float) ($data['discount_percent'] ?? 0),
             discountAmountOverride: isset($data['discount_amount']) ? (float) $data['discount_amount'] : null,
             notes: $data['notes'] ?? null,
+            quantitySource: isset($data['quantity_source']) ? (string) $data['quantity_source'] : null,
         );
     }
 }

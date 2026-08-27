@@ -90,6 +90,12 @@ final class SaleReturnService
                 }
                 $available = (float) $saleItem->quantity - (float) ($alreadyReturned[$saleItem->id] ?? 0);
                 $qty = (float) $line['quantity'];
+                if (! $saleItem->product->allow_decimals && abs($qty - round($qty)) > 0.00001) {
+                    throw new \InvalidArgumentException(sprintf(
+                        'El producto %s se devuelve por pieza: la cantidad debe ser entera.',
+                        $saleItem->product->sku,
+                    ));
+                }
                 if ($qty <= 0 || $qty > $available) {
                     throw SaleNotReturnableException::quantityExceeded($saleItem->product->uuid);
                 }
