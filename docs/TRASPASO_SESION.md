@@ -20,12 +20,14 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **1ebc2b8** (#50), sincronizado con origin, working tree limpio.
+- `main` = **add1d46** (#51), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **710 passed (2281 assertions)**. Pint: **PASS 420 files**.
+- Suite: **716 passed (2302 assertions)**. Pint: **PASS 421 files**.
 - Ultima migracion: **000053** (sale_items.quantity_source).
-- Historia reciente (verificada 2026-08-27): 1ebc2b8 (#50 venta a
+- Historia reciente (verificada 2026-08-28): add1d46 (#51 terminal
+  modelo A) <- 1ac1dec (docs D1 granel confirmada) <- 8986969 (docs #50)
+  <- 1ebc2b8 (#50 venta a
   granel) <- ebab875 (docs diseno granel) <- 1a16754 (docs #49) <-
   f779b95 (#49 margen por
   producto) <- 5591672 (docs #48) <- 5129a00 (#48 cross-branch
@@ -324,6 +326,22 @@ de rutas y un cat del service. Cuesta dos comandos.
     que mostro la linea de escritura por debajo de la de lectura, no el
     compilador ni los tests (que pasaban igual). Antes de dar por buena
     una derivacion, verificar el ORDEN de escritura del dato origen.
+
+### De la sesion de terminal bancaria modelo A (#51)
+
+- Estado al cierre: main add1d46 (#51 squash), 716 tests (2302
+  assertions), pint 421 files, 71 permisos, 28 endpoints, migracion
+  000053, cero deuda abierta.
+- Modelo A del maestro 48.6 CERRADO: todo existia (metodos, columnas del
+  voucher, persistencia, corte que separa efectivo porque solo
+  METHOD_CASH genera sale_cash; tarjeta se registra como sale_other);
+  el unico cambio fue required_if de authorization_code en tarjeta.
+- DECISION ABIERTA DEL USUARIO: D1 de DISENO_TERMINAL_A.md (solo
+  authorization_code obligatorio; card_last4 opcional) aplicada por
+  defecto; CONFIRMAR. (b) seria sumar card_last4 al required_if.
+- Modelo B (SDK integrado: Mercado Pago Point / Clip / Stripe Terminal):
+  fase posterior declarada; exige hardware en mano y es mayormente
+  terminal/frontend.
 
 ### De la sesion de venta a granel (#50)
 

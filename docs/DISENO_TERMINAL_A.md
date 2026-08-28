@@ -1,6 +1,7 @@
 # Diseno: cobro con terminal bancaria independiente (maestro 48.6, modelo A)
 
-- Estado: DISENADO 2026-08-27, PR en curso. Alcance del usuario: cobro con
+- Estado: IMPLEMENTADO en add1d46 (#51, 2026-08-28). D1 = (a) por defecto
+  del copiloto; PENDIENTE DE CONFIRMAR por el usuario. Alcance del usuario: cobro con
   tarjeta via terminal del banco; modelo B (SDK integrado) fase posterior.
 - Modelo A (8178-8181): el cajero opera la terminal del banco, captura en el
   POS monto y referencia; el POS no se conecta al banco.
