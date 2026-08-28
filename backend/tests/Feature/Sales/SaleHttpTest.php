@@ -139,7 +139,9 @@ it('rechaza pago insuficiente con 422 PAYMENT_MISMATCH', function () {
 it('rechaza sobrepago con método no-efectivo (422 PAYMENT_MISMATCH)', function () {
     Sanctum::actingAs($this->cashier);
     $response = $this->postJson('/api/v1/sales', checkoutPayload([
-        'payments' => [['method' => 'card_debit', 'amount' => 300.00]],
+        // authorization_code obligatorio en tarjeta desde DISENO_TERMINAL_A (D1 = a);
+        // este test prueba el sobrepago, no el voucher.
+        'payments' => [['method' => 'card_debit', 'amount' => 300.00, 'authorization_code' => 'AUTH-1']],
     ]), ['X-Tenant' => 'mi-tenant']);
 
     $response->assertStatus(422)->assertJsonPath('error.code', 'PAYMENT_MISMATCH');

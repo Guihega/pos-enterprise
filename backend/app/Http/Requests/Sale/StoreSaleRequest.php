@@ -82,7 +82,12 @@ class StoreSaleRequest extends FormRequest
             'payments.*.amount' => ['required', 'numeric', 'gt:0', 'max:9999999.99'],
             'payments.*.tendered_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
             'payments.*.reference' => ['nullable', 'string', 'max:255'],
-            'payments.*.authorization_code' => ['nullable', 'string', 'max:100'],
+            // Modelo A (48.6, DISENO_TERMINAL_A D1 = a): la terminal del banco siempre
+            // entrega numero de autorizacion; sin el no hay conciliacion al corte.
+            'payments.*.authorization_code' => [
+                'nullable', 'string', 'max:100',
+                'required_if:payments.*.method,'.SalePayment::METHOD_CARD_CREDIT.','.SalePayment::METHOD_CARD_DEBIT,
+            ],
             'payments.*.card_brand' => ['nullable', 'string', 'max:50'],
             'payments.*.card_last4' => ['nullable', 'string', 'size:4'],
         ];
