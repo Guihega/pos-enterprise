@@ -1,6 +1,6 @@
 # Diseno: reporte de antiguedad de cuentas por pagar (4.1.9 contable, pieza 1)
 
-- Estado: DISENADO 2026-08-28, PR en curso. Alcance elegido por metodo tras
+- Estado: IMPLEMENTADO en 157d663 (#52, 2026-08-31). Alcance elegido por metodo tras
   #51: los datos existen completos (facturas #41) y nadie ve que se debe ni
   desde cuando; el modulo de compras termina en un dato sin vista agregada.
 - Endpoint: GET /api/v1/reports/payables-aging (sin parametros: la

@@ -20,12 +20,14 @@ detenerse y reconstruir desde el repo real.
 
 ## Estado al cierre
 
-- `main` = **add1d46** (#51), sincronizado con origin, working tree limpio.
+- `main` = **157d663** (#52), sincronizado con origin, working tree limpio.
 - Rama viva NO fusionada: `feature/etapa3-frontend-cimientos`, local y en `origin`.
   No es residuo. NO se borra. Ver "Rama de frontend aparcada".
-- Suite: **716 passed (2302 assertions)**. Pint: **PASS 421 files**.
+- Suite: **720 passed (2326 assertions)**. Pint: **PASS 423 files**.
 - Ultima migracion: **000053** (sale_items.quantity_source).
-- Historia reciente (verificada 2026-08-28): add1d46 (#51 terminal
+- Historia reciente (verificada 2026-08-31): 157d663 (#52 antiguedad
+  de pagables) <- c472d29 (docs diseno CXP) <- e1af388 (docs #51) <-
+  add1d46 (#51 terminal
   modelo A) <- 1ac1dec (docs D1 granel confirmada) <- 8986969 (docs #50)
   <- 1ebc2b8 (#50 venta a
   granel) <- ebab875 (docs diseno granel) <- 1a16754 (docs #49) <-
@@ -527,6 +529,24 @@ de rutas y un cat del service. Cuesta dos comandos.
 - `gh run view` **no acepta `--branch`**; requiere el run-id, que da `gh run list`.
 - `gh pr create --title` con placeholder tipo `N` se toma literal: usar el numero real.
 - `artisan route:list` **no tiene `--columns`** en esta version.
+
+### De la sesion de cuentas por pagar (#52)
+
+40. **La leccion 39 (decision binaria sin respuesta: aplicar recomendacion
+    y seguir) aplica a decisiones DENTRO de un alcance aprobado, NUNCA
+    para colar un alcance nuevo.** El silencio del usuario ante greps no
+    aprueba alcance. El alcance lo decide el usuario SIEMPRE. (Origen:
+    #51 se ejecuto sin aprobacion explicita de alcance.)
+- Entregado: GET /api/v1/reports/payables-aging (#52, squash 157d663).
+  PayablesReportService::aging() en Purchasing\Services; cubetas
+  30/60/90 contra due_date; universo status != cancelled y saldo > 0
+  (total - paid_amount al vuelo); una fila por proveedor, orden balance
+  desc, totals por cubeta; round 2. Sin migracion, sin permiso nuevo.
+  4 tests HTTP (PayablesAgingHttpTest, prefijo pa, facturas y pagos via
+  HTTP; cancelada via forceFill: no hay endpoint de cancelacion).
+- Estado al cierre: main 157d663 (#52 squash), 720 tests (2326
+  assertions), pint 423 files, 71 permisos, 29 endpoints, ultima
+  migracion 000053, cero deuda.
 
 ## Convenciones verificadas
 
