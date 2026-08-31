@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Reports;
 
 use App\Domain\Authorization\Permissions;
 use App\Domain\Cash\Services\CashSessionReportService;
+use App\Domain\Purchasing\Services\PayablesReportService;
 use App\Domain\Reports\Services\ConsolidatedReportService;
 use App\Domain\Sales\Services\SalesReportService;
 use App\Domain\Sales\Services\SalesSummaryService;
@@ -30,6 +31,7 @@ final class ReportsController extends Controller
         private readonly ConsolidatedReportService $consolidated,
         private readonly SalesReportService $salesReport,
         private readonly CashSessionReportService $cashReport,
+        private readonly PayablesReportService $payables,
     ) {}
 
     /**
@@ -123,6 +125,19 @@ final class ReportsController extends Controller
             $request->branchUuid(),
             $request->limitValue(),
         )]);
+    }
+
+    /**
+     * GET /reports/payables-aging
+     *
+     * Antiguedad de cuentas por pagar: foto de HOY, sin parametros.
+     * Cubetas estandar 30/60/90 contra due_date, una fila por proveedor.
+     */
+    public function payablesAging(): JsonResponse
+    {
+        Gate::authorize(Permissions::REPORT_FINANCE);
+
+        return response()->json(['data' => $this->payables->aging()]);
     }
 
     /**
