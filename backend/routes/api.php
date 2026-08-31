@@ -312,6 +312,8 @@ Route::prefix('v1')->group(function (): void {
                     ->name('reports.sales-by-product');
                 Route::get('margin-by-product', [ReportsController::class, 'marginByProduct'])
                     ->name('reports.margin-by-product');
+                Route::get('payables-aging', [ReportsController::class, 'payablesAging'])
+                    ->name('reports.payables-aging');
                 Route::get('sales-by-cashier', [ReportsController::class, 'salesByCashier'])
                     ->name('reports.sales-by-cashier');
                 Route::get('products-without-sales', [ReportsController::class, 'productsWithoutSales'])
